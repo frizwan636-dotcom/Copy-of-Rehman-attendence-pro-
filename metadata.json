@@ -1,0 +1,7 @@
+{
+  "name": "Copy of Rehman Attendance Pro",
+  "description": "Professional teacher-wise attendance management system with daily/monthly reporting, class linking, and PDF export capabilities.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
