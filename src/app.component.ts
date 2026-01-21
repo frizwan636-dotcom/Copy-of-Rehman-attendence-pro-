@@ -1,4 +1,3 @@
-
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AttendanceService } from './services/attendance.service';
@@ -12,14 +11,14 @@ import { CoordinatorDashboardComponent } from './components/coordinator-dashboar
   imports: [CommonModule, LoginComponent, SetupWizardComponent, DashboardComponent, CoordinatorDashboardComponent],
   template: `
     <div class="min-h-screen">
-      @if (showSplash()) {
+      @if (!attendanceService.isInitialized()) {
         <div class="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900 animate-in fade-in duration-500">
           <div class="text-center">
             <div class="w-24 h-24 bg-white/10 rounded-3xl flex items-center justify-center mb-6 mx-auto animate-pulse">
               <i class="fa-solid fa-clipboard-user text-5xl text-white"></i>
             </div>
             <h1 class="text-4xl font-black text-white tracking-tight">Rehman Attendance Pro</h1>
-            <p class="text-indigo-200/60 mt-2">Loading your classroom...</p>
+            <p class="text-indigo-200/60 mt-2">Loading your classroom data...</p>
           </div>
         </div>
       } @else {
@@ -45,11 +44,8 @@ import { CoordinatorDashboardComponent } from './components/coordinator-dashboar
 })
 export class AppComponent implements OnInit {
   attendanceService = inject(AttendanceService);
-  showSplash = signal(true);
 
   ngOnInit() {
-    setTimeout(() => {
-      this.showSplash.set(false);
-    }, 2500);
+    this.attendanceService.initialize();
   }
 }

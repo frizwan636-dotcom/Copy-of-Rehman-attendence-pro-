@@ -1,6 +1,6 @@
-
-import { Injectable, signal, computed, effect } from '@angular/core';
+import { Injectable, signal, computed, effect, inject } from '@angular/core';
 import { GoogleGenAI, Type } from "@google/genai";
+import { BackendService, AppData } from './backend.service';
 
 export interface Teacher {
   id: string;
@@ -9,7 +9,6 @@ export interface Teacher {
   className: string;
   section: string;
   setupComplete: boolean;
-  synced?: boolean;
   password?: string;
 }
 
@@ -17,7 +16,6 @@ export interface Coordinator {
   id: string;
   name: string;
   password?: string;
-  synced?: boolean;
 }
 
 export interface FeePayment {
@@ -30,9 +28,8 @@ export interface Student {
   teacherId: string;
   name: string;
   rollNumber: string;
-  mobileNumber: string; // New field for parental contact
-  photo?: string; // Base64 student photo
-  synced?: boolean;
+  mobileNumber: string;
+  photo?: string;
   totalFee: number;
   feeHistory: FeePayment[];
 }
@@ -42,7 +39,6 @@ export interface AttendanceRecord {
   teacherId: string;
   studentId: string;
   status: 'Present' | 'Absent';
-  synced: boolean;
   lastUpdated: number;
 }
 
@@ -51,32 +47,20 @@ export interface TeacherAttendanceRecord {
   coordinatorId: string;
   teacherId: string;
   status: 'Present' | 'Absent';
-  synced: boolean;
 }
 
 type CurrentUser = { id: string, role: 'teacher' | 'coordinator' };
 
-const APP_DATA_KEY = 'rehman_attendance_app_data';
-const DATA_VERSION = 3; // V2 was schoolName, V3 adds fees
-
-interface AppData {
-  version: number;
-  teachers: Teacher[];
-  coordinators: Coordinator[];
-  students: Student[];
-  attendance: AttendanceRecord[];
-  teacherAttendance: TeacherAttendanceRecord[];
-}
-
-
 @Injectable({ providedIn: 'root' })
 export class AttendanceService {
   private ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  private backendService = inject(BackendService);
   
   isOnline = signal(navigator.onLine);
-  isSyncing = signal(false);
+  isSyncing = signal(false); // Used now to indicate "Saving..."
+  isInitialized = signal(false);
 
-  // Private state
+  // Private state signals
   private currentUser = signal<CurrentUser | null>(null);
   private teachers = signal<Teacher[]>([]);
   private coordinators = signal<Coordinator[]>([]);
@@ -103,122 +87,54 @@ export class AttendanceService {
     return this.students().filter(s => s.teacherId === teacherId);
   });
 
-  hasUnsyncedData = computed(() => {
-    return this.attendance().some(r => !r.synced) || 
-           this.teachers().some(t => !t.synced) ||
-           this.coordinators().some(c => !c.synced) ||
-           this.students().some(s => !s.synced) ||
-           this.teacherAttendance().some(r => !r.synced);
-  });
-  
-  unsyncedRecordCount = computed(() => {
-    const unsyncedAttendance = this.attendance().filter(r => !r.synced).length;
-    const unsyncedTeachers = this.teachers().filter(t => !t.synced).length;
-    const unsyncedCoordinators = this.coordinators().filter(c => !c.synced).length;
-    const unsyncedStudents = this.students().filter(s => !s.synced).length;
-    const unsyncedTeacherAttendance = this.teacherAttendance().filter(r => !r.synced).length;
-    return unsyncedAttendance + unsyncedTeachers + unsyncedCoordinators + unsyncedStudents + unsyncedTeacherAttendance;
-  });
-
   constructor() {
-    window.addEventListener('online', () => {
-      this.isOnline.set(true);
-      this.syncData();
-    });
+    window.addEventListener('online', () => this.isOnline.set(true));
     window.addEventListener('offline', () => this.isOnline.set(false));
 
-    this.loadAndMigrateData();
-
-    // Single persistence effect for all app data
-    effect(() => {
-      const data: AppData = {
-        version: DATA_VERSION,
-        teachers: this.teachers(),
-        coordinators: this.coordinators(),
-        students: this.students(),
-        attendance: this.attendance(),
-        teacherAttendance: this.teacherAttendance(),
-      };
-      localStorage.setItem(APP_DATA_KEY, JSON.stringify(data));
-    });
-
-    if (this.isOnline()) this.syncData();
-  }
-
-  private loadAndMigrateData() {
-    const rawData = localStorage.getItem(APP_DATA_KEY);
-    let data: AppData | null = null;
-
-    if (rawData) {
-      // Data exists in the new format, parse and migrate if needed
-      data = JSON.parse(rawData);
-      data = this.runVersionMigrations(data!);
-    } else {
-      // No new format data, check for old multi-key format
-      const oldTeachersData = localStorage.getItem('teachers');
-      if (oldTeachersData) {
-        console.log('Migrating data from old multi-key format...');
-        data = {
-          version: 1, // Let's call the old system v1
-          teachers: JSON.parse(localStorage.getItem('teachers') || '[]'),
-          coordinators: JSON.parse(localStorage.getItem('coordinators') || '[]'),
-          students: JSON.parse(localStorage.getItem('students') || '[]'),
-          attendance: JSON.parse(localStorage.getItem('attendance') || '[]'),
-          teacherAttendance: JSON.parse(localStorage.getItem('teacherAttendance') || '[]'),
-        };
-
-        data = this.runVersionMigrations(data);
-        
-        // Clean up old keys after successful migration
-        localStorage.removeItem('teachers');
-        localStorage.removeItem('coordinators');
-        localStorage.removeItem('students');
-        localStorage.removeItem('attendance');
-        localStorage.removeItem('teacherAttendance');
-        console.log('Old data migrated and cleaned up.');
-      }
-    }
-
-    // Initialize signals from loaded/migrated data or empty arrays
-    this.teachers.set(data?.teachers || []);
-    this.coordinators.set(data?.coordinators || []);
-    this.students.set(data?.students || []);
-    this.attendance.set(data?.attendance || []);
-    this.teacherAttendance.set(data?.teacherAttendance || []);
-
-    // Current user is session state, can remain separate
-    this.currentUser.set(JSON.parse(localStorage.getItem('currentUser') || 'null'));
+    // This effect must run in an injection context (like the constructor).
     effect(() => {
       const user = this.currentUser();
       if (user) {
-        localStorage.setItem('currentUser', JSON.stringify(user));
+        sessionStorage.setItem('currentUser', JSON.stringify(user));
       } else {
-        localStorage.removeItem('currentUser');
+        sessionStorage.removeItem('currentUser');
       }
     });
   }
+  
+  async initialize() {
+    if (this.isInitialized()) return;
 
-  private runVersionMigrations(data: AppData): AppData {
-    if (!data.version || data.version < 2) {
-      console.log(`Upgrading data from v${data.version || 1} to v2...`);
-      // Migration for v2: Ensure all teachers have a schoolName property
-      data.teachers = data.teachers.map(teacher => ({
-        ...teacher,
-        schoolName: teacher.schoolName || '', // Add empty schoolName if it doesn't exist
-      }));
-    }
-    
-    if (!data.version || data.version < 3) {
-      console.log(`Upgrading data from v${data.version || 2} to v3...`);
-      data.students = data.students.map(student => ({
-        ...student,
-        totalFee: (student as any).totalFee || 0,
-        feeHistory: (student as any).feeHistory || [],
-      }));
+    // Load persistent data from backend
+    const data = await this.backendService.loadData();
+    if (data) {
+      this.teachers.set(data.teachers || []);
+      this.coordinators.set(data.coordinators || []);
+      this.students.set(data.students || []);
+      this.attendance.set(data.attendance || []);
+      this.teacherAttendance.set(data.teacherAttendance || []);
     }
 
-    data.version = DATA_VERSION;
-    return data;
+    // Current user is session state, not part of the main data blob
+    this.currentUser.set(JSON.parse(sessionStorage.getItem('currentUser') || 'null'));
+
+    this.isInitialized.set(true);
+  }
+
+  private async persistState() {
+    if (!this.isInitialized()) return; // Don't save before data is loaded
+
+    this.isSyncing.set(true);
+    const data: AppData = {
+      version: 3,
+      teachers: this.teachers(),
+      coordinators: this.coordinators(),
+      students: this.students(),
+      attendance: this.attendance(),
+      teacherAttendance: this.teacherAttendance(),
+    };
+    await this.backendService.saveData(data);
+    this.isSyncing.set(false);
   }
 
   isUserRegistered(name: string, role: 'teacher' | 'coordinator'): boolean {
@@ -240,12 +156,7 @@ export class AttendanceService {
       ? this.teachers().find(t => t.id === id) 
       : this.coordinators().find(c => c.id === id);
 
-    if (!user || !user.password) {
-      return false; // User not found or no password set
-    }
-    
-    // In a real application, passwords would be hashed. For this simulation, we use plaintext comparison.
-    return user.password === passwordAttempt;
+    return !!user && !!user.password && user.password === passwordAttempt;
   }
   
   login(name: string, role: 'teacher' | 'coordinator') {
@@ -258,24 +169,27 @@ export class AttendanceService {
   // Teacher specific actions
   registerTeacher(name: string, password: string) {
     const id = name.toLowerCase().replace(/\s/g, '_');
-    if (this.teachers().some(t => t.id === id)) return; // Already exists
-    const newTeacher: Teacher = { id, name, schoolName: '', className: '', section: '', setupComplete: false, synced: false, password: password };
+    if (this.teachers().some(t => t.id === id)) return;
+    const newTeacher: Teacher = { id, name, schoolName: '', className: '', section: '', setupComplete: false, password: password };
     this.teachers.update(t => [...t, newTeacher]);
+    this.persistState(); // Save changes
     this.login(name, 'teacher');
   }
   
   updateTeacherSetup(schoolName: string, className: string, section: string) {
     this.teachers.update(list => list.map(t => 
-      t.id === this.activeTeacher()?.id ? { ...t, schoolName, className, section, setupComplete: true, synced: false } : t
+      t.id === this.activeTeacher()?.id ? { ...t, schoolName, className, section, setupComplete: true } : t
     ));
+    this.persistState();
   }
 
   // Coordinator specific actions
   registerCoordinator(name: string, password: string) {
     const id = name.toLowerCase().replace(/\s/g, '_');
     if (this.coordinators().some(c => c.id === id)) return;
-    const newCoordinator: Coordinator = { id, name, password: password, synced: false };
+    const newCoordinator: Coordinator = { id, name, password: password };
     this.coordinators.update(c => [...c, newCoordinator]);
+    this.persistState();
     this.login(name, 'coordinator');
   }
 
@@ -288,14 +202,16 @@ export class AttendanceService {
     if (this.teachers().some(t => t.id === id)) {
       throw new Error("A teacher with this name already exists.");
     }
-    const newTeacher: Teacher = { id, name, schoolName: '', className: '', section: '', setupComplete: false, synced: false };
+    const newTeacher: Teacher = { id, name, schoolName: '', className: '', section: '', setupComplete: false };
     this.teachers.update(t => [...t, newTeacher]);
+    this.persistState();
   }
 
   removeTeacher(teacherId: string) {
     this.teachers.update(t => t.filter(teacher => teacher.id !== teacherId));
     this.students.update(s => s.filter(student => student.teacherId !== teacherId));
     this.attendance.update(a => a.filter(att => att.teacherId !== teacherId));
+    this.persistState();
   }
 
   saveTeacherAttendance(date: string, records: { teacherId: string, status: 'Present' | 'Absent' }[]) {
@@ -303,9 +219,10 @@ export class AttendanceService {
     this.teacherAttendance.update(list => list.filter(r => !(r.date === date && r.coordinatorId === coordinatorId)));
     
     const newRecords: TeacherAttendanceRecord[] = records.map(r => ({
-      date, coordinatorId, teacherId: r.teacherId, status: r.status, synced: false,
+      date, coordinatorId, teacherId: r.teacherId, status: r.status
     }));
     this.teacherAttendance.update(list => [...list, ...newRecords]);
+    this.persistState();
   }
 
   getTeacherAttendanceForDate(date: string): TeacherAttendanceRecord[] {
@@ -336,11 +253,12 @@ export class AttendanceService {
     const teacherId = this.activeTeacher()!.id;
     const studentsToAdd: Student[] = newStudents.map(s => ({
       id: Math.random().toString(36).substr(2, 9), teacherId, name: s.name,
-      rollNumber: s.roll, mobileNumber: s.mobile, photo: s.photo, synced: false,
+      rollNumber: s.roll, mobileNumber: s.mobile, photo: s.photo,
       totalFee: s.totalFee || 0,
       feeHistory: []
     }));
     this.students.update(list => [...list, ...studentsToAdd]);
+    this.persistState();
   }
 
   recordFeePayment(studentId: string, amount: number) {
@@ -352,12 +270,12 @@ export class AttendanceService {
         if (s.id === studentId) {
             return {
                 ...s,
-                feeHistory: [...s.feeHistory, payment],
-                synced: false
+                feeHistory: [...s.feeHistory, payment]
             };
         }
         return s;
     }));
+    this.persistState();
   }
 
   saveAttendance(date: string, records: { studentId: string, status: 'Present' | 'Absent' }[]) {
@@ -365,26 +283,10 @@ export class AttendanceService {
     this.attendance.update(list => list.filter(r => !(r.date === date && r.teacherId === teacherId)));
     
     const newRecords: AttendanceRecord[] = records.map(r => ({
-      date, teacherId, studentId: r.studentId, status: r.status,
-      synced: false, lastUpdated: Date.now()
+      date, teacherId, studentId: r.studentId, status: r.status, lastUpdated: Date.now()
     }));
     this.attendance.update(list => [...list, ...newRecords]);
-  }
-
-  async syncData() {
-    if (this.isSyncing() || !this.isOnline() || !this.hasUnsyncedData()) return;
-    this.isSyncing.set(true);
-    try {
-      // Simulate network request
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      this.teachers.update(list => list.map(t => ({ ...t, synced: true })));
-      this.coordinators.update(list => list.map(c => ({ ...c, synced: true })));
-      this.students.update(list => list.map(s => ({ ...s, synced: true })));
-      this.attendance.update(list => list.map(r => ({ ...r, synced: true })));
-      this.teacherAttendance.update(list => list.map(r => ({ ...r, synced: true })));
-    } finally {
-      this.isSyncing.set(false);
-    }
+    this.persistState();
   }
 
   getAttendanceForDate(date: string) {
