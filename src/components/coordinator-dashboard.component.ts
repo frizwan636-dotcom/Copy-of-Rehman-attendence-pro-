@@ -28,25 +28,17 @@ import { PdfService } from '../services/pdf.service';
               @if (attendanceService.isSyncing()) {
                 <div class="flex items-center gap-2 text-indigo-600 animate-pulse px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-100">
                   <i class="fa-solid fa-arrows-rotate animate-spin text-[10px]"></i>
-                  <span class="text-[9px] font-black uppercase tracking-tighter">Syncing...</span>
+                  <span class="text-[9px] font-black uppercase tracking-tighter">Saving...</span>
                 </div>
-              } @else if (attendanceService.hasUnsyncedData()) {
-                <div class="flex items-center gap-2 px-3 py-1.5 rounded-full"
-                    [class.bg-amber-100]="attendanceService.isOnline()"
-                    [class.border-amber-200]="attendanceService.isOnline()"
-                    [class.text-amber-700]="attendanceService.isOnline()"
-                    [class.bg-slate-100]="!attendanceService.isOnline()"
-                    [class.border-slate-200]="!attendanceService.isOnline()"
-                    [class.text-slate-600]="!attendanceService.isOnline()">
-                  <i class="fa-solid fa-cloud-arrow-up text-[10px]"></i>
-                  <span class="text-[9px] font-black uppercase tracking-tighter">
-                    {{ attendanceService.isOnline() ? 'Sync Pending' : 'Offline' }} • {{ attendanceService.unsyncedRecordCount() }} items
-                  </span>
-                </div>
-              } @else {
+              } @else if (attendanceService.isOnline()) {
                 <div class="flex items-center gap-2 text-emerald-600 opacity-80 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100">
                   <i class="fa-solid fa-cloud-check text-[10px]"></i>
-                  <span class="text-[9px] font-black uppercase tracking-tighter">Cloud Synced</span>
+                  <span class="text-[9px] font-black uppercase tracking-tighter">Data Saved</span>
+                </div>
+              } @else {
+                <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-100 border-amber-200 text-amber-700">
+                  <i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
+                  <span class="text-[9px] font-black uppercase tracking-tighter">Offline Mode</span>
                 </div>
               }
             </div>
