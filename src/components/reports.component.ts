@@ -1,4 +1,3 @@
-
 import { Component, inject, signal, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -44,7 +43,8 @@ import { PdfService } from '../services/pdf.service';
           </div>
           
           <div class="flex gap-2">
-            <input type="date" [(ngModel)]="dailyDate" class="flex-1 p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm">
+            <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+            <input type="date" [ngModel]="dailyDate()" (ngModelChange)="dailyDate.set($event)" class="flex-1 p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm">
             <button (click)="exportDaily()" class="px-6 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 text-sm">
               Export
             </button>
@@ -64,7 +64,8 @@ import { PdfService } from '../services/pdf.service';
           </div>
           
           <div class="flex gap-2">
-            <input type="month" [(ngModel)]="monthlyMonth" class="flex-1 p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm">
+            <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+            <input type="month" [ngModel]="monthlyMonth()" (ngModelChange)="monthlyMonth.set($event)" class="flex-1 p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm">
             <button (click)="exportMonthly()" class="px-6 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 text-sm">
               Generate
             </button>
@@ -86,11 +87,13 @@ import { PdfService } from '../services/pdf.service';
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div class="space-y-1">
               <label class="text-[10px] font-black text-slate-400 uppercase ml-1">From</label>
-              <input type="date" [(ngModel)]="rangeStart" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-bold">
+              <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+              <input type="date" [ngModel]="rangeStart()" (ngModelChange)="rangeStart.set($event)" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-bold">
             </div>
             <div class="space-y-1">
               <label class="text-[10px] font-black text-slate-400 uppercase ml-1">To</label>
-              <input type="date" [(ngModel)]="rangeEnd" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-bold">
+              <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+              <input type="date" [ngModel]="rangeEnd()" (ngModelChange)="rangeEnd.set($event)" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-bold">
             </div>
             <div class="flex items-end">
               <button (click)="exportRange()" class="w-full h-[46px] bg-blue-600 text-white rounded-xl font-black hover:bg-blue-700 text-sm transition-all shadow-lg shadow-blue-100">

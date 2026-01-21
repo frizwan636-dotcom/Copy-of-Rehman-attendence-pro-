@@ -1,4 +1,3 @@
-
 import { Component, inject, signal, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -52,16 +51,19 @@ import { AttendanceService } from '../services/attendance.service';
               <div class="grid grid-cols-1 gap-6">
                 <div class="space-y-2">
                   <label class="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">School / Institute Name</label>
-                  <input type="text" [(ngModel)]="schoolName" placeholder="e.g. National Public School" class="w-full p-5 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all bg-slate-50 font-medium">
+                  <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+                  <input type="text" [ngModel]="schoolName()" (ngModelChange)="schoolName.set($event)" placeholder="e.g. National Public School" class="w-full p-5 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all bg-slate-50 font-medium">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                   <div class="space-y-2">
                     <label class="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Class Designation</label>
-                    <input type="text" [(ngModel)]="className" placeholder="e.g. Grade 10-A" class="w-full p-5 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all bg-slate-50 font-medium">
+                    <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+                    <input type="text" [ngModel]="className()" (ngModelChange)="className.set($event)" placeholder="e.g. Grade 10-A" class="w-full p-5 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all bg-slate-50 font-medium">
                   </div>
                   <div class="space-y-2">
                     <label class="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Section</label>
-                    <input type="text" [(ngModel)]="section" placeholder="e.g. Science" class="w-full p-5 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all bg-slate-50 font-medium">
+                    <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+                    <input type="text" [ngModel]="section()" (ngModelChange)="section.set($event)" placeholder="e.g. Science" class="w-full p-5 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all bg-slate-50 font-medium">
                   </div>
                 </div>
               </div>
@@ -120,10 +122,15 @@ import { AttendanceService } from '../services/attendance.service';
                     </div>
 
                     <div class="flex-1 grid grid-cols-1 gap-2">
-                      <input type="text" [(ngModel)]="newName" placeholder="Full Name" class="w-full p-3 rounded-xl border-white focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm">
-                      <div class="grid grid-cols-2 gap-2">
-                        <input type="text" [(ngModel)]="newRoll" placeholder="Roll #" class="p-3 rounded-xl border-white focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm">
-                        <input type="tel" [(ngModel)]="newMobile" placeholder="Contact Mobile" class="p-3 rounded-xl border-white focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm">
+                      <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+                      <input type="text" [ngModel]="newName()" (ngModelChange)="newName.set($event)" placeholder="Full Name" class="w-full p-3 rounded-xl border-white focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm">
+                      <div class="grid grid-cols-3 gap-2">
+                        <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+                        <input type="text" [ngModel]="newRoll()" (ngModelChange)="newRoll.set($event)" placeholder="Roll #" class="p-3 rounded-xl border-white focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm">
+                        <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+                        <input type="tel" [ngModel]="newMobile()" (ngModelChange)="newMobile.set($event)" placeholder="Contact Mobile" class="p-3 rounded-xl border-white focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm">
+                        <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+                        <input type="number" [ngModel]="newTotalFee()" (ngModelChange)="newTotalFee.set($event)" placeholder="Total Fee" class="p-3 rounded-xl border-white focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm">
                       </div>
                     </div>
                   </div>
@@ -137,9 +144,10 @@ import { AttendanceService } from '../services/attendance.service';
                 } @else if (inputMode() === 'bulk') {
                   <div class="space-y-4">
                     <div class="bg-indigo-600/5 p-3 rounded-xl text-[10px] text-indigo-600 font-bold border border-indigo-100">
-                      Format: Name, Roll, Mobile (one per line)
+                      Format: Name, Roll, Mobile, Total Fee (one per line)
                     </div>
-                    <textarea [(ngModel)]="bulkText" rows="4" placeholder="John Doe, 101, 923001234567&#10;Jane Smith, 102, 923117654321" class="w-full p-5 rounded-2xl border-white focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm font-mono"></textarea>
+                    <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+                    <textarea [ngModel]="bulkText()" (ngModelChange)="bulkText.set($event)" rows="4" placeholder="John Doe, 101, 923001234567, 5000&#10;Jane Smith, 102, 923117654321, 4500" class="w-full p-5 rounded-2xl border-white focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm font-mono"></textarea>
                     <button (click)="parseBulkStudents()" [disabled]="!bulkText().trim()" class="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all disabled:opacity-50">
                       <i class="fa-solid fa-file-import mr-2"></i> Process Bulk List
                     </button>
@@ -182,9 +190,12 @@ import { AttendanceService } from '../services/attendance.service';
                           </div>
                         </div>
                       </div>
-                      <button (click)="removeStudent(s.roll)" class="text-slate-300 hover:text-red-500 transition-colors">
-                        <i class="fa-solid fa-xmark text-lg"></i>
-                      </button>
+                      <div class="flex items-center gap-4">
+                         <span class="text-[10px] font-black text-green-600 bg-green-50 px-2 py-1 rounded-full">Fee: {{ s.totalFee }}</span>
+                        <button (click)="removeStudent(s.roll)" class="text-slate-300 hover:text-red-500 transition-colors">
+                          <i class="fa-solid fa-xmark text-lg"></i>
+                        </button>
+                      </div>
                     </div>
                   }
                 </div>
@@ -221,11 +232,12 @@ export class SetupWizardComponent {
   className = signal('');
   section = signal('');
   
-  studentList = signal<{ name: string, roll: string, mobile: string, photo?: string }[]>([]);
+  studentList = signal<{ name: string, roll: string, mobile: string, photo?: string, totalFee: number }[]>([]);
   studentPhoto = signal<string | null>(null);
   newName = signal('');
   newRoll = signal('');
   newMobile = signal('');
+  newTotalFee = signal<number|null>(null);
   bulkText = signal('');
 
   @ViewChild('studentVideo') studentVideo!: ElementRef<HTMLVideoElement>;
@@ -278,7 +290,7 @@ export class SetupWizardComponent {
 
         extracted.forEach(s => {
           if (s.name && s.roll && !this.studentList().some(existing => existing.roll === s.roll)) {
-            this.studentList.update(list => [...list, s]);
+            this.studentList.update(list => [...list, { ...s, totalFee: 0 }]); // Add with 0 fee, can be edited later
             addedCount++;
           } else if (s.roll) {
             dupCount++;
@@ -286,7 +298,7 @@ export class SetupWizardComponent {
         });
 
         if (addedCount > 0) {
-          alert(`Successfully imported ${addedCount} students via AI Scan.${dupCount > 0 ? ` (${dupCount} duplicates ignored)` : ''}`);
+          alert(`Successfully imported ${addedCount} students via AI Scan.${dupCount > 0 ? ` (${dupCount} duplicates ignored)` : ''}. Please set their fees manually.`);
         } else {
           alert("No new students found in image.");
         }
@@ -306,15 +318,18 @@ export class SetupWizardComponent {
     const name = this.newName().trim();
     const roll = this.newRoll().trim();
     const mobile = this.newMobile().trim();
+    const totalFee = this.newTotalFee() || 0;
+
     if (name && roll && mobile) {
       if (this.studentList().some(s => s.roll === roll)) {
         alert(`Roll number ${roll} already exists in the current list.`);
         return;
       }
-      this.studentList.update(list => [...list, { name, roll, mobile, photo: this.studentPhoto() || undefined }]);
+      this.studentList.update(list => [...list, { name, roll, mobile, photo: this.studentPhoto() || undefined, totalFee }]);
       this.newName.set('');
       this.newRoll.set('');
       this.newMobile.set('');
+      this.newTotalFee.set(null);
       this.studentPhoto.set(null);
     }
   }
@@ -325,16 +340,16 @@ export class SetupWizardComponent {
     let dupCount = 0;
 
     lines.forEach(line => {
-      // Split by comma or semicolon or tab
       const parts = line.split(/[,\t;]/);
-      if (parts.length >= 3) {
+      if (parts.length >= 3) { // Expect at least 3, fee is optional
         const name = parts[0].trim();
         const roll = parts[1].trim();
         const mobile = parts[2].trim();
+        const totalFee = (parts.length >= 4) ? parseInt(parts[3].trim(), 10) || 0 : 0;
         
         if (name && roll && mobile) {
           if (!this.studentList().some(s => s.roll === roll)) {
-            this.studentList.update(list => [...list, { name, roll, mobile }]);
+            this.studentList.update(list => [...list, { name, roll, mobile, totalFee }]);
             addedCount++;
           } else {
             dupCount++;
@@ -350,7 +365,7 @@ export class SetupWizardComponent {
     } else if (dupCount > 0) {
       alert("All students in the list are already registered.");
     } else {
-      alert("Could not find valid student data. Please use format: Name, Roll, Mobile");
+      alert("Could not find valid student data. Please use format: Name, Roll, Mobile, Total Fee");
     }
   }
 

@@ -126,7 +126,8 @@ import { PdfService } from '../services/pdf.service';
               <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border">
                 <h2 class="text-2xl font-black tracking-tight text-slate-800">Add New Teacher</h2>
                 <div class="flex gap-2 mt-4">
-                  <input type="text" [(ngModel)]="newTeacherName" placeholder="Enter teacher's full name" class="flex-1 p-4 bg-slate-50 rounded-xl border outline-none text-sm">
+                  <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+                  <input type="text" [ngModel]="newTeacherName()" (ngModelChange)="newTeacherName.set($event)" placeholder="Enter teacher's full name" class="flex-1 p-4 bg-slate-50 rounded-xl border outline-none text-sm">
                   <button (click)="addTeacher()" [disabled]="!newTeacherName()" class="px-6 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50">Add Teacher</button>
                 </div>
               </div>
@@ -145,7 +146,8 @@ import { PdfService } from '../services/pdf.service';
             <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-4 animate-in fade-in">
               <h2 class="text-2xl font-black tracking-tight text-slate-800">Teacher Attendance Report</h2>
               <div class="flex gap-2">
-                <input type="date" [(ngModel)]="reportDate" class="flex-1 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+                <input type="date" [ngModel]="reportDate()" (ngModelChange)="reportDate.set($event)" class="flex-1 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
                 <button (click)="exportReport()" class="px-6 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-700 text-sm">Export PDF</button>
               </div>
             </div>

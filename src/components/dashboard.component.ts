@@ -1,10 +1,11 @@
-
 import { Component, inject, signal, effect, computed, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AttendanceService } from '../services/attendance.service';
+import { AttendanceService, Student } from '../services/attendance.service';
 import { ReportsComponent } from './reports.component';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
+
+type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status: 'Paid' | 'Partial' | 'Unpaid' | 'Overpaid' };
 
 @Component({
   selector: 'app-dashboard',
@@ -35,7 +36,6 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
                   <span class="text-[9px] font-black uppercase tracking-tighter">Syncing...</span>
                 </div>
               } @else if (attendanceService.hasUnsyncedData()) {
-                <!-- Fix: Replaced [class] binding with individual class bindings to prevent overriding static classes. -->
                 <div class="flex items-center gap-2 px-3 py-1.5 rounded-full"
                     [class.bg-amber-100]="attendanceService.isOnline()"
                     [class.border-amber-200]="attendanceService.isOnline()"
@@ -66,8 +66,7 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
       <main class="max-w-4xl mx-auto p-4 md:p-8">
         
         <!-- Navigation Hub -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <!-- Fix: Replaced [class] binding with individual class bindings to prevent overriding static classes. -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <button (click)="view.set('attendance')" 
             class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3 group"
             [class.bg-indigo-600]="view() === 'attendance'" [class.text-white]="view() === 'attendance'" [class.shadow-xl]="view() === 'attendance'" [class.shadow-indigo-200]="view() === 'attendance'"
@@ -84,19 +83,27 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
             <span class="text-xs font-black uppercase tracking-widest">Students</span>
           </button>
 
+          <button (click)="view.set('fees')" 
+            class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3 group"
+            [class.bg-green-600]="view() === 'fees'" [class.text-white]="view() === 'fees'" [class.shadow-xl]="view() === 'fees'" [class.shadow-green-200]="view() === 'fees'"
+            [class.bg-white]="view() !== 'fees'" [class.text-slate-600]="view() !== 'fees'" [class.hover:bg-green-50]="view() !== 'fees'" [class.border]="view() !== 'fees'" [class.border-slate-100]="view() !== 'fees'" [class.shadow-sm]="view() !== 'fees'">
+            <i class="fa-solid fa-wallet text-xl" [class]="view() === 'fees' ? 'text-white' : 'text-green-500'"></i>
+            <span class="text-xs font-black uppercase tracking-widest">Fees</span>
+          </button>
+          
           <button (click)="view.set('teacher')" 
             class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3 group"
-            [class.bg-emerald-600]="view() === 'teacher'" [class.text-white]="view() === 'teacher'" [class.shadow-xl]="view() === 'teacher'" [class.shadow-emerald-200]="view() === 'teacher'"
-            [class.bg-white]="view() !== 'teacher'" [class.text-slate-600]="view() !== 'teacher'" [class.hover:bg-emerald-50]="view() !== 'teacher'" [class.border]="view() !== 'teacher'" [class.border-slate-100]="view() !== 'teacher'" [class.shadow-sm]="view() !== 'teacher'">
-            <i class="fa-solid fa-user-tie text-xl" [class]="view() === 'teacher' ? 'text-white' : 'text-emerald-500'"></i>
+            [class.bg-orange-600]="view() === 'teacher'" [class.text-white]="view() === 'teacher'" [class.shadow-xl]="view() === 'teacher'" [class.shadow-orange-200]="view() === 'teacher'"
+            [class.bg-white]="view() !== 'teacher'" [class.text-slate-600]="view() !== 'teacher'" [class.hover:bg-orange-50]="view() !== 'teacher'" [class.border]="view() !== 'teacher'" [class.border-slate-100]="view() !== 'teacher'" [class.shadow-sm]="view() !== 'teacher'">
+            <i class="fa-solid fa-user-tie text-xl" [class]="view() === 'teacher' ? 'text-white' : 'text-orange-500'"></i>
             <span class="text-xs font-black uppercase tracking-widest">Profile</span>
           </button>
 
           <button (click)="view.set('reports')" 
             class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3 group"
-            [class.bg-slate-900]="view() === 'reports'" [class.text-white]="view() === 'reports'" [class.shadow-xl]="view() === 'reports'" [class.shadow-slate-200]="view() === 'reports'"
-            [class.bg-white]="view() !== 'reports'" [class.text-slate-600]="view() !== 'reports'" [class.hover:bg-slate-50]="view() !== 'reports'" [class.border]="view() !== 'reports'" [class.border-slate-100]="view() !== 'reports'" [class.shadow-sm]="view() !== 'reports'">
-            <i class="fa-solid fa-chart-pie text-xl" [class]="view() === 'reports' ? 'text-white' : 'text-slate-500'"></i>
+            [class.bg-purple-600]="view() === 'reports'" [class.text-white]="view() === 'reports'" [class.shadow-xl]="view() === 'reports'" [class.shadow-purple-200]="view() === 'reports'"
+            [class.bg-white]="view() !== 'reports'" [class.text-slate-600]="view() !== 'reports'" [class.hover:bg-purple-50]="view() !== 'reports'" [class.border]="view() !== 'reports'" [class.border-slate-100]="view() !== 'reports'" [class.shadow-sm]="view() !== 'reports'">
+            <i class="fa-solid fa-chart-pie text-xl" [class]="view() === 'reports' ? 'text-white' : 'text-purple-500'"></i>
             <span class="text-xs font-black uppercase tracking-widest">Reports</span>
           </button>
         </div>
@@ -202,7 +209,7 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
               @if (filteredStudents().length > 0) {
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   @for (student of filteredStudents(); track student.id) {
-                    <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 hover:border-blue-200 transition-all group">
+                    <div class="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm flex items-start gap-4 hover:border-blue-200 transition-all group">
                       <div class="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 overflow-hidden flex-shrink-0">
                         @if (student.photo) {
                           <img [src]="student.photo" class="w-full h-full object-cover">
@@ -214,11 +221,17 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
                       </div>
                       <div class="flex-1">
                         <h4 class="font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{{ student.name }}</h4>
-                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Roll Number: {{ student.rollNumber }}</p>
-                        <div class="flex items-center gap-2 text-blue-600 font-black text-[9px] uppercase tracking-widest bg-blue-50 px-3 py-1.5 rounded-full w-fit">
-                          <i class="fa-solid fa-phone text-[8px]"></i>
-                          {{ student.mobileNumber }}
-                        </div>
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Roll: {{ student.rollNumber }}</p>
+                        <p class="text-[10px] font-medium text-slate-400 mt-1"><i class="fa-solid fa-phone text-[9px] mr-1"></i>{{ student.mobileNumber }}</p>
+                         @if(student.feeDue > 0) {
+                          <div class="mt-2 text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-full w-fit">
+                            <i class="fa-solid fa-hourglass-half mr-1.5"></i> Due: {{ student.feeDue }}
+                          </div>
+                        } @else {
+                          <div class="mt-2 text-xs font-bold text-green-600 bg-green-50 px-3 py-1.5 rounded-full w-fit">
+                            <i class="fa-solid fa-check-circle mr-1.5"></i> Fees Cleared
+                          </div>
+                        }
                       </div>
                     </div>
                   }
@@ -235,25 +248,73 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
             </div>
           }
 
+          @case ('fees') {
+            <div class="space-y-6 animate-in fade-in">
+              <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div>
+                  <h2 class="text-2xl font-black text-slate-800 tracking-tight">Fee Management</h2>
+                  <p class="text-slate-500 text-sm font-medium">Tracking student payments and dues</p>
+                </div>
+              </div>
+              
+              <div class="space-y-3">
+                @for (student of filteredStudents(); track student.id) {
+                  <div class="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm grid grid-cols-3 items-center gap-4">
+                    <div class="flex items-center gap-4 col-span-1">
+                       <div class="w-14 h-14 rounded-2xl bg-green-50 overflow-hidden border-2 border-white shadow-sm flex-shrink-0">
+                        @if (student.photo) {
+                          <img [src]="student.photo" class="w-full h-full object-cover">
+                        } @else {
+                          <div class="w-full h-full flex items-center justify-center text-[8px] text-green-300 font-black text-center px-1">NO PHOTO</div>
+                        }
+                      </div>
+                      <div>
+                        <h4 class="font-bold text-slate-800 leading-none mb-1">{{ student.name }}</h4>
+                        <span class="text-[10px] font-black text-slate-300 uppercase tracking-widest">#{{ student.rollNumber }}</span>
+                      </div>
+                    </div>
+
+                    <div class="text-xs font-semibold text-slate-600 text-center col-span-1">
+                       <p>Total: <span class="font-black">{{ student.totalFee }}</span></p>
+                       <p>Paid: <span class="font-black text-green-600">{{ student.feePaid }}</span></p>
+                       <p>Due: <span class="font-black text-red-600">{{ student.feeDue }}</span></p>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2 col-span-1">
+                      @if (student.feeDue > 0) {
+                        <a [href]="getFeeReminderSafeUrl(student)" target="_blank" class="w-10 h-10 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center hover:bg-green-600 hover:text-white transition-all">
+                          <i class="fa-brands fa-whatsapp text-lg"></i>
+                        </a>
+                      }
+                      <button (click)="openPaymentModal(student)" class="px-4 py-2 bg-slate-800 text-white rounded-xl font-bold text-xs hover:bg-slate-700 transition-all">
+                        Record Payment
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
           @case ('teacher') {
             <!-- Teacher Profile -->
             <div class="max-w-xl mx-auto space-y-8 animate-in fade-in slide-in-from-top-4">
               <div class="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-100 text-center space-y-6">
                 <div class="relative mx-auto w-40 h-40">
-                  <div class="absolute inset-0 border-4 border-emerald-500/20 rounded-full animate-pulse"></div>
-                  <div class="absolute inset-2 rounded-full overflow-hidden border-4 border-white shadow-xl bg-emerald-50">
-                    <div class="w-full h-full flex items-center justify-center text-emerald-300">
+                  <div class="absolute inset-0 border-4 border-orange-500/20 rounded-full animate-pulse"></div>
+                  <div class="absolute inset-2 rounded-full overflow-hidden border-4 border-white shadow-xl bg-orange-50">
+                    <div class="w-full h-full flex items-center justify-center text-orange-300">
                       <i class="fa-solid fa-user-tie text-5xl"></i>
                     </div>
                   </div>
-                  <div class="absolute bottom-1 right-1 w-10 h-10 bg-emerald-500 text-white rounded-full flex items-center justify-center border-4 border-white shadow-lg">
+                  <div class="absolute bottom-1 right-1 w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center border-4 border-white shadow-lg">
                     <i class="fa-solid fa-shield-check"></i>
                   </div>
                 </div>
 
                 <div>
                   <h2 class="text-3xl font-black text-slate-800 tracking-tight">{{ teacher()?.name }}</h2>
-                  <p class="text-emerald-600 font-bold uppercase tracking-[0.2em] text-xs mt-1">Authorized Educator</p>
+                  <p class="text-orange-600 font-bold uppercase tracking-[0.2em] text-xs mt-1">Authorized Educator</p>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
@@ -269,13 +330,13 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 
                 <div class="pt-6 border-t border-slate-100 text-left">
                   <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Security Credentials</h4>
-                  <div class="flex items-center gap-3 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
-                    <i class="fa-solid fa-key text-emerald-600 text-xl"></i>
+                  <div class="flex items-center gap-3 p-4 bg-orange-50 rounded-2xl border border-orange-100">
+                    <i class="fa-solid fa-key text-orange-600 text-xl"></i>
                     <div>
-                      <p class="text-[10px] font-black text-emerald-800 uppercase leading-none">Password Protection</p>
-                      <p class="text-[10px] text-emerald-600 font-medium">Account secured with a password</p>
+                      <p class="text-[10px] font-black text-orange-800 uppercase leading-none">Password Protection</p>
+                      <p class="text-[10px] text-orange-600 font-medium">Account secured with a password</p>
                     </div>
-                    <span class="ml-auto text-[8px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-black">ACTIVE</span>
+                    <span class="ml-auto text-[8px] bg-orange-600 text-white px-2 py-0.5 rounded-full font-black">ACTIVE</span>
                   </div>
                 </div>
               </div>
@@ -321,11 +382,16 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
                 }
               </div>
               <div class="flex-1 grid grid-cols-1 gap-3">
-                <input type="text" [(ngModel)]="newStudentName" placeholder="Full Name" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
+                <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+                <input type="text" [ngModel]="newStudentName()" (ngModelChange)="newStudentName.set($event)" placeholder="Full Name" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
                 <div class="grid grid-cols-2 gap-3">
-                  <input type="text" [(ngModel)]="newStudentRoll" placeholder="Roll #" class="p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
-                  <input type="tel" [(ngModel)]="newStudentMobile" placeholder="Contact Mobile" class="p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
+                  <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+                  <input type="text" [ngModel]="newStudentRoll()" (ngModelChange)="newStudentRoll.set($event)" placeholder="Roll #" class="p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
+                  <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+                  <input type="tel" [ngModel]="newStudentMobile()" (ngModelChange)="newStudentMobile.set($event)" placeholder="Contact Mobile" class="p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
                 </div>
+                 <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+                 <input type="number" [ngModel]="newStudentTotalFee()" (ngModelChange)="newStudentTotalFee.set($event)" placeholder="Total Fee" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
               </div>
             </div>
             <button (click)="saveNewStudent()" [disabled]="!newStudentName() || !newStudentRoll() || !newStudentMobile()" class="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
@@ -336,15 +402,44 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
         <video #studentVideo autoplay playsinline class="hidden"></video>
         <canvas #studentCanvas class="hidden"></canvas>
       }
+
+       <!-- Record Payment Modal -->
+      @if (showPaymentModal()) {
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center p-4 animate-in fade-in" (click)="showPaymentModal.set(false)">
+          <div class="bg-white max-w-md w-full rounded-[2rem] p-8 shadow-2xl border border-slate-100 animate-in zoom-in-95" (click)="$event.stopPropagation()">
+            <div class="text-center mb-6">
+              <h3 class="text-xl font-bold text-slate-800">Record Fee Payment</h3>
+              <p class="text-sm text-slate-500 font-medium">For {{ selectedStudentForPayment()?.name }}</p>
+            </div>
+            
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-4 text-center">
+              <p class="text-xs font-black uppercase text-slate-400">Amount Due</p>
+              <p class="text-3xl font-black text-red-500">{{ selectedStudentForPayment()?.feeDue }}</p>
+            </div>
+
+            <div class="space-y-2">
+               <label class="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Payment Amount Received</label>
+               <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+               <input type="number" [ngModel]="paymentAmount()" (ngModelChange)="paymentAmount.set($event)" placeholder="Enter amount" class="w-full p-5 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-green-500/10 focus:border-green-500 outline-none transition-all bg-white font-bold text-lg text-center">
+            </div>
+
+            <div class="flex gap-3 mt-6">
+              <button (click)="showPaymentModal.set(false)" class="flex-1 py-4 bg-slate-100 text-slate-600 rounded-xl font-bold">Cancel</button>
+              <button (click)="savePayment()" [disabled]="!paymentAmount() || paymentAmount() <= 0" class="flex-[2] py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all disabled:opacity-50">
+                Save Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      }
     </div>
   `
 })
 export class DashboardComponent {
   attendanceService = inject(AttendanceService);
-  // Fix: Explicitly typed `sanitizer` with `DomSanitizer` to resolve a TypeScript error where its type was being inferred as 'unknown'.
   sanitizer: DomSanitizer = inject(DomSanitizer);
   
-  view = signal<'attendance' | 'students' | 'teacher' | 'reports'>('attendance');
+  view = signal<'attendance' | 'students' | 'fees' | 'teacher' | 'reports'>('attendance');
   teacher = this.attendanceService.activeTeacher;
   students = this.attendanceService.activeStudents;
   
@@ -358,12 +453,36 @@ export class DashboardComponent {
   newStudentRoll = signal('');
   newStudentMobile = signal('');
   newStudentPhoto = signal<string | null>(null);
+  newStudentTotalFee = signal<number | null>(null);
+
+  // Fee Management State
+  showPaymentModal = signal(false);
+  selectedStudentForPayment = signal<StudentWithFeeStatus | null>(null);
+  paymentAmount = signal<number | null>(null);
 
   @ViewChild('studentVideo') studentVideo!: ElementRef<HTMLVideoElement>;
   @ViewChild('studentCanvas') studentCanvas!: ElementRef<HTMLCanvasElement>;
 
+  studentsWithFeeStatus = computed(() => {
+    return this.students().map(s => {
+        const feePaid = s.feeHistory.reduce((acc, p) => acc + p.amount, 0);
+        const feeDue = s.totalFee - feePaid;
+        let status: 'Paid' | 'Partial' | 'Unpaid' | 'Overpaid' = 'Unpaid';
+        if (s.totalFee > 0 && feePaid === 0) status = 'Unpaid';
+        else if (feePaid > 0 && feePaid < s.totalFee) status = 'Partial';
+        else if (feePaid >= s.totalFee) status = 'Paid';
+        if (feePaid > s.totalFee) status = 'Overpaid';
+
+        return { ...s, feePaid, feeDue, status };
+    });
+  });
+
+  studentsWithDuesCount = computed(() => {
+    return this.studentsWithFeeStatus().filter(s => s.feeDue > 0).length;
+  });
+
   filteredStudents = computed(() => {
-    let list = [...this.students()];
+    let list = [...this.studentsWithFeeStatus()];
     const query = this.searchQuery().toLowerCase().trim();
     
     if (query) {
@@ -387,7 +506,7 @@ export class DashboardComponent {
   selectedDate = signal(new Date().toISOString().split('T')[0]);
   dailyRecords = signal<Map<string, 'Present' | 'Absent'>>(new Map());
   showToast = signal(false);
-  toastMessage = signal('Attendance Updated Successfully');
+  toastMessage = signal('');
 
   absentCount = computed(() => {
     let count = 0;
@@ -409,6 +528,12 @@ export class DashboardComponent {
     });
   }
 
+  showToastWithMessage(message: string) {
+    this.toastMessage.set(message);
+    this.showToast.set(true);
+    setTimeout(() => this.showToast.set(false), 3000);
+  }
+
   toggleStatus(studentId: string, status: 'Present' | 'Absent') {
     this.dailyRecords.update(map => {
       const newMap = new Map(map);
@@ -428,12 +553,10 @@ export class DashboardComponent {
     });
 
     this.attendanceService.saveAttendance(this.selectedDate(), records);
-    
-    this.toastMessage.set('Attendance Saved Successfully');
-    this.showToast.set(true);
-    setTimeout(() => this.showToast.set(false), 3000);
+    this.showToastWithMessage('Attendance Saved Successfully');
   }
 
+  // WhatsApp Alert Logic for Absentees
   private buildWhatsAppUrl(student: any): string {
     const dateStr = new Date(this.selectedDate()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     const message = `*ABSENCE ALERT* 📢\n\nDear Parent,\nThis is to inform you that your child *${student.name}* (Roll: ${student.rollNumber}) was *ABSENT* from class today (${dateStr}).\n\n_Regards,_\n*${this.teacher()?.name}*\n${this.teacher()?.className} Section ${this.teacher()?.section}`;
@@ -466,12 +589,36 @@ export class DashboardComponent {
       absentees.forEach((s, index) => {
         setTimeout(() => this.sendDirectAlert(s), index * 1000);
       });
-      this.toastMessage.set(`Dispatching Alerts...`);
-      this.showToast.set(true);
-      setTimeout(() => this.showToast.set(false), 4000);
+      this.showToastWithMessage(`Dispatching Alerts...`);
     }
   }
 
+  // Fee Reminder Logic
+  buildFeeReminderUrl(student: StudentWithFeeStatus): string {
+    const message = `*FEE REMINDER* 💰\n\nDear Parent,\nThis is a reminder regarding the outstanding school fee for your child *${student.name}* (Roll: ${student.rollNumber}).\n\n- Total Fee: *${student.totalFee}*\n- Amount Paid: *${student.feePaid}*\n- *Outstanding Due: ${student.feeDue}*\n\nPlease clear the dues at your earliest convenience.\n\n_Regards,_\n*${this.teacher()?.name}*\n${this.teacher()?.schoolName}`;
+    const cleanNumber = student.mobileNumber.replace(/\D/g, '');
+    return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}`;
+  }
+
+  getFeeReminderSafeUrl(student: StudentWithFeeStatus): SafeUrl {
+    return this.sanitizer.bypassSecurityTrustUrl(this.buildFeeReminderUrl(student));
+  }
+  
+  sendBulkFeeReminders() {
+    const studentsWithDues = this.studentsWithFeeStatus().filter(s => s.feeDue > 0);
+    if (studentsWithDues.length === 0) {
+      this.showToastWithMessage('No students with pending fees.');
+      return;
+    }
+    if (confirm(`This will open WhatsApp chats for all ${studentsWithDues.length} students with outstanding fees. Continue?`)) {
+      studentsWithDues.forEach((s, index) => {
+        setTimeout(() => window.open(this.buildFeeReminderUrl(s), '_blank'), index * 1000);
+      });
+      this.showToastWithMessage(`Dispatching ${studentsWithDues.length} fee reminders...`);
+    }
+  }
+
+  // New Admission Logic
   async triggerStudentPhoto() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
@@ -510,18 +657,37 @@ export class DashboardComponent {
       name,
       roll,
       mobile,
-      photo: this.newStudentPhoto() || undefined
+      photo: this.newStudentPhoto() || undefined,
+      totalFee: this.newStudentTotalFee() || 0
     }]);
 
-    this.toastMessage.set(`Student ${name} admitted successfully!`);
-    this.showToast.set(true);
-    setTimeout(() => this.showToast.set(false), 3000);
+    this.showToastWithMessage(`Student ${name} admitted successfully!`);
 
-    // Reset form
     this.showNewAdmissionForm.set(false);
     this.newStudentName.set('');
     this.newStudentRoll.set('');
     this.newStudentMobile.set('');
     this.newStudentPhoto.set(null);
+    this.newStudentTotalFee.set(null);
+  }
+
+  // Payment Modal Logic
+  openPaymentModal(student: StudentWithFeeStatus) {
+    this.selectedStudentForPayment.set(student);
+    this.paymentAmount.set(null);
+    this.showPaymentModal.set(true);
+  }
+  
+  savePayment() {
+    const student = this.selectedStudentForPayment();
+    const amount = this.paymentAmount();
+    if (!student || !amount || amount <= 0) {
+        alert("Please enter a valid payment amount.");
+        return;
+    }
+
+    this.attendanceService.recordFeePayment(student.id, amount);
+    this.showToastWithMessage(`Payment of ${amount} recorded for ${student.name}.`);
+    this.showPaymentModal.set(false);
   }
 }

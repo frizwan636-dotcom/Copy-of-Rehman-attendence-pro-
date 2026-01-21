@@ -1,4 +1,3 @@
-
 import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -37,9 +36,11 @@ import { AttendanceService } from '../services/attendance.service';
               <p class="text-indigo-300/60 text-sm">Welcome back! Please sign in.</p>
             </div>
             <div class="space-y-4">
-              <input type="text" [(ngModel)]="userName" placeholder="Enter Your Full Name"
+              <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+              <input type="text" [ngModel]="userName()" (ngModelChange)="userName.set($event)" placeholder="Enter Your Full Name"
                 class="w-full bg-white/5 border border-white/10 px-6 py-4 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium">
-              <input type="password" [(ngModel)]="password" placeholder="Password" (keyup.enter)="handleLogin()"
+              <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+              <input type="password" [ngModel]="password()" (ngModelChange)="password.set($event)" placeholder="Password" (keyup.enter)="handleLogin()"
                 class="w-full bg-white/5 border border-white/10 px-6 py-4 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium">
             </div>
             @if (errorMessage()) {
@@ -65,11 +66,14 @@ import { AttendanceService } from '../services/attendance.service';
               <p class="text-indigo-300/60 text-sm">Get started with your new account.</p>
             </div>
             <div class="space-y-4">
-              <input type="text" [(ngModel)]="userName" placeholder="Enter Your Full Name"
+              <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+              <input type="text" [ngModel]="userName()" (ngModelChange)="userName.set($event)" placeholder="Enter Your Full Name"
                 class="w-full bg-white/5 border border-white/10 px-6 py-4 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium">
-              <input type="password" [(ngModel)]="password" placeholder="Create Password"
+              <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+              <input type="password" [ngModel]="password()" (ngModelChange)="password.set($event)" placeholder="Create Password"
                 class="w-full bg-white/5 border border-white/10 px-6 py-4 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium">
-              <input type="password" [(ngModel)]="confirmPassword" placeholder="Confirm Password" (keyup.enter)="handleRegister()"
+              <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+              <input type="password" [ngModel]="confirmPassword()" (ngModelChange)="confirmPassword.set($event)" placeholder="Confirm Password" (keyup.enter)="handleRegister()"
                 class="w-full bg-white/5 border border-white/10 px-6 py-4 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium">
             </div>
             @if (errorMessage()) {

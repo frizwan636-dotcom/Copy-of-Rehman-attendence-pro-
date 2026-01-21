@@ -20,6 +20,11 @@ export interface Coordinator {
   synced?: boolean;
 }
 
+export interface FeePayment {
+  amount: number;
+  date: string;
+}
+
 export interface Student {
   id: string;
   teacherId: string;
@@ -28,6 +33,8 @@ export interface Student {
   mobileNumber: string; // New field for parental contact
   photo?: string; // Base64 student photo
   synced?: boolean;
+  totalFee: number;
+  feeHistory: FeePayment[];
 }
 
 export interface AttendanceRecord {
@@ -50,7 +57,7 @@ export interface TeacherAttendanceRecord {
 type CurrentUser = { id: string, role: 'teacher' | 'coordinator' };
 
 const APP_DATA_KEY = 'rehman_attendance_app_data';
-const DATA_VERSION = 2; // V1 was the old multi-key system. V2 is the single-key with schoolName.
+const DATA_VERSION = 3; // V2 was schoolName, V3 adds fees
 
 interface AppData {
   version: number;
@@ -64,7 +71,7 @@ interface AppData {
 
 @Injectable({ providedIn: 'root' })
 export class AttendanceService {
-  private ai = new GoogleGenAI({ apiKey: (process as any).env.API_KEY });
+  private ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   
   isOnline = signal(navigator.onLine);
   isSyncing = signal(false);
@@ -200,8 +207,15 @@ export class AttendanceService {
         schoolName: teacher.schoolName || '', // Add empty schoolName if it doesn't exist
       }));
     }
-    // Future migrations would go here in subsequent 'if' blocks
-    // if (data.version < 3) { /* ... migration logic for v3 ... */ }
+    
+    if (!data.version || data.version < 3) {
+      console.log(`Upgrading data from v${data.version || 2} to v3...`);
+      data.students = data.students.map(student => ({
+        ...student,
+        totalFee: (student as any).totalFee || 0,
+        feeHistory: (student as any).feeHistory || [],
+      }));
+    }
 
     data.version = DATA_VERSION;
     return data;
@@ -274,7 +288,7 @@ export class AttendanceService {
     if (this.teachers().some(t => t.id === id)) {
       throw new Error("A teacher with this name already exists.");
     }
-    const newTeacher: Teacher = { id, name, className: '', section: '', setupComplete: false, synced: false };
+    const newTeacher: Teacher = { id, name, schoolName: '', className: '', section: '', setupComplete: false, synced: false };
     this.teachers.update(t => [...t, newTeacher]);
   }
 
@@ -318,13 +332,32 @@ export class AttendanceService {
     }
   }
 
-  addStudents(newStudents: { name: string, roll: string, mobile: string, photo?: string }[]) {
+  addStudents(newStudents: { name: string, roll: string, mobile: string, photo?: string, totalFee?: number }[]) {
     const teacherId = this.activeTeacher()!.id;
     const studentsToAdd: Student[] = newStudents.map(s => ({
       id: Math.random().toString(36).substr(2, 9), teacherId, name: s.name,
-      rollNumber: s.roll, mobileNumber: s.mobile, photo: s.photo, synced: false
+      rollNumber: s.roll, mobileNumber: s.mobile, photo: s.photo, synced: false,
+      totalFee: s.totalFee || 0,
+      feeHistory: []
     }));
     this.students.update(list => [...list, ...studentsToAdd]);
+  }
+
+  recordFeePayment(studentId: string, amount: number) {
+    const payment: FeePayment = {
+        amount: amount,
+        date: new Date().toISOString().split('T')[0]
+    };
+    this.students.update(list => list.map(s => {
+        if (s.id === studentId) {
+            return {
+                ...s,
+                feeHistory: [...s.feeHistory, payment],
+                synced: false
+            };
+        }
+        return s;
+    }));
   }
 
   saveAttendance(date: string, records: { studentId: string, status: 'Present' | 'Absent' }[]) {
@@ -342,6 +375,7 @@ export class AttendanceService {
     if (this.isSyncing() || !this.isOnline() || !this.hasUnsyncedData()) return;
     this.isSyncing.set(true);
     try {
+      // Simulate network request
       await new Promise(resolve => setTimeout(resolve, 1500));
       this.teachers.update(list => list.map(t => ({ ...t, synced: true })));
       this.coordinators.update(list => list.map(c => ({ ...c, synced: true })));
@@ -377,7 +411,8 @@ export class AttendanceService {
   }
 
   getMonthlyReport(yearMonth: string) {
-    const start = `${yearMonth}-01`; const end = `${yearMonth}-31`;
+    const start = `${yearMonth}-01`;
+    const end = `${yearMonth}-31`;
     return this.getRangeReport(start, end);
   }
 
