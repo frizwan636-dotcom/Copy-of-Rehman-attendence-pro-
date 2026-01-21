@@ -31,7 +31,6 @@ import { PdfService } from '../services/pdf.service';
                   <span class="text-[9px] font-black uppercase tracking-tighter">Syncing...</span>
                 </div>
               } @else if (attendanceService.hasUnsyncedData()) {
-                <!-- Fix: Replaced [class] binding with individual class bindings to prevent overriding static classes. -->
                 <div class="flex items-center gap-2 px-3 py-1.5 rounded-full"
                     [class.bg-amber-100]="attendanceService.isOnline()"
                     [class.border-amber-200]="attendanceService.isOnline()"
@@ -61,7 +60,6 @@ import { PdfService } from '../services/pdf.service';
 
       <main class="max-w-4xl mx-auto p-4 md:p-8">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <!-- Fix: Replaced [class] binding with individual class bindings to prevent overriding static classes. -->
           <button (click)="view.set('attendance')" 
             class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3"
             [class.bg-indigo-600]="view() === 'attendance'" [class.text-white]="view() === 'attendance'" [class.shadow-xl]="view() === 'attendance'" [class.shadow-indigo-200]="view() === 'attendance'"
@@ -126,7 +124,6 @@ import { PdfService } from '../services/pdf.service';
               <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border">
                 <h2 class="text-2xl font-black tracking-tight text-slate-800">Add New Teacher</h2>
                 <div class="flex gap-2 mt-4">
-                  <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
                   <input type="text" [ngModel]="newTeacherName()" (ngModelChange)="newTeacherName.set($event)" placeholder="Enter teacher's full name" class="flex-1 p-4 bg-slate-50 rounded-xl border outline-none text-sm">
                   <button (click)="addTeacher()" [disabled]="!newTeacherName()" class="px-6 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50">Add Teacher</button>
                 </div>
@@ -146,8 +143,7 @@ import { PdfService } from '../services/pdf.service';
             <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-4 animate-in fade-in">
               <h2 class="text-2xl font-black tracking-tight text-slate-800">Teacher Attendance Report</h2>
               <div class="flex gap-2">
-                <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
-                <input type="date" [ngModel]="reportDate()" (ngModelChange)="reportDate.set($event)" class="flex-1 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                <input type="date" [ngModel]="selectedDate()" (ngModelChange)="selectedDate.set($event)" class="flex-1 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
                 <button (click)="exportReport()" class="px-6 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-700 text-sm">Export PDF</button>
               </div>
             </div>
@@ -173,7 +169,6 @@ export class CoordinatorDashboardComponent {
   newTeacherName = signal('');
   
   selectedDate = signal(new Date().toISOString().split('T')[0]);
-  reportDate = signal(new Date().toISOString().split('T')[0]);
   dailyRecords = signal<Map<string, 'Present' | 'Absent'>>(new Map());
 
   showToast = signal(false);
@@ -229,12 +224,12 @@ export class CoordinatorDashboardComponent {
   }
   
   exportReport() {
-    const records = this.attendanceService.getTeacherAttendanceForDate(this.reportDate());
+    const records = this.attendanceService.getTeacherAttendanceForDate(this.selectedDate());
     const data = this.teachers().map(t => {
       const record = records.find(r => r.teacherId === t.id);
       return { name: t.name, status: record ? record.status : 'N/A' };
     });
-    this.pdfService.exportTeacherReport(this.reportDate(), this.coordinator()!.name, data);
+    this.pdfService.exportTeacherReport(this.selectedDate(), this.coordinator()!.name, data);
   }
 
   private showToastMessage(message: string) {
