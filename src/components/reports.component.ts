@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AttendanceService } from '../services/attendance.service';
 import { PdfService } from '../services/pdf.service';
+import { CsvService } from '../services/csv.service';
 
 @Component({
   selector: 'app-reports',
@@ -16,12 +17,23 @@ import { PdfService } from '../services/pdf.service';
           </button>
           <h2 class="text-2xl font-bold text-slate-800 tracking-tight">Report Generator</h2>
         </div>
+      </div>
 
-        <!-- Global Export Options -->
-        <div class="flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border border-slate-100 shadow-sm">
+      <!-- Export Options -->
+       <div class="flex flex-col sm:flex-row items-center justify-between p-2 bg-slate-100 rounded-2xl border border-slate-200 gap-2">
+        <div class="flex-1 flex bg-white p-1 rounded-xl shadow-sm w-full">
+            <button (click)="exportFormat.set('pdf')" [class]="exportFormat() === 'pdf' ? 'flex-1 py-2 bg-indigo-600 text-white rounded-lg shadow-md font-bold text-xs' : 'flex-1 py-2 text-slate-500 font-medium text-xs'">
+              <i class="fa-solid fa-file-pdf mr-2"></i>PDF
+            </button>
+            <button (click)="exportFormat.set('csv')" [class]="exportFormat() === 'csv' ? 'flex-1 py-2 bg-emerald-600 text-white rounded-lg shadow-md font-bold text-xs' : 'flex-1 py-2 text-slate-500 font-medium text-xs'">
+              <i class="fa-solid fa-file-csv mr-2"></i>CSV
+            </button>
+        </div>
+        <div class="flex-1 flex justify-center items-center gap-2" [class.opacity-50]="exportFormat() === 'csv'">
           <span class="text-[10px] font-black uppercase text-slate-400">Include Photos</span>
           <button 
             (click)="includePhotos.set(!includePhotos())"
+            [disabled]="exportFormat() === 'csv'"
             [class]="includePhotos() ? 'w-10 h-5 bg-indigo-600 rounded-full relative transition-colors' : 'w-10 h-5 bg-slate-200 rounded-full relative transition-colors'"
           >
             <div [class]="includePhotos() ? 'absolute right-1 top-1 w-3 h-3 bg-white rounded-full transition-all' : 'absolute left-1 top-1 w-3 h-3 bg-white rounded-full transition-all'"></div>
@@ -34,7 +46,7 @@ import { PdfService } from '../services/pdf.service';
         <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
-              <i class="fa-solid fa-file-pdf"></i>
+              <i class="fa-solid fa-file-invoice"></i>
             </div>
             <div>
               <h3 class="font-bold text-slate-800">Daily Export</h3>
@@ -43,7 +55,6 @@ import { PdfService } from '../services/pdf.service';
           </div>
           
           <div class="flex gap-2">
-            <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
             <input type="date" [ngModel]="dailyDate()" (ngModelChange)="dailyDate.set($event)" class="flex-1 p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm">
             <button (click)="exportDaily()" class="px-6 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 text-sm">
               Export
@@ -64,7 +75,6 @@ import { PdfService } from '../services/pdf.service';
           </div>
           
           <div class="flex gap-2">
-            <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
             <input type="month" [ngModel]="monthlyMonth()" (ngModelChange)="monthlyMonth.set($event)" class="flex-1 p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm">
             <button (click)="exportMonthly()" class="px-6 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 text-sm">
               Generate
@@ -87,12 +97,10 @@ import { PdfService } from '../services/pdf.service';
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div class="space-y-1">
               <label class="text-[10px] font-black text-slate-400 uppercase ml-1">From</label>
-              <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
               <input type="date" [ngModel]="rangeStart()" (ngModelChange)="rangeStart.set($event)" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-bold">
             </div>
             <div class="space-y-1">
               <label class="text-[10px] font-black text-slate-400 uppercase ml-1">To</label>
-              <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
               <input type="date" [ngModel]="rangeEnd()" (ngModelChange)="rangeEnd.set($event)" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-bold">
             </div>
             <div class="flex items-end">
@@ -110,8 +118,8 @@ import { PdfService } from '../services/pdf.service';
           <i class="fa-solid fa-circle-info text-blue-400"></i> Reporting Engine
         </h4>
         <ul class="text-xs space-y-2 opacity-80">
-          <li>&bull; <span class="font-semibold text-blue-200">Personal Information</span> - Reports now include student mobile numbers and profile photos.</li>
-          <li>&bull; <span class="font-semibold text-blue-200">Visual Audits</span> - Photos are embedded at 300dpi for high-quality identification.</li>
+          <li>&bull; <span class="font-semibold text-blue-200">PDF & CSV Exports</span> - Choose between visually rich PDFs or data-friendly CSV files.</li>
+          <li>&bull; <span class="font-semibold text-blue-200">AI Analysis</span> - PDF reports include an AI-powered summary for quick insights.</li>
           <li>&bull; <span class="font-semibold text-blue-200">Real-time Calculation</span> - Percentages are computed from the master attendance log.</li>
         </ul>
       </div>
@@ -122,6 +130,7 @@ export class ReportsComponent {
   onBack = output<void>();
   attendanceService = inject(AttendanceService);
   pdfService = inject(PdfService);
+  csvService = inject(CsvService);
 
   dailyDate = signal(new Date().toISOString().split('T')[0]);
   monthlyMonth = signal(new Date().toISOString().slice(0, 7));
@@ -130,11 +139,16 @@ export class ReportsComponent {
   rangeEnd = signal(new Date().toISOString().split('T')[0]);
   
   includePhotos = signal(true);
+  exportFormat = signal<'pdf' | 'csv'>('pdf');
 
   exportDaily() {
     const teacher = this.attendanceService.activeTeacher()!;
     const data = this.attendanceService.getDailyReportData(this.dailyDate());
-    this.pdfService.exportDaily(this.dailyDate(), teacher.className, teacher.section, data, this.includePhotos());
+    if (this.exportFormat() === 'pdf') {
+      this.pdfService.exportDaily(this.dailyDate(), teacher.className, teacher.section, data, this.includePhotos());
+    } else {
+      this.csvService.exportDaily(this.dailyDate(), teacher.className, teacher.section, data);
+    }
   }
 
   async exportMonthly() {
@@ -144,7 +158,11 @@ export class ReportsComponent {
     const [year, month] = this.monthlyMonth().split('-');
     const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
 
-    await this.pdfService.exportMonthly(monthName, teacher.className, teacher.section, stats, this.includePhotos(), this.attendanceService);
+    if (this.exportFormat() === 'pdf') {
+      await this.pdfService.exportMonthly(monthName, teacher.className, teacher.section, stats, this.includePhotos(), this.attendanceService);
+    } else {
+      this.csvService.exportMonthly(monthName, teacher.className, teacher.section, stats);
+    }
   }
 
   async exportRange() {
@@ -160,6 +178,10 @@ export class ReportsComponent {
       return;
     }
     
-    await this.pdfService.exportRange(this.rangeStart(), this.rangeEnd(), teacher.className, teacher.section, monthlyBreakdown, this.includePhotos(), this.attendanceService);
+    if (this.exportFormat() === 'pdf') {
+      await this.pdfService.exportRange(this.rangeStart(), this.rangeEnd(), teacher.className, teacher.section, monthlyBreakdown, this.includePhotos(), this.attendanceService);
+    } else {
+      this.csvService.exportRange(this.rangeStart(), this.rangeEnd(), teacher.className, teacher.section, monthlyBreakdown);
+    }
   }
 }

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AttendanceService, Teacher } from '../services/attendance.service';
 import { PdfService } from '../services/pdf.service';
+import { CsvService } from '../services/csv.service';
 
 @Component({
   selector: 'app-coordinator-dashboard',
@@ -70,7 +71,7 @@ import { PdfService } from '../services/pdf.service';
             class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3"
             [class.bg-slate-900]="view() === 'reports'" [class.text-white]="view() === 'reports'" [class.shadow-xl]="view() === 'reports'" [class.shadow-slate-200]="view() === 'reports'"
             [class.bg-white]="view() !== 'reports'" [class.text-slate-600]="view() !== 'reports'" [class.hover:bg-slate-50]="view() !== 'reports'" [class.border]="view() !== 'reports'">
-            <i class="fa-solid fa-file-pdf text-xl" [class]="view() === 'reports' ? 'text-white' : 'text-slate-500'"></i>
+            <i class="fa-solid fa-file-export text-xl" [class]="view() === 'reports' ? 'text-white' : 'text-slate-500'"></i>
             <span class="text-xs font-black uppercase tracking-widest">Reports</span>
           </button>
         </div>
@@ -172,25 +173,39 @@ import { PdfService } from '../services/pdf.service';
           @case ('reports') {
             <div class="space-y-6 animate-in fade-in">
               <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-4">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-2xl font-black tracking-tight text-slate-800">Daily Teacher Report</h2>
-                    <div class="flex items-center gap-2">
-                        <span class="text-[10px] font-black uppercase text-slate-400">Photos</span>
-                        <button (click)="reportIncludePhotos.set(!reportIncludePhotos())" [class]="reportIncludePhotos() ? 'bg-indigo-600' : 'bg-slate-200'" class="w-10 h-5 rounded-full relative transition-colors">
-                            <div [class]="reportIncludePhotos() ? 'right-1' : 'left-1'" class="absolute top-1 w-3 h-3 bg-white rounded-full transition-all"></div>
-                        </button>
-                    </div>
+                <h2 class="text-2xl font-black tracking-tight text-slate-800">Export Teacher Reports</h2>
+                
+                <div class="flex flex-col sm:flex-row items-center justify-between p-2 bg-slate-100 rounded-2xl border border-slate-200 gap-2">
+                  <div class="flex-1 flex bg-white p-1 rounded-xl shadow-sm w-full">
+                    <button (click)="reportExportFormat.set('pdf')" [class]="reportExportFormat() === 'pdf' ? 'flex-1 py-2 bg-indigo-600 text-white rounded-lg shadow-md font-bold text-xs' : 'flex-1 py-2 text-slate-500 font-medium text-xs'">
+                      <i class="fa-solid fa-file-pdf mr-2"></i>PDF
+                    </button>
+                    <button (click)="reportExportFormat.set('csv')" [class]="reportExportFormat() === 'csv' ? 'flex-1 py-2 bg-emerald-600 text-white rounded-lg shadow-md font-bold text-xs' : 'flex-1 py-2 text-slate-500 font-medium text-xs'">
+                      <i class="fa-solid fa-file-csv mr-2"></i>CSV
+                    </button>
+                  </div>
+                  <div class="flex-1 flex justify-center items-center gap-2" [class.opacity-50]="reportExportFormat() === 'csv'">
+                    <span class="text-[10px] font-black uppercase text-slate-400">Photos</span>
+                    <button (click)="reportIncludePhotos.set(!reportIncludePhotos())" [disabled]="reportExportFormat() === 'csv'" [class]="reportIncludePhotos() ? 'bg-indigo-600' : 'bg-slate-200'" class="w-10 h-5 rounded-full relative transition-colors">
+                      <div [class]="reportIncludePhotos() ? 'right-1' : 'left-1'" class="absolute top-1 w-3 h-3 bg-white rounded-full transition-all"></div>
+                    </button>
+                  </div>
                 </div>
-                <div class="flex gap-2">
-                  <input type="date" [ngModel]="selectedDate()" (ngModelChange)="selectedDate.set($event)" class="flex-1 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                  <button (click)="exportDailyReport()" class="px-6 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-700 text-sm">Export PDF</button>
+
+                <div class="border-t pt-4">
+                  <h3 class="font-bold text-slate-700 text-sm mb-2">Daily Report</h3>
+                  <div class="flex gap-2">
+                    <input type="date" [ngModel]="selectedDate()" (ngModelChange)="selectedDate.set($event)" class="flex-1 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                    <button (click)="exportDailyReport()" class="px-6 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-700 text-sm">Export</button>
+                  </div>
                 </div>
-              </div>
-               <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-4">
-                <h2 class="text-2xl font-black tracking-tight text-slate-800">Monthly Teacher Report</h2>
-                <div class="flex gap-2">
-                  <input type="month" [ngModel]="monthlyMonth()" (ngModelChange)="monthlyMonth.set($event)" class="flex-1 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                  <button (click)="exportMonthlyReport()" class="px-6 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 text-sm">Export PDF</button>
+
+                <div class="border-t pt-4 mt-4">
+                  <h3 class="font-bold text-slate-700 text-sm mb-2">Monthly Report</h3>
+                  <div class="flex gap-2">
+                    <input type="month" [ngModel]="monthlyMonth()" (ngModelChange)="monthlyMonth.set($event)" class="flex-1 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                    <button (click)="exportMonthlyReport()" class="px-6 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 text-sm">Export</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -238,6 +253,7 @@ import { PdfService } from '../services/pdf.service';
 export class CoordinatorDashboardComponent {
   attendanceService = inject(AttendanceService);
   pdfService = inject(PdfService);
+  csvService = inject(CsvService);
 
   view = signal<'attendance' | 'teachers' | 'reports'>('attendance');
   coordinator = this.attendanceService.activeCoordinator;
@@ -266,6 +282,7 @@ export class CoordinatorDashboardComponent {
   // Reports State
   monthlyMonth = signal(new Date().toISOString().slice(0, 7));
   reportIncludePhotos = signal(true);
+  reportExportFormat = signal<'pdf' | 'csv'>('pdf');
 
   // General UI State
   showToast = signal(false);
@@ -384,14 +401,23 @@ export class CoordinatorDashboardComponent {
       const record = records.find(r => r.teacherId === t.id);
       return { ...t, status: record ? record.status : 'N/A' };
     });
-    this.pdfService.exportTeacherReport(this.selectedDate(), this.coordinator()!.name, data, this.reportIncludePhotos());
+    if (this.reportExportFormat() === 'pdf') {
+      this.pdfService.exportTeacherReport(this.selectedDate(), this.coordinator()!.name, data, this.reportIncludePhotos());
+    } else {
+      this.csvService.exportTeacherReport(this.selectedDate(), this.coordinator()!.name, data);
+    }
   }
 
   exportMonthlyReport() {
     const data = this.attendanceService.getTeacherMonthlyReport(this.monthlyMonth());
     const [year, month] = this.monthlyMonth().split('-');
     const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
-    this.pdfService.exportTeacherMonthlyReport(monthName, this.coordinator()!.name, data, this.reportIncludePhotos());
+    
+    if (this.reportExportFormat() === 'pdf') {
+      this.pdfService.exportTeacherMonthlyReport(monthName, this.coordinator()!.name, data, this.reportIncludePhotos());
+    } else {
+      this.csvService.exportTeacherMonthlyReport(monthName, this.coordinator()!.name, data);
+    }
   }
 
   private showToastMessage(message: string) {
