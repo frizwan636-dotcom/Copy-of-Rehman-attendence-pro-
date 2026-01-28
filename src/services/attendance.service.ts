@@ -11,6 +11,7 @@ export interface Teacher {
   setupComplete: boolean;
   password?: string;
   photo?: string;
+  mobileNumber?: string;
 }
 
 export interface Coordinator {
@@ -198,13 +199,32 @@ export class AttendanceService {
     return this.teachers();
   }
 
-  addTeacher(name: string, photo?: string) {
-    const id = name.toLowerCase().replace(/\s/g, '_');
+  addTeacher(details: { name: string; photo?: string; mobile?: string; className?: string; section?: string; }) {
+    const id = details.name.toLowerCase().replace(/\s/g, '_');
     if (this.teachers().some(t => t.id === id)) {
       throw new Error("A teacher with this name already exists.");
     }
-    const newTeacher: Teacher = { id, name, schoolName: '', className: '', section: '', setupComplete: false, photo: photo };
+    const newTeacher: Teacher = {
+      id,
+      name: details.name,
+      schoolName: '',
+      className: details.className || '',
+      section: details.section || '',
+      setupComplete: false,
+      photo: details.photo,
+      mobileNumber: details.mobile
+    };
     this.teachers.update(t => [...t, newTeacher]);
+    this.persistState();
+  }
+
+  updateTeacherDetails(teacherId: string, details: Partial<Pick<Teacher, 'name' | 'photo' | 'mobileNumber' | 'className' | 'section'>>) {
+    this.teachers.update(list => list.map(t => {
+        if (t.id === teacherId) {
+            return { ...t, ...details };
+        }
+        return t;
+    }));
     this.persistState();
   }
 

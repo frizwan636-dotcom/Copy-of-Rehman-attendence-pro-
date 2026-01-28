@@ -46,7 +46,7 @@ export class PdfService {
     doc.save(`Student_Attendance_${className}_${date}.pdf`);
   }
   
-  exportTeacherReport(date: string, coordinatorName: string, records: any[]) {
+  exportTeacherReport(date: string, coordinatorName: string, records: any[], includePhotos: boolean) {
     const doc = new jspdf.jsPDF();
     
     doc.setFontSize(20);
@@ -56,8 +56,14 @@ export class PdfService {
     doc.text(`Coordinator: ${coordinatorName}`, 14, 25);
     doc.text(`Date: ${date}`, 14, 32);
 
-    const head = [['Teacher Name', 'Status']];
-    const body = records.map(r => [r.name, r.status]);
+    const head = includePhotos
+      ? [['Photo', 'Name', 'Class', 'Mobile', 'Status']]
+      : [['Name', 'Class', 'Mobile', 'Status']];
+    
+    const body = records.map(r => includePhotos
+      ? [r.photo || '', r.name, r.className ? `${r.className} - ${r.section}` : 'N/A', r.mobileNumber || 'N/A', r.status]
+      : [r.name, r.className ? `${r.className} - ${r.section}` : 'N/A', r.mobileNumber || 'N/A', r.status]
+    );
 
     doc.autoTable({
       head: head,
@@ -65,6 +71,8 @@ export class PdfService {
       startY: 40,
       theme: 'grid',
       headStyles: { fillColor: [22, 163, 74] }, // Green color for header
+      didDrawCell: includePhotos ? (data: any) => this.drawPhoto(doc, data) : null,
+      columnStyles: includePhotos ? { 0: { cellWidth: 15, minCellHeight: 15 } } : {}
     });
 
     doc.save(`Teacher_Attendance_${date}.pdf`);
