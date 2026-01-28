@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, effect } from '@angular/core';
+import { Component, inject, signal, computed, effect, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AttendanceService, Teacher } from '../services/attendance.service';
@@ -90,7 +90,11 @@ import { PdfService } from '../services/pdf.service';
                   <div class="bg-white p-4 rounded-3xl border shadow-sm flex items-center justify-between">
                     <div class="flex items-center gap-4">
                       <div class="w-14 h-14 rounded-2xl bg-indigo-50 overflow-hidden border-2 border-white shadow-sm flex items-center justify-center">
-                         <i class="fa-solid fa-user-tie text-2xl text-indigo-200"></i>
+                        @if (teacher.photo) {
+                          <img [src]="teacher.photo" class="w-full h-full object-cover">
+                        } @else {
+                          <i class="fa-solid fa-user-tie text-2xl text-indigo-200"></i>
+                        }
                       </div>
                       <div>
                         <h4 class="font-bold text-slate-800">{{ teacher.name }}</h4>
@@ -114,17 +118,36 @@ import { PdfService } from '../services/pdf.service';
           @case ('teachers') {
             <div class="space-y-6 animate-in fade-in">
               <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border">
-                <h2 class="text-2xl font-black tracking-tight text-slate-800">Add New Teacher</h2>
-                <div class="flex gap-2 mt-4">
-                  <input type="text" [ngModel]="newTeacherName()" (ngModelChange)="newTeacherName.set($event)" placeholder="Enter teacher's full name" class="flex-1 p-4 bg-slate-50 rounded-xl border outline-none text-sm">
-                  <button (click)="addTeacher()" [disabled]="!newTeacherName()" class="px-6 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50">Add Teacher</button>
+                <h2 class="text-2xl font-black tracking-tight text-slate-800 mb-4">Add New Teacher</h2>
+                <div class="flex gap-4">
+                  <div class="w-20 h-20 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer hover:bg-slate-100 relative" (click)="triggerPhotoUpload()">
+                    @if(newTeacherPhoto()) {
+                      <img [src]="newTeacherPhoto()" class="w-full h-full object-cover">
+                    } @else {
+                      <i class="fa-solid fa-camera text-slate-300 text-xl"></i>
+                    }
+                  </div>
+                  <div class="flex-1 flex items-center gap-2">
+                    <input type="text" [ngModel]="newTeacherName()" (ngModelChange)="newTeacherName.set($event)" placeholder="Enter teacher's full name" class="flex-1 p-4 bg-slate-50 rounded-xl border outline-none text-sm h-full">
+                    <button (click)="addTeacher()" [disabled]="!newTeacherName()" class="px-6 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 h-full">Add</button>
+                  </div>
                 </div>
+                <input type="file" #teacherPhotoInput accept="image/*" (change)="onPhotoSelected($event)" class="hidden">
               </div>
               <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-3">
                 <h2 class="text-2xl font-black tracking-tight text-slate-800">Registered Teachers ({{ teachers().length }})</h2>
                 @for (teacher of teachers(); track teacher.id) {
                   <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border">
-                    <span class="font-bold text-slate-700">{{ teacher.name }}</span>
+                    <div class="flex items-center gap-3">
+                      <div class="w-10 h-10 rounded-lg bg-white overflow-hidden border shadow-sm">
+                        @if (teacher.photo) {
+                          <img [src]="teacher.photo" class="w-full h-full object-cover">
+                        } @else {
+                          <div class="w-full h-full flex items-center justify-center text-slate-300"><i class="fa-solid fa-user-tie"></i></div>
+                        }
+                      </div>
+                      <span class="font-bold text-slate-700">{{ teacher.name }}</span>
+                    </div>
                     <button (click)="removeTeacher(teacher.id)" class="text-red-400 hover:text-red-600 text-sm font-bold">Remove</button>
                   </div>
                 }
@@ -132,11 +155,20 @@ import { PdfService } from '../services/pdf.service';
             </div>
           }
           @case ('reports') {
-            <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-4 animate-in fade-in">
-              <h2 class="text-2xl font-black tracking-tight text-slate-800">Teacher Attendance Report</h2>
-              <div class="flex gap-2">
-                <input type="date" [ngModel]="selectedDate()" (ngModelChange)="selectedDate.set($event)" class="flex-1 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                <button (click)="exportReport()" class="px-6 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-700 text-sm">Export PDF</button>
+            <div class="space-y-6 animate-in fade-in">
+              <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-4">
+                <h2 class="text-2xl font-black tracking-tight text-slate-800">Daily Teacher Report</h2>
+                <div class="flex gap-2">
+                  <input type="date" [ngModel]="selectedDate()" (ngModelChange)="selectedDate.set($event)" class="flex-1 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                  <button (click)="exportDailyReport()" class="px-6 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-700 text-sm">Export PDF</button>
+                </div>
+              </div>
+               <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-4">
+                <h2 class="text-2xl font-black tracking-tight text-slate-800">Monthly Teacher Report</h2>
+                <div class="flex gap-2">
+                  <input type="month" [ngModel]="monthlyMonth()" (ngModelChange)="monthlyMonth.set($event)" class="flex-1 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                  <button (click)="exportMonthlyReport()" class="px-6 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 text-sm">Export PDF</button>
+                </div>
               </div>
             </div>
           }
@@ -159,12 +191,16 @@ export class CoordinatorDashboardComponent {
   coordinator = this.attendanceService.activeCoordinator;
   teachers = signal<Teacher[]>([]);
   newTeacherName = signal('');
+  newTeacherPhoto = signal<string | null>(null);
   
   selectedDate = signal(new Date().toISOString().split('T')[0]);
+  monthlyMonth = signal(new Date().toISOString().slice(0, 7));
   dailyRecords = signal<Map<string, 'Present' | 'Absent'>>(new Map());
 
   showToast = signal(false);
   toastMessage = signal('');
+  
+  @ViewChild('teacherPhotoInput') teacherPhotoInput!: ElementRef<HTMLInputElement>;
 
   constructor() {
     this.teachers.set(this.attendanceService.getTeachers());
@@ -181,11 +217,26 @@ export class CoordinatorDashboardComponent {
     });
   }
   
+  triggerPhotoUpload() {
+    this.teacherPhotoInput.nativeElement.click();
+  }
+
+  onPhotoSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      const reader = new FileReader();
+      reader.onload = (e: any) => this.newTeacherPhoto.set(e.target.result);
+      reader.readAsDataURL(file);
+    }
+  }
+
   addTeacher() {
     try {
-      this.attendanceService.addTeacher(this.newTeacherName());
+      this.attendanceService.addTeacher(this.newTeacherName(), this.newTeacherPhoto() || undefined);
       this.teachers.set(this.attendanceService.getTeachers());
       this.newTeacherName.set('');
+      this.newTeacherPhoto.set(null);
       this.showToastMessage('Teacher added successfully');
     } catch (e: any) {
       alert(e.message);
@@ -215,13 +266,22 @@ export class CoordinatorDashboardComponent {
     this.showToastMessage('Teacher attendance saved');
   }
   
-  exportReport() {
+  exportDailyReport() {
     const records = this.attendanceService.getTeacherAttendanceForDate(this.selectedDate());
     const data = this.teachers().map(t => {
       const record = records.find(r => r.teacherId === t.id);
       return { name: t.name, status: record ? record.status : 'N/A' };
     });
     this.pdfService.exportTeacherReport(this.selectedDate(), this.coordinator()!.name, data);
+  }
+
+  exportMonthlyReport() {
+    const data = this.attendanceService.getTeacherMonthlyReport(this.monthlyMonth());
+    const [year, month] = this.monthlyMonth().split('-');
+    const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+    // Assuming you might want to include photos in this report too.
+    // Let's add a toggle for it later if needed, for now, defaulting to false.
+    this.pdfService.exportTeacherMonthlyReport(monthName, this.coordinator()!.name, data, true);
   }
 
   private showToastMessage(message: string) {

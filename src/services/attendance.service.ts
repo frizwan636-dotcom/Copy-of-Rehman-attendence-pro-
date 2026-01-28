@@ -10,6 +10,7 @@ export interface Teacher {
   section: string;
   setupComplete: boolean;
   password?: string;
+  photo?: string;
 }
 
 export interface Coordinator {
@@ -197,12 +198,12 @@ export class AttendanceService {
     return this.teachers();
   }
 
-  addTeacher(name: string) {
+  addTeacher(name: string, photo?: string) {
     const id = name.toLowerCase().replace(/\s/g, '_');
     if (this.teachers().some(t => t.id === id)) {
       throw new Error("A teacher with this name already exists.");
     }
-    const newTeacher: Teacher = { id, name, schoolName: '', className: '', section: '', setupComplete: false };
+    const newTeacher: Teacher = { id, name, schoolName: '', className: '', section: '', setupComplete: false, photo: photo };
     this.teachers.update(t => [...t, newTeacher]);
     this.persistState();
   }
@@ -226,7 +227,37 @@ export class AttendanceService {
   }
 
   getTeacherAttendanceForDate(date: string): TeacherAttendanceRecord[] {
-    return this.teacherAttendance().filter(r => r.date === date);
+    const coordinatorId = this.activeCoordinator()!.id;
+    return this.teacherAttendance().filter(r => r.date === date && r.coordinatorId === coordinatorId);
+  }
+
+  getTeacherMonthlyReport(yearMonth: string) {
+    const coordinatorId = this.activeCoordinator()!.id;
+    const startDate = `${yearMonth}-01`;
+    const endDate = `${yearMonth}-31`;
+    
+    const records = this.teacherAttendance().filter(r => 
+      r.coordinatorId === coordinatorId && 
+      r.date >= startDate && 
+      r.date <= endDate
+    );
+    
+    const allTeachers = this.teachers();
+    
+    return allTeachers.map(teacher => {
+      const teacherRecords = records.filter(r => r.teacherId === teacher.id);
+      const present = teacherRecords.filter(r => r.status === 'Present').length;
+      const absent = teacherRecords.filter(r => r.status === 'Absent').length;
+      const total = present + absent;
+      const percentage = total > 0 ? ((present / total) * 100).toFixed(1) : '0.0';
+      return { 
+        name: teacher.name, 
+        photo: teacher.photo,
+        present, 
+        absent, 
+        percentage 
+      };
+    });
   }
 
   // Student & Student Attendance

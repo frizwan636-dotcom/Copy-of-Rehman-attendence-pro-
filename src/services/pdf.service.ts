@@ -1,4 +1,3 @@
-
 import { Injectable } from '@angular/core';
 
 declare var jspdf: any;
@@ -69,6 +68,38 @@ export class PdfService {
     });
 
     doc.save(`Teacher_Attendance_${date}.pdf`);
+  }
+
+  exportTeacherMonthlyReport(monthLabel: string, coordinatorName: string, data: any[], includePhotos: boolean) {
+    const doc = new jspdf.jsPDF();
+    
+    doc.setFontSize(20);
+    doc.text('Rehman Attendance - Monthly Teacher Report', 105, 15, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.text(`Coordinator: ${coordinatorName}`, 14, 25);
+    doc.text(`Month: ${monthLabel}`, 14, 32);
+
+    const head = includePhotos 
+      ? [['Photo', 'Teacher Name', 'Present', 'Absent', '%']] 
+      : [['Teacher Name', 'Present', 'Absent', '%']];
+
+    const body = data.map(d => includePhotos 
+      ? [d.photo || '', d.name, d.present, d.absent, d.percentage + '%']
+      : [d.name, d.present, d.absent, d.percentage + '%']
+    );
+
+    doc.autoTable({
+      head: head,
+      body: body,
+      startY: 40,
+      theme: 'striped',
+      headStyles: { fillColor: [22, 163, 74] }, // Green
+      didDrawCell: includePhotos ? (data: any) => this.drawPhoto(doc, data) : null,
+      columnStyles: includePhotos ? { 0: { cellWidth: 15, minCellHeight: 15 } } : {}
+    });
+
+    doc.save(`Monthly_Teacher_Report_${monthLabel.replace(' ', '_')}.pdf`);
   }
 
   exportRange(startDate: string, endDate: string, className: string, section: string, data: any[], includePhotos: boolean) {

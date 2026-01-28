@@ -363,7 +363,7 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
             </div>
 
             <div class="flex gap-4 mb-4">
-              <div class="w-24 h-24 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer hover:bg-slate-100 transition-colors relative" (click)="triggerStudentPhoto()">
+              <div class="w-24 h-24 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer hover:bg-slate-100 transition-colors relative" (click)="triggerPhotoUpload()">
                 @if (newStudentPhoto()) {
                   <img [src]="newStudentPhoto()" class="w-full h-full object-cover">
                   <div class="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity">
@@ -391,8 +391,7 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
             </button>
           </div>
         </div>
-        <video #studentVideo autoplay playsinline class="hidden"></video>
-        <canvas #studentCanvas class="hidden"></canvas>
+        <input type="file" #studentPhotoInput accept="image/*" (change)="onPhotoSelected($event)" class="hidden">
       }
 
        <!-- Record Payment Modal -->
@@ -452,8 +451,7 @@ export class DashboardComponent {
   selectedStudentForPayment = signal<StudentWithFeeStatus | null>(null);
   paymentAmount = signal<number | null>(null);
 
-  @ViewChild('studentVideo') studentVideo!: ElementRef<HTMLVideoElement>;
-  @ViewChild('studentCanvas') studentCanvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('studentPhotoInput') studentPhotoInput!: ElementRef<HTMLInputElement>;
 
   studentsWithFeeStatus = computed(() => {
     return this.students().map(s => {
@@ -611,22 +609,19 @@ export class DashboardComponent {
   }
 
   // New Admission Logic
-  async triggerStudentPhoto() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-      const video = this.studentVideo.nativeElement;
-      video.srcObject = stream;
-      
-      setTimeout(() => {
-        const canvas = this.studentCanvas.nativeElement;
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d')?.drawImage(video, 0, 0);
-        this.newStudentPhoto.set(canvas.toDataURL('image/jpeg', 0.5));
-        stream.getTracks().forEach(t => t.stop());
-      }, 500);
-    } catch (err) {
-      alert("Student photo capture failed: " + err);
+  triggerPhotoUpload() {
+    this.studentPhotoInput.nativeElement.click();
+  }
+
+  onPhotoSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      const reader = new FileReader();
+      reader.onload = (e: any) => {
+        this.newStudentPhoto.set(e.target.result);
+      };
+      reader.readAsDataURL(file);
     }
   }
 

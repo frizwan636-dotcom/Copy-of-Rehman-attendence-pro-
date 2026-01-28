@@ -110,7 +110,7 @@ import { AttendanceService } from '../services/attendance.service';
                 @if (inputMode() === 'single') {
                   <div class="flex gap-4 mb-4">
                     <!-- Photo Capture -->
-                    <div class="w-20 h-20 bg-white rounded-2xl border-2 border-dashed border-indigo-200 flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer hover:bg-indigo-50 transition-colors relative" (click)="triggerStudentPhoto()">
+                    <div class="w-20 h-20 bg-white rounded-2xl border-2 border-dashed border-indigo-200 flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer hover:bg-indigo-50 transition-colors relative" (click)="triggerPhotoUpload()">
                       @if (studentPhoto()) {
                         <img [src]="studentPhoto()" class="w-full h-full object-cover">
                         <div class="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity">
@@ -137,10 +137,7 @@ import { AttendanceService } from '../services/attendance.service';
                   <button (click)="addStudentToList()" [disabled]="!newName() || !newRoll() || !newMobile()" class="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all disabled:opacity-50">
                     <i class="fa-solid fa-plus-circle mr-2"></i> Add Student
                   </button>
-
-                  <video #studentVideo autoplay playsinline class="hidden"></video>
-                  <canvas #studentCanvas class="hidden"></canvas>
-
+                  <input type="file" #studentPhotoInput accept="image/*" (change)="onPhotoSelected($event)" class="hidden">
                 } @else if (inputMode() === 'bulk') {
                   <div class="space-y-4">
                     <div class="bg-indigo-600/5 p-3 rounded-xl text-[10px] text-indigo-600 font-bold border border-indigo-100">
@@ -240,28 +237,23 @@ export class SetupWizardComponent {
   newTotalFee = signal<number|null>(null);
   bulkText = signal('');
 
-  @ViewChild('studentVideo') studentVideo!: ElementRef<HTMLVideoElement>;
-  @ViewChild('studentCanvas') studentCanvas!: ElementRef<HTMLCanvasElement>;
-
+  @ViewChild('studentPhotoInput') studentPhotoInput!: ElementRef<HTMLInputElement>;
   @ViewChild('scanVideo') scanVideo!: ElementRef<HTMLVideoElement>;
   @ViewChild('scanCanvas') scanCanvas!: ElementRef<HTMLCanvasElement>;
 
-  async triggerStudentPhoto() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-      const video = this.studentVideo.nativeElement;
-      video.srcObject = stream;
-      
-      setTimeout(() => {
-        const canvas = this.studentCanvas.nativeElement;
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d')?.drawImage(video, 0, 0);
-        this.studentPhoto.set(canvas.toDataURL('image/jpeg', 0.5));
-        stream.getTracks().forEach(t => t.stop());
-      }, 500);
-    } catch (err) {
-      alert("Student photo capture failed: " + err);
+  triggerPhotoUpload() {
+    this.studentPhotoInput.nativeElement.click();
+  }
+
+  onPhotoSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      const reader = new FileReader();
+      reader.onload = (e: any) => {
+        this.studentPhoto.set(e.target.result);
+      };
+      reader.readAsDataURL(file);
     }
   }
 
