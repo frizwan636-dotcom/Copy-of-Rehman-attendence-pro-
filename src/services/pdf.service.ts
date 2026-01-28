@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import type { AttendanceService } from './attendance.service';
 
 declare var jspdf: any;
 
@@ -24,9 +25,17 @@ export class PdfService {
     doc.text(`Class: ${className} (${section})`, 14, 25);
     doc.text(`Date: ${date}`, 14, 32);
 
+    const totalStudents = records.length;
+    const presentStudents = records.filter(r => r.status === 'Present').length;
+    const studentsWithStatus = records.filter(r => r.status !== 'N/A').length;
+    const overallPercentage = studentsWithStatus > 0 ? ((presentStudents / studentsWithStatus) * 100).toFixed(1) : '0.0';
+
+    doc.text(`Total Students: ${totalStudents}`, 196, 25, { align: 'right' });
+    doc.text(`Today's Attendance: ${overallPercentage}%`, 196, 32, { align: 'right' });
+
     const head = includePhotos 
-      ? [['Photo', 'Roll', 'Name', 'Contact', 'Status', 'Total %']] 
-      : [['Roll', 'Name', 'Contact', 'Status', 'Total %']];
+      ? [['Photo', 'Roll', 'Name', 'Contact', 'Status', 'Month %']] 
+      : [['Roll', 'Name', 'Contact', 'Status', 'Month %']];
     
     const body = records.map(r => includePhotos 
       ? [r.photo || '', r.roll, r.name, r.mobile || 'N/A', r.status, r.percentage + '%'] 
@@ -110,39 +119,93 @@ export class PdfService {
     doc.save(`Monthly_Teacher_Report_${monthLabel.replace(' ', '_')}.pdf`);
   }
 
-  exportRange(startDate: string, endDate: string, className: string, section: string, data: any[], includePhotos: boolean) {
+  async exportRange(
+    startDate: string,
+    endDate: string,
+    className: string,
+    section: string,
+    monthlyBreakdown: { monthName: string, records: any[] }[],
+    includePhotos: boolean,
+    attendanceService: AttendanceService
+  ) {
     const doc = new jspdf.jsPDF();
-    
-    doc.setFontSize(20);
-    doc.text('Rehman Attendance - Range Report', 105, 15, { align: 'center' });
-    
-    doc.setFontSize(12);
-    doc.text(`Class: ${className} (${section})`, 14, 25);
-    doc.text(`Period: ${startDate} to ${endDate}`, 14, 32);
+    let isFirstPage = true;
 
-    const head = includePhotos 
-      ? [['Photo', 'Roll', 'Name', 'Contact', 'Pres.', 'Abs.', '%']] 
-      : [['Roll', 'Name', 'Contact', 'Pres.', 'Abs.', '%']];
+    for (const monthData of monthlyBreakdown) {
+      if (!isFirstPage) {
+        doc.addPage();
+      }
+      
+      doc.setFontSize(20);
+      doc.text('Rehman Attendance - Monthly Breakdown', 105, 15, { align: 'center' });
+      
+      doc.setFontSize(14);
+      doc.setFont(undefined, 'bold');
+      doc.text(`Report for: ${monthData.monthName}`, 14, 28);
+      
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(10);
+      doc.text(`Class: ${className} (${section})`, 14, 35);
+      
+      const totalStudents = monthData.records.length;
+      const totalPresent = monthData.records.reduce((sum: number, s: any) => sum + s.present, 0);
+      const totalAbsent = monthData.records.reduce((sum: number, s: any) => sum + s.absent, 0);
+      const totalRecords = totalPresent + totalAbsent;
+      const overallPercentage = totalRecords > 0 ? ((totalPresent / totalRecords) * 100).toFixed(1) : '0.0';
 
-    const body = data.map(d => includePhotos 
-      ? [d.photo || '', d.roll, d.name, d.mobile || 'N/A', d.present, d.absent, d.percentage + '%']
-      : [d.roll, d.name, d.mobile || 'N/A', d.present, d.absent, d.percentage + '%']
-    );
+      doc.text(`Total Students: ${totalStudents}`, 196, 28, { align: 'right' });
+      doc.text(`Overall Attendance: ${overallPercentage}%`, 196, 35, { align: 'right' });
+      
+      let startY = 45;
 
-    doc.autoTable({
-      head: head,
-      body: body,
-      startY: 40,
-      theme: 'striped',
-      headStyles: { fillColor: [59, 130, 246] },
-      didDrawCell: includePhotos ? (data: any) => this.drawPhoto(doc, data) : null,
-      columnStyles: includePhotos ? { 0: { cellWidth: 15, minCellHeight: 15 } } : {}
-    });
+      // Generate and draw AI analysis
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.text('AI-Powered Analysis:', 14, startY);
+      startY += 6;
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      const analysis = await attendanceService.generateMonthlyAnalysis(monthData.monthName, monthData.records);
+      const analysisLines = doc.splitTextToSize(analysis, 180);
+      doc.text(analysisLines, 14, startY);
+      startY += analysisLines.length * 5 + 5;
+      doc.setTextColor(0);
+
+
+      const head = includePhotos
+        ? [['Photo', 'Roll', 'Name', 'Pres.', 'Abs.', 'Month %']]
+        : [['Roll', 'Name', 'Pres.', 'Abs.', 'Month %']];
+
+      const body = monthData.records.map(d => includePhotos
+        ? [d.photo || '', d.roll, d.name, d.present, d.absent, d.percentage + '%']
+        : [d.roll, d.name, d.present, d.absent, d.percentage + '%']
+      );
+
+      doc.autoTable({
+        head: head,
+        body: body,
+        startY: startY,
+        theme: 'striped',
+        headStyles: { fillColor: [59, 130, 246] },
+        didDrawCell: includePhotos ? (data: any) => this.drawPhoto(doc, data) : null,
+        columnStyles: includePhotos ? { 0: { cellWidth: 15, minCellHeight: 15 } } : {}
+      });
+
+      isFirstPage = false;
+    }
 
     doc.save(`RangeReport_${className}_${startDate}_to_${endDate}.pdf`);
   }
 
-  exportMonthly(monthLabel: string, className: string, section: string, data: any[], includePhotos: boolean) {
+  async exportMonthly(
+    monthLabel: string,
+    className: string,
+    section: string,
+    data: any[],
+    includePhotos: boolean,
+    attendanceService: AttendanceService
+  ) {
     const doc = new jspdf.jsPDF();
     
     doc.setFontSize(20);
@@ -152,9 +215,34 @@ export class PdfService {
     doc.text(`Class: ${className} (${section})`, 14, 25);
     doc.text(`Month: ${monthLabel}`, 14, 32);
 
+    const totalStudents = data.length;
+    const totalPresent = data.reduce((sum, s) => sum + s.present, 0);
+    const totalAbsent = data.reduce((sum, s) => sum + s.absent, 0);
+    const totalRecords = totalPresent + totalAbsent;
+    const overallPercentage = totalRecords > 0 ? ((totalPresent / totalRecords) * 100).toFixed(1) : '0.0';
+
+    doc.text(`Total Students: ${totalStudents}`, 196, 25, { align: 'right' });
+    doc.text(`Overall Attendance: ${overallPercentage}%`, 196, 32, { align: 'right' });
+
+    let startY = 42;
+
+    // AI Analysis
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.text('AI-Powered Analysis:', 14, startY);
+    startY += 6;
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    const analysis = await attendanceService.generateMonthlyAnalysis(monthLabel, data);
+    const analysisLines = doc.splitTextToSize(analysis, 180);
+    doc.text(analysisLines, 14, startY);
+    startY += analysisLines.length * 5 + 5;
+    doc.setTextColor(0);
+
     const head = includePhotos 
-      ? [['Photo', 'Roll', 'Name', 'Present', 'Absent', '%']] 
-      : [['Roll', 'Name', 'Present', 'Absent', '%']];
+      ? [['Photo', 'Roll', 'Name', 'Present', 'Absent', 'Month %']] 
+      : [['Roll', 'Name', 'Present', 'Absent', 'Month %']];
 
     const body = data.map(d => includePhotos 
       ? [d.photo || '', d.roll, d.name, d.present, d.absent, d.percentage + '%']
@@ -164,7 +252,7 @@ export class PdfService {
     doc.autoTable({
       head: head,
       body: body,
-      startY: 40,
+      startY: startY,
       theme: 'striped',
       headStyles: { fillColor: [5, 150, 105] },
       didDrawCell: includePhotos ? (data: any) => this.drawPhoto(doc, data) : null,

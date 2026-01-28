@@ -350,8 +350,91 @@ export class AttendanceService {
     return this.attendance().filter(r => r.teacherId === teacherId && r.date >= startDate && r.date <= endDate);
   }
 
-  getRangeReport(startDate: string, endDate: string) {
-    const records = this.getAttendanceForRange(startDate, endDate);
+  async generateMonthlyAnalysis(monthName: string, reportData: any[]): Promise<string> {
+    if (!reportData || reportData.length === 0) {
+      return "No attendance data available for this month to analyze.";
+    }
+
+    const simplifiedData = reportData.map(d => ({ name: d.name, present: d.present, absent: d.absent, percentage: d.percentage }));
+    const overallPresent = simplifiedData.reduce((acc, d) => acc + d.present, 0);
+    const overallAbsent = simplifiedData.reduce((acc, d) => acc + d.absent, 0);
+    const totalRecords = overallPresent + overallAbsent;
+    const classPercentage = totalRecords > 0 ? ((overallPresent / totalRecords) * 100).toFixed(1) : "0.0";
+
+    const prompt = `
+      Analyze the student attendance for ${monthName}. The class has an overall attendance of ${classPercentage}%.
+      Provide a concise, professional analysis (2-3 sentences) for a teacher's report.
+      Highlight the student with the highest attendance and the student with the lowest attendance.
+      Do not use markdown formatting (like * or #).
+      Example: Overall attendance was strong this month. John Doe achieved perfect attendance, while Jane Smith's attendance was lowest and needs attention.
+      
+      Student Data:
+      ${JSON.stringify(simplifiedData)}
+    `;
+
+    try {
+        const response = await this.ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+        return response.text.trim();
+    } catch (e) {
+        console.error("AI Analysis generation failed:", e);
+        return "Could not generate an AI-powered analysis for this period.";
+    }
+  }
+  
+  getMonthlyBreakdownForRange(startDate: string, endDate: string) {
+    const allRecordsInRange = this.getAttendanceForRange(startDate, endDate);
+    const students = this.activeStudents();
+    
+    const monthlyBreakdown: { month: string, monthName: string, records: any[] }[] = [];
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setUTCHours(23, 59, 59, 999);
+    
+    let current = new Date(start.getUTCFullYear(), start.getUTCMonth(), 1);
+    
+    while (current <= end) {
+        const year = current.getUTCFullYear();
+        const month = current.getUTCMonth();
+        
+        const yearMonth = `${year}-${(month + 1).toString().padStart(2, '0')}`;
+        const monthName = current.toLocaleString('default', { month: 'long', year: 'numeric' });
+        
+        const monthStart = new Date(Date.UTC(year, month, 1));
+        const monthEnd = new Date(Date.UTC(year, month + 1, 0));
+
+        const monthRecords = allRecordsInRange.filter(r => {
+            const recordDate = new Date(r.date);
+            return recordDate >= monthStart && recordDate <= monthEnd;
+        });
+
+        if (monthRecords.length > 0) {
+            const studentStats = students.map(s => {
+                const studentRecords = monthRecords.filter(r => r.studentId === s.id);
+                const present = studentRecords.filter(r => r.status === 'Present').length;
+                const absent = studentRecords.filter(r => r.status === 'Absent').length;
+                const total = present + absent;
+                const percentage = total > 0 ? ((present / total) * 100).toFixed(1) : '0.0';
+                return { name: s.name, roll: s.rollNumber, mobile: s.mobileNumber, photo: s.photo, present, absent, percentage };
+            });
+            monthlyBreakdown.push({ month: yearMonth, monthName, records: studentStats });
+        }
+        
+        current.setUTCMonth(current.getUTCMonth() + 1);
+    }
+    
+    return monthlyBreakdown;
+  }
+
+  getMonthlyReport(yearMonth: string) {
+    const start = `${yearMonth}-01`;
+    const [year, month] = yearMonth.split('-').map(Number);
+    const end = new Date(year, month, 0).toISOString().split('T')[0];
+    
+    const records = this.getAttendanceForRange(start, end);
     const students = this.activeStudents();
     return students.map(s => {
       const studentRecords = records.filter(r => r.studentId === s.id);
@@ -363,24 +446,23 @@ export class AttendanceService {
     });
   }
 
-  getMonthlyReport(yearMonth: string) {
-    const start = `${yearMonth}-01`;
-    const end = `${yearMonth}-31`;
-    return this.getRangeReport(start, end);
-  }
-
   getDailyReportData(date: string) {
     const students = this.activeStudents();
     const recordsForDate = this.getAttendanceForDate(date);
-    const allRecordsUpToDate = this.attendance().filter(r => 
-        r.teacherId === this.activeTeacher()?.id && r.date <= date
+    
+    // Calculate this month's percentage up to the selected date
+    const [year, month] = date.split('-');
+    const monthStart = `${year}-${month}-01`;
+    const allRecordsThisMonth = this.attendance().filter(r => 
+        r.teacherId === this.activeTeacher()?.id && r.date >= monthStart && r.date <= date
     );
 
     return students.map(s => {
         const statusRecord = recordsForDate.find(r => r.studentId === s.id);
         const status = statusRecord ? statusRecord.status : 'N/A';
-
-        const studentTotalRecords = allRecordsUpToDate.filter(r => r.studentId === s.id);
+        
+        // Calculate percentage for the current month up to the selected date
+        const studentTotalRecords = allRecordsThisMonth.filter(r => r.studentId === s.id);
         const present = studentTotalRecords.filter(r => r.status === 'Present').length;
         const total = studentTotalRecords.length;
         const percentage = total > 0 ? ((present / total) * 100).toFixed(1) : '0.0';

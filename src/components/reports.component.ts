@@ -137,19 +137,29 @@ export class ReportsComponent {
     this.pdfService.exportDaily(this.dailyDate(), teacher.className, teacher.section, data, this.includePhotos());
   }
 
-  exportMonthly() {
+  async exportMonthly() {
     const teacher = this.attendanceService.activeTeacher()!;
     const stats = this.attendanceService.getMonthlyReport(this.monthlyMonth());
     
     const [year, month] = this.monthlyMonth().split('-');
     const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
 
-    this.pdfService.exportMonthly(monthName, teacher.className, teacher.section, stats, this.includePhotos());
+    await this.pdfService.exportMonthly(monthName, teacher.className, teacher.section, stats, this.includePhotos(), this.attendanceService);
   }
 
-  exportRange() {
+  async exportRange() {
+    if (this.rangeStart() > this.rangeEnd()) {
+      alert("The 'From' date cannot be after the 'To' date.");
+      return;
+    }
     const teacher = this.attendanceService.activeTeacher()!;
-    const stats = this.attendanceService.getRangeReport(this.rangeStart(), this.rangeEnd());
-    this.pdfService.exportRange(this.rangeStart(), this.rangeEnd(), teacher.className, teacher.section, stats, this.includePhotos());
+    const monthlyBreakdown = this.attendanceService.getMonthlyBreakdownForRange(this.rangeStart(), this.rangeEnd());
+
+    if (monthlyBreakdown.length === 0) {
+      alert("No attendance data found for the selected range.");
+      return;
+    }
+    
+    await this.pdfService.exportRange(this.rangeStart(), this.rangeEnd(), teacher.className, teacher.section, monthlyBreakdown, this.includePhotos(), this.attendanceService);
   }
 }
