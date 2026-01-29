@@ -5,6 +5,7 @@ import { BackendService, AppData } from './backend.service';
 export interface Teacher {
   id: string;
   name: string;
+  email: string;
   schoolName?: string;
   className: string;
   section: string;
@@ -17,6 +18,7 @@ export interface Teacher {
 export interface Coordinator {
   id: string;
   name: string;
+  email: string;
   password?: string;
 }
 
@@ -128,7 +130,7 @@ export class AttendanceService {
 
     this.isSyncing.set(true);
     const data: AppData = {
-      version: 3,
+      version: 4,
       teachers: this.teachers(),
       coordinators: this.coordinators(),
       students: this.students(),
@@ -139,43 +141,53 @@ export class AttendanceService {
     this.isSyncing.set(false);
   }
 
-  isUserRegistered(name: string, role: 'teacher' | 'coordinator'): boolean {
+  isNameTaken(name: string, role: 'teacher' | 'coordinator'): boolean {
     const id = name.toLowerCase().replace(/\s/g, '_');
     if (role === 'teacher') {
-      return this.teachers().some(t => t.id === id && t.password);
+      return this.teachers().some(t => t.id === id);
     } else {
-      return this.coordinators().some(c => c.id === id && c.password);
+      return this.coordinators().some(c => c.id === id);
     }
+  }
+
+  isEmailRegistered(email: string): boolean {
+    const lowerEmail = email.toLowerCase();
+    return this.teachers().some(t => t.email.toLowerCase() === lowerEmail) || this.coordinators().some(c => c.email.toLowerCase() === lowerEmail);
   }
   
   isRollNumberTaken(rollNumber: string): boolean {
     return this.activeStudents().some(s => s.rollNumber.toLowerCase() === rollNumber.toLowerCase());
   }
 
-  verifyPassword(name: string, role: 'teacher' | 'coordinator', passwordAttempt: string): boolean {
-    const id = name.toLowerCase().replace(/\s/g, '_');
+  verifyPassword(email: string, role: 'teacher' | 'coordinator', passwordAttempt: string): boolean {
+    const lowerEmail = email.toLowerCase();
     const user = role === 'teacher' 
-      ? this.teachers().find(t => t.id === id) 
-      : this.coordinators().find(c => c.id === id);
+      ? this.teachers().find(t => t.email.toLowerCase() === lowerEmail) 
+      : this.coordinators().find(c => c.email.toLowerCase() === lowerEmail);
 
     return !!user && !!user.password && user.password === passwordAttempt;
   }
   
-  login(name: string, role: 'teacher' | 'coordinator') {
-    const id = name.toLowerCase().replace(/\s/g, '_');
-    this.currentUser.set({ id, role });
+  login(email: string, role: 'teacher' | 'coordinator') {
+    const lowerEmail = email.toLowerCase();
+    const user = role === 'teacher'
+      ? this.teachers().find(t => t.email.toLowerCase() === lowerEmail)
+      : this.coordinators().find(c => c.email.toLowerCase() === lowerEmail);
+    
+    if (user) {
+        this.currentUser.set({ id: user.id, role });
+    }
   }
 
   logout() { this.currentUser.set(null); }
 
   // Teacher specific actions
-  registerTeacher(name: string, password: string) {
+  registerTeacher(name: string, email: string, password: string) {
     const id = name.toLowerCase().replace(/\s/g, '_');
-    if (this.teachers().some(t => t.id === id)) return;
-    const newTeacher: Teacher = { id, name, schoolName: '', className: '', section: '', setupComplete: false, password: password };
+    const newTeacher: Teacher = { id, name, email, schoolName: '', className: '', section: '', setupComplete: false, password: password };
     this.teachers.update(t => [...t, newTeacher]);
     this.persistState(); // Save changes
-    this.login(name, 'teacher');
+    this.login(email, 'teacher');
   }
   
   updateTeacherSetup(schoolName: string, className: string, section: string) {
@@ -186,27 +198,30 @@ export class AttendanceService {
   }
 
   // Coordinator specific actions
-  registerCoordinator(name: string, password: string) {
+  registerCoordinator(name: string, email: string, password: string) {
     const id = name.toLowerCase().replace(/\s/g, '_');
-    if (this.coordinators().some(c => c.id === id)) return;
-    const newCoordinator: Coordinator = { id, name, password: password };
+    const newCoordinator: Coordinator = { id, name, email, password: password };
     this.coordinators.update(c => [...c, newCoordinator]);
     this.persistState();
-    this.login(name, 'coordinator');
+    this.login(email, 'coordinator');
   }
 
   getTeachers(): Teacher[] {
     return this.teachers();
   }
 
-  addTeacher(details: { name: string; photo?: string; mobile?: string; className?: string; section?: string; }) {
+  addTeacher(details: { name: string; email: string; photo?: string; mobile?: string; className?: string; section?: string; }) {
     const id = details.name.toLowerCase().replace(/\s/g, '_');
     if (this.teachers().some(t => t.id === id)) {
       throw new Error("A teacher with this name already exists.");
     }
+    if (this.teachers().some(t => t.email.toLowerCase() === details.email.toLowerCase())) {
+        throw new Error("A teacher with this email already exists.");
+    }
     const newTeacher: Teacher = {
       id,
       name: details.name,
+      email: details.email,
       schoolName: '',
       className: details.className || '',
       section: details.section || '',
@@ -218,7 +233,13 @@ export class AttendanceService {
     this.persistState();
   }
 
-  updateTeacherDetails(teacherId: string, details: Partial<Pick<Teacher, 'name' | 'photo' | 'mobileNumber' | 'className' | 'section'>>) {
+  updateTeacherDetails(teacherId: string, details: Partial<Pick<Teacher, 'name' | 'email' | 'photo' | 'mobileNumber' | 'className' | 'section'>>) {
+    if (details.email) {
+        const lowerEmail = details.email.toLowerCase();
+        if (this.teachers().some(t => t.id !== teacherId && t.email.toLowerCase() === lowerEmail)) {
+            throw new Error('This email is already in use by another teacher.');
+        }
+    }
     this.teachers.update(list => list.map(t => {
         if (t.id === teacherId) {
             return { ...t, ...details };
@@ -253,14 +274,17 @@ export class AttendanceService {
 
   getTeacherMonthlyReport(yearMonth: string) {
     const coordinatorId = this.activeCoordinator()!.id;
-    const startDate = `${yearMonth}-01`;
-    const endDate = `${yearMonth}-31`;
+    const [year, month] = yearMonth.split('-').map(Number);
     
-    const records = this.teacherAttendance().filter(r => 
-      r.coordinatorId === coordinatorId && 
-      r.date >= startDate && 
-      r.date <= endDate
-    );
+    const startDate = new Date(Date.UTC(year, month - 1, 1));
+    const endDate = new Date(Date.UTC(year, month, 0));
+    endDate.setUTCHours(23, 59, 59, 999);
+
+    const records = this.teacherAttendance().filter(r => {
+      if (r.coordinatorId !== coordinatorId) return false;
+      const recordDate = new Date(r.date);
+      return recordDate >= startDate && recordDate <= endDate;
+    });
     
     const allTeachers = this.teachers();
     
@@ -347,7 +371,16 @@ export class AttendanceService {
 
   getAttendanceForRange(startDate: string, endDate: string) {
     const teacherId = this.activeTeacher()?.id;
-    return this.attendance().filter(r => r.teacherId === teacherId && r.date >= startDate && r.date <= endDate);
+    const start = new Date(startDate);
+    start.setUTCHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setUTCHours(23, 59, 59, 999);
+
+    return this.attendance().filter(r => {
+      if (r.teacherId !== teacherId) return false;
+      const recordDate = new Date(r.date);
+      return recordDate >= start && recordDate <= end;
+    });
   }
 
   async generateMonthlyAnalysis(monthName: string, reportData: any[]): Promise<string> {
@@ -405,6 +438,7 @@ export class AttendanceService {
         
         const monthStart = new Date(Date.UTC(year, month, 1));
         const monthEnd = new Date(Date.UTC(year, month + 1, 0));
+        monthEnd.setUTCHours(23, 59, 59, 999);
 
         const monthRecords = allRecordsInRange.filter(r => {
             const recordDate = new Date(r.date);
@@ -430,11 +464,17 @@ export class AttendanceService {
   }
 
   getMonthlyReport(yearMonth: string) {
-    const start = `${yearMonth}-01`;
     const [year, month] = yearMonth.split('-').map(Number);
-    const end = new Date(year, month, 0).toISOString().split('T')[0];
+    const start = new Date(Date.UTC(year, month - 1, 1));
+    const end = new Date(Date.UTC(year, month, 0));
+    end.setUTCHours(23, 59, 59, 999);
     
-    const records = this.getAttendanceForRange(start, end);
+    const records = this.attendance().filter(r => {
+        if (r.teacherId !== this.activeTeacher()?.id) return false;
+        const recordDate = new Date(r.date);
+        return recordDate >= start && recordDate <= end;
+    });
+
     const students = this.activeStudents();
     return students.map(s => {
       const studentRecords = records.filter(r => r.studentId === s.id);
@@ -450,18 +490,21 @@ export class AttendanceService {
     const students = this.activeStudents();
     const recordsForDate = this.getAttendanceForDate(date);
     
-    // Calculate this month's percentage up to the selected date
-    const [year, month] = date.split('-');
-    const monthStart = `${year}-${month}-01`;
-    const allRecordsThisMonth = this.attendance().filter(r => 
-        r.teacherId === this.activeTeacher()?.id && r.date >= monthStart && r.date <= date
-    );
+    const [year, monthStr] = date.split('-');
+    const monthStart = new Date(Date.UTC(parseInt(year), parseInt(monthStr) - 1, 1));
+    const reportDate = new Date(date);
+    reportDate.setUTCHours(23, 59, 59, 999);
+
+    const allRecordsThisMonth = this.attendance().filter(r => {
+        if (r.teacherId !== this.activeTeacher()?.id) return false;
+        const recordDate = new Date(r.date);
+        return recordDate >= monthStart && recordDate <= reportDate;
+    });
 
     return students.map(s => {
         const statusRecord = recordsForDate.find(r => r.studentId === s.id);
         const status = statusRecord ? statusRecord.status : 'N/A';
         
-        // Calculate percentage for the current month up to the selected date
         const studentTotalRecords = allRecordsThisMonth.filter(r => r.studentId === s.id);
         const present = studentTotalRecords.filter(r => r.status === 'Present').length;
         const total = studentTotalRecords.length;

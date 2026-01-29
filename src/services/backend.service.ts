@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import type { Teacher, Coordinator, Student, AttendanceRecord, TeacherAttendanceRecord } from './attendance.service';
 
 const APP_DATA_KEY = 'rehman_attendance_app_data';
-const DATA_VERSION = 3;
+const DATA_VERSION = 4;
 
 // This interface must be kept in sync with the structure in attendance.service.ts
 export interface AppData {
@@ -111,6 +111,19 @@ export class BackendService {
         ...student,
         totalFee: (student as any).totalFee || 0,
         feeHistory: (student as any).feeHistory || [],
+      }));
+    }
+
+    if (currentVersion < 4) {
+      console.log(`Upgrading data from v${currentVersion} to v4...`);
+      // Add placeholder email to teachers and coordinators
+      data.teachers = data.teachers.map(teacher => ({
+        ...teacher,
+        email: teacher.email || `${teacher.id}@rehman-attendance.com`, // Add placeholder
+      }));
+      data.coordinators = data.coordinators.map(coordinator => ({
+        ...coordinator,
+        email: coordinator.email || `${coordinator.id}@rehman-attendance.com`, // Add placeholder
       }));
     }
 

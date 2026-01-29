@@ -36,17 +36,15 @@ import { AttendanceService } from '../services/attendance.service';
               <p class="text-indigo-300/60 text-sm">Welcome back! Please sign in.</p>
             </div>
             <div class="space-y-4">
-              <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
-              <input type="text" [ngModel]="userName()" (ngModelChange)="userName.set($event)" placeholder="Enter Your Full Name"
+              <input type="email" [ngModel]="email()" (ngModelChange)="email.set($event)" placeholder="Enter Your Email"
                 class="w-full bg-white/5 border border-white/10 px-6 py-4 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium">
-              <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
               <input type="password" [ngModel]="password()" (ngModelChange)="password.set($event)" placeholder="Password" (keyup.enter)="handleLogin()"
                 class="w-full bg-white/5 border border-white/10 px-6 py-4 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium">
             </div>
             @if (errorMessage()) {
               <p class="text-red-400 text-xs font-bold text-center animate-in fade-in">{{ errorMessage() }}</p>
             }
-            <button (click)="handleLogin()" [disabled]="!userName() || !password()"
+            <button (click)="handleLogin()" [disabled]="!email() || !password()"
               class="w-full py-5 text-white rounded-2xl font-black shadow-xl transition-all disabled:opacity-50 flex items-center justify-center gap-3"
               [class.bg-indigo-600]="userType() === 'teacher'"
               [class.hover:bg-indigo-500]="userType() === 'teacher'"
@@ -66,20 +64,19 @@ import { AttendanceService } from '../services/attendance.service';
               <p class="text-indigo-300/60 text-sm">Get started with your new account.</p>
             </div>
             <div class="space-y-4">
-              <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
               <input type="text" [ngModel]="userName()" (ngModelChange)="userName.set($event)" placeholder="Enter Your Full Name"
                 class="w-full bg-white/5 border border-white/10 px-6 py-4 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium">
-              <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
+              <input type="email" [ngModel]="email()" (ngModelChange)="email.set($event)" placeholder="Email Address"
+                class="w-full bg-white/5 border border-white/10 px-6 py-4 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium">
               <input type="password" [ngModel]="password()" (ngModelChange)="password.set($event)" placeholder="Create Password"
                 class="w-full bg-white/5 border border-white/10 px-6 py-4 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium">
-              <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
               <input type="password" [ngModel]="confirmPassword()" (ngModelChange)="confirmPassword.set($event)" placeholder="Confirm Password" (keyup.enter)="handleRegister()"
                 class="w-full bg-white/5 border border-white/10 px-6 py-4 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-medium">
             </div>
             @if (errorMessage()) {
               <p class="text-red-400 text-xs font-bold text-center animate-in fade-in">{{ errorMessage() }}</p>
             }
-            <button (click)="handleRegister()" [disabled]="!userName() || !password() || !confirmPassword()"
+            <button (click)="handleRegister()" [disabled]="!userName() || !email() || !password() || !confirmPassword()"
               class="w-full py-5 text-white rounded-2xl font-black shadow-xl transition-all disabled:opacity-50 flex items-center justify-center gap-3"
               [class.bg-indigo-600]="userType() === 'teacher'"
               [class.hover:bg-indigo-500]="userType() === 'teacher'"
@@ -104,6 +101,7 @@ export class LoginComponent {
   mode = signal<'login' | 'register'>('login');
 
   userName = signal('');
+  email = signal('');
   password = signal('');
   confirmPassword = signal('');
   errorMessage = signal('');
@@ -111,6 +109,7 @@ export class LoginComponent {
   switchMode(newMode: 'login' | 'register') {
     this.mode.set(newMode);
     this.userName.set('');
+    this.email.set('');
     this.password.set('');
     this.confirmPassword.set('');
     this.errorMessage.set('');
@@ -118,22 +117,33 @@ export class LoginComponent {
 
   handleLogin() {
     this.errorMessage.set('');
-    const isValid = this.attendanceService.verifyPassword(this.userName(), this.userType(), this.password());
+    const isValid = this.attendanceService.verifyPassword(this.email(), this.userType(), this.password());
     if (isValid) {
-      this.attendanceService.login(this.userName(), this.userType());
+      this.attendanceService.login(this.email(), this.userType());
     } else {
-      this.errorMessage.set('Invalid credentials. Please check your name and password.');
+      this.errorMessage.set('Invalid credentials. Please check your email and password.');
     }
   }
 
   handleRegister() {
     this.errorMessage.set('');
     
-    if (this.attendanceService.isUserRegistered(this.userName(), this.userType())) {
-      this.errorMessage.set('This user name is already registered. Please login.');
+    if (this.attendanceService.isNameTaken(this.userName(), this.userType())) {
+      this.errorMessage.set('This user name is already in use. Please choose another.');
       return;
     }
     
+    if (this.attendanceService.isEmailRegistered(this.email())) {
+      this.errorMessage.set('This email is already registered. Please login with your email.');
+      return;
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(this.email())) {
+        this.errorMessage.set('Please enter a valid email address.');
+        return;
+    }
+
     if (this.password() !== this.confirmPassword()) {
       this.errorMessage.set('Passwords do not match.');
       return;
@@ -144,9 +154,9 @@ export class LoginComponent {
     }
 
     if (this.userType() === 'teacher') {
-      this.attendanceService.registerTeacher(this.userName(), this.password());
+      this.attendanceService.registerTeacher(this.userName(), this.email(), this.password());
     } else {
-      this.attendanceService.registerCoordinator(this.userName(), this.password());
+      this.attendanceService.registerCoordinator(this.userName(), this.email(), this.password());
     }
   }
 }

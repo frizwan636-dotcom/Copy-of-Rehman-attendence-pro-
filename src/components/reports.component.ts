@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { AttendanceService } from '../services/attendance.service';
 import { PdfService } from '../services/pdf.service';
 import { CsvService } from '../services/csv.service';
+import { DocService } from '../services/doc.service';
 
 @Component({
   selector: 'app-reports',
@@ -28,12 +29,15 @@ import { CsvService } from '../services/csv.service';
             <button (click)="exportFormat.set('csv')" [class]="exportFormat() === 'csv' ? 'flex-1 py-2 bg-emerald-600 text-white rounded-lg shadow-md font-bold text-xs' : 'flex-1 py-2 text-slate-500 font-medium text-xs'">
               <i class="fa-solid fa-file-csv mr-2"></i>CSV
             </button>
+            <button (click)="exportFormat.set('doc')" [class]="exportFormat() === 'doc' ? 'flex-1 py-2 bg-blue-600 text-white rounded-lg shadow-md font-bold text-xs' : 'flex-1 py-2 text-slate-500 font-medium text-xs'">
+              <i class="fa-solid fa-file-word mr-2"></i>Word
+            </button>
         </div>
-        <div class="flex-1 flex justify-center items-center gap-2" [class.opacity-50]="exportFormat() === 'csv'">
+        <div class="flex-1 flex justify-center items-center gap-2" [class.opacity-50]="exportFormat() !== 'pdf'">
           <span class="text-[10px] font-black uppercase text-slate-400">Include Photos</span>
           <button 
             (click)="includePhotos.set(!includePhotos())"
-            [disabled]="exportFormat() === 'csv'"
+            [disabled]="exportFormat() !== 'pdf'"
             [class]="includePhotos() ? 'w-10 h-5 bg-indigo-600 rounded-full relative transition-colors' : 'w-10 h-5 bg-slate-200 rounded-full relative transition-colors'"
           >
             <div [class]="includePhotos() ? 'absolute right-1 top-1 w-3 h-3 bg-white rounded-full transition-all' : 'absolute left-1 top-1 w-3 h-3 bg-white rounded-full transition-all'"></div>
@@ -118,9 +122,9 @@ import { CsvService } from '../services/csv.service';
           <i class="fa-solid fa-circle-info text-blue-400"></i> Reporting Engine
         </h4>
         <ul class="text-xs space-y-2 opacity-80">
-          <li>&bull; <span class="font-semibold text-blue-200">PDF & CSV Exports</span> - Choose between visually rich PDFs or data-friendly CSV files.</li>
+          <li>&bull; <span class="font-semibold text-blue-200">Multiple Formats</span> - Choose between PDF, data-friendly CSV, or editable Word files.</li>
           <li>&bull; <span class="font-semibold text-blue-200">AI Analysis</span> - PDF reports include an AI-powered summary for quick insights.</li>
-          <li>&bull; <span class="font-semibold text-blue-200">Real-time Calculation</span> - Percentages are computed from the master attendance log.</li>
+          <li>&bull; <span class="font-semibold text-blue-200">Accurate Calculations</span> - Reports are now generated with a new, more reliable date engine.</li>
         </ul>
       </div>
     </div>
@@ -131,6 +135,7 @@ export class ReportsComponent {
   attendanceService = inject(AttendanceService);
   pdfService = inject(PdfService);
   csvService = inject(CsvService);
+  docService = inject(DocService);
 
   dailyDate = signal(new Date().toISOString().split('T')[0]);
   monthlyMonth = signal(new Date().toISOString().slice(0, 7));
@@ -139,15 +144,21 @@ export class ReportsComponent {
   rangeEnd = signal(new Date().toISOString().split('T')[0]);
   
   includePhotos = signal(true);
-  exportFormat = signal<'pdf' | 'csv'>('pdf');
+  exportFormat = signal<'pdf' | 'csv' | 'doc'>('pdf');
 
   exportDaily() {
     const teacher = this.attendanceService.activeTeacher()!;
     const data = this.attendanceService.getDailyReportData(this.dailyDate());
-    if (this.exportFormat() === 'pdf') {
-      this.pdfService.exportDaily(this.dailyDate(), teacher.className, teacher.section, data, this.includePhotos());
-    } else {
-      this.csvService.exportDaily(this.dailyDate(), teacher.className, teacher.section, data);
+    switch(this.exportFormat()) {
+      case 'pdf':
+        this.pdfService.exportDaily(this.dailyDate(), teacher.className, teacher.section, data, this.includePhotos());
+        break;
+      case 'csv':
+        this.csvService.exportDaily(this.dailyDate(), teacher.className, teacher.section, data);
+        break;
+      case 'doc':
+        this.docService.exportDaily(this.dailyDate(), teacher.className, teacher.section, data);
+        break;
     }
   }
 
@@ -158,10 +169,16 @@ export class ReportsComponent {
     const [year, month] = this.monthlyMonth().split('-');
     const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
 
-    if (this.exportFormat() === 'pdf') {
-      await this.pdfService.exportMonthly(monthName, teacher.className, teacher.section, stats, this.includePhotos(), this.attendanceService);
-    } else {
-      this.csvService.exportMonthly(monthName, teacher.className, teacher.section, stats);
+    switch(this.exportFormat()) {
+      case 'pdf':
+        await this.pdfService.exportMonthly(monthName, teacher.className, teacher.section, stats, this.includePhotos(), this.attendanceService);
+        break;
+      case 'csv':
+        this.csvService.exportMonthly(monthName, teacher.className, teacher.section, stats);
+        break;
+      case 'doc':
+        this.docService.exportMonthly(monthName, teacher.className, teacher.section, stats);
+        break;
     }
   }
 
@@ -178,10 +195,16 @@ export class ReportsComponent {
       return;
     }
     
-    if (this.exportFormat() === 'pdf') {
-      await this.pdfService.exportRange(this.rangeStart(), this.rangeEnd(), teacher.className, teacher.section, monthlyBreakdown, this.includePhotos(), this.attendanceService);
-    } else {
-      this.csvService.exportRange(this.rangeStart(), this.rangeEnd(), teacher.className, teacher.section, monthlyBreakdown);
+    switch(this.exportFormat()) {
+      case 'pdf':
+        await this.pdfService.exportRange(this.rangeStart(), this.rangeEnd(), teacher.className, teacher.section, monthlyBreakdown, this.includePhotos(), this.attendanceService);
+        break;
+      case 'csv':
+        this.csvService.exportRange(this.rangeStart(), this.rangeEnd(), teacher.className, teacher.section, monthlyBreakdown);
+        break;
+      case 'doc':
+        this.docService.exportRange(this.rangeStart(), this.rangeEnd(), teacher.className, teacher.section, monthlyBreakdown);
+        break;
     }
   }
 }

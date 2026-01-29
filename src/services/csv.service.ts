@@ -4,16 +4,17 @@ import { Injectable } from '@angular/core';
 export class CsvService {
 
   private downloadCsv(data: any[][], filename: string) {
+    const separator = ';'; // Use semicolon for better Excel compatibility in some regions
     const csvContent = data.map(row => 
       row.map(cell => {
         const cellStr = String(cell === null || cell === undefined ? '' : cell);
-        // If the cell contains a comma, double quotes, or newline, wrap it in double quotes.
+        // If the cell contains the separator, double quotes, or a newline, wrap it in double quotes.
         // Also, escape any existing double quotes by doubling them up.
-        if (/[",\n]/.test(cellStr)) {
+        if (cellStr.includes(separator) || cellStr.includes('"') || cellStr.includes('\n')) {
           return `"${cellStr.replace(/"/g, '""')}"`;
         }
         return cellStr;
-      }).join(',')
+      }).join(separator)
     ).join('\n');
 
     const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' }); // Add BOM for Excel compatibility
