@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, effect, ViewChild, ElementRef } from '@angular/core';
+import { Component, inject, signal, computed, effect, ViewChild, ElementRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AttendanceService, Teacher } from '../services/attendance.service';
@@ -254,7 +254,9 @@ import { DocService } from '../services/doc.service';
         <input type="file" #editTeacherPhotoInput accept="image/*" (change)="onEditPhotoSelected($event)" class="hidden">
       }
     </div>
-  `
+  `,
+  // FIX: Set change detection strategy to OnPush for better performance with signals.
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CoordinatorDashboardComponent {
   attendanceService = inject(AttendanceService);

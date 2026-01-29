@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AttendanceService } from '../services/attendance.service';
@@ -92,7 +92,9 @@ import { AttendanceService } from '../services/attendance.service';
       </div>
     </div>
   `,
-  styles: []
+  styles: [],
+  // FIX: Set change detection strategy to OnPush for better performance with signals.
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LoginComponent {
   attendanceService = inject(AttendanceService);

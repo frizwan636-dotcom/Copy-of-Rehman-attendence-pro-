@@ -1,4 +1,4 @@
-import { Component, inject, signal, effect, computed, ViewChild, ElementRef } from '@angular/core';
+import { Component, inject, signal, effect, computed, ViewChild, ElementRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AttendanceService, Student } from '../services/attendance.service';
@@ -22,7 +22,7 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
             <div>
               <h1 class="text-lg font-black text-slate-800 tracking-tight leading-none">{{ teacher()?.schoolName }}</h1>
               <p class="text-[10px] text-indigo-600 font-bold uppercase tracking-widest mt-1">
-                {{ teacher()?.className }} • {{ teacher()?.section }} • {{ teacher()?.name }}
+                {{ teacher()?.name }}
               </p>
             </div>
           </div>
@@ -61,40 +61,45 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
         <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <button (click)="view.set('attendance')" 
             class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3 group"
-            [class.bg-indigo-600]="view() === 'attendance'" [class.text-white]="view() === 'attendance'" [class.shadow-xl]="view() === 'attendance'" [class.shadow-indigo-200]="view() === 'attendance'"
-            [class.bg-white]="view() !== 'attendance'" [class.text-slate-600]="view() !== 'attendance'" [class.hover:bg-indigo-50]="view() !== 'attendance'" [class.border]="view() !== 'attendance'" [class.border-slate-100]="view() !== 'attendance'" [class.shadow-sm]="view() !== 'attendance'">
+            [class]="view() === 'attendance'
+              ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200'
+              : 'bg-white text-slate-600 hover:bg-indigo-50 border border-slate-100 shadow-sm'">
             <i class="fa-solid fa-clipboard-user text-xl" [class]="view() === 'attendance' ? 'text-white' : 'text-indigo-500'"></i>
             <span class="text-xs font-black uppercase tracking-widest">Attendance</span>
           </button>
 
           <button (click)="view.set('students')" 
             class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3 group"
-            [class.bg-blue-600]="view() === 'students'" [class.text-white]="view() === 'students'" [class.shadow-xl]="view() === 'students'" [class.shadow-blue-200]="view() === 'students'"
-            [class.bg-white]="view() !== 'students'" [class.text-slate-600]="view() !== 'students'" [class.hover:bg-blue-50]="view() !== 'students'" [class.border]="view() !== 'students'" [class.border-slate-100]="view() !== 'students'" [class.shadow-sm]="view() !== 'students'">
+            [class]="view() === 'students'
+              ? 'bg-blue-600 text-white shadow-xl shadow-blue-200'
+              : 'bg-white text-slate-600 hover:bg-blue-50 border border-slate-100 shadow-sm'">
             <i class="fa-solid fa-users text-xl" [class]="view() === 'students' ? 'text-white' : 'text-blue-500'"></i>
             <span class="text-xs font-black uppercase tracking-widest">Students</span>
           </button>
 
           <button (click)="view.set('fees')" 
             class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3 group"
-            [class.bg-green-600]="view() === 'fees'" [class.text-white]="view() === 'fees'" [class.shadow-xl]="view() === 'fees'" [class.shadow-green-200]="view() === 'fees'"
-            [class.bg-white]="view() !== 'fees'" [class.text-slate-600]="view() !== 'fees'" [class.hover:bg-green-50]="view() !== 'fees'" [class.border]="view() !== 'fees'" [class.border-slate-100]="view() !== 'fees'" [class.shadow-sm]="view() !== 'fees'">
+            [class]="view() === 'fees'
+              ? 'bg-green-600 text-white shadow-xl shadow-green-200'
+              : 'bg-white text-slate-600 hover:bg-green-50 border border-slate-100 shadow-sm'">
             <i class="fa-solid fa-wallet text-xl" [class]="view() === 'fees' ? 'text-white' : 'text-green-500'"></i>
             <span class="text-xs font-black uppercase tracking-widest">Fees</span>
           </button>
           
           <button (click)="view.set('teacher')" 
             class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3 group"
-            [class.bg-orange-600]="view() === 'teacher'" [class.text-white]="view() === 'teacher'" [class.shadow-xl]="view() === 'teacher'" [class.shadow-orange-200]="view() === 'teacher'"
-            [class.bg-white]="view() !== 'teacher'" [class.text-slate-600]="view() !== 'teacher'" [class.hover:bg-orange-50]="view() !== 'teacher'" [class.border]="view() !== 'teacher'" [class.border-slate-100]="view() !== 'teacher'" [class.shadow-sm]="view() !== 'teacher'">
+            [class]="view() === 'teacher'
+              ? 'bg-orange-600 text-white shadow-xl shadow-orange-200'
+              : 'bg-white text-slate-600 hover:bg-orange-50 border border-slate-100 shadow-sm'">
             <i class="fa-solid fa-user-tie text-xl" [class]="view() === 'teacher' ? 'text-white' : 'text-orange-500'"></i>
             <span class="text-xs font-black uppercase tracking-widest">Profile</span>
           </button>
 
           <button (click)="view.set('reports')" 
             class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3 group"
-            [class.bg-purple-600]="view() === 'reports'" [class.text-white]="view() === 'reports'" [class.shadow-xl]="view() === 'reports'" [class.shadow-purple-200]="view() === 'reports'"
-            [class.bg-white]="view() !== 'reports'" [class.text-slate-600]="view() !== 'reports'" [class.hover:bg-purple-50]="view() !== 'reports'" [class.border]="view() !== 'reports'" [class.border-slate-100]="view() !== 'reports'" [class.shadow-sm]="view() !== 'reports'">
+            [class]="view() === 'reports'
+              ? 'bg-purple-600 text-white shadow-xl shadow-purple-200'
+              : 'bg-white text-slate-600 hover:bg-purple-50 border border-slate-100 shadow-sm'">
             <i class="fa-solid fa-chart-pie text-xl" [class]="view() === 'reports' ? 'text-white' : 'text-purple-500'"></i>
             <span class="text-xs font-black uppercase tracking-widest">Reports</span>
           </button>
@@ -167,7 +172,7 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
                     <h2 class="text-2xl font-black text-slate-800 tracking-tight">Student Directory</h2>
                     <p class="text-slate-500 text-sm font-medium">Total: {{ students().length }} enrolled</p>
                   </div>
-                  <button (click)="showNewAdmissionForm.set(true)" class="flex items-center gap-2 px-6 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
+                  <button (click)="openNewAdmissionModal()" class="flex items-center gap-2 px-6 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
                     <i class="fa-solid fa-user-plus"></i>
                     <span>New Admission</span>
                   </button>
@@ -212,8 +217,16 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
                         }
                       </div>
                       <div class="flex-1">
-                        <h4 class="font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{{ student.name }}</h4>
-                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Roll: {{ student.rollNumber }}</p>
+                        <div class="flex justify-between items-start">
+                          <div>
+                            <h4 class="font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{{ student.name }}</h4>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Roll: {{ student.rollNumber }}</p>
+                             <p class="text-[10px] font-bold text-indigo-400 mt-1">{{ student.className || teacher()?.className }} - {{ student.section || teacher()?.section }}</p>
+                          </div>
+                          <button (click)="openEditStudentModal(student)" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors flex-shrink-0">
+                            <i class="fa-solid fa-pen-to-square text-sm"></i>
+                          </button>
+                        </div>
                         <p class="text-[10px] font-medium text-slate-400 mt-1"><i class="fa-solid fa-phone text-[9px] mr-1"></i>{{ student.mobileNumber }}</p>
                          @if(student.feeDue > 0) {
                           <div class="mt-2 text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-full w-fit">
@@ -311,11 +324,11 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
 
                 <div class="grid grid-cols-2 gap-4">
                   <div class="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
-                    <p class="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Classroom</p>
+                    <p class="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Primary Class</p>
                     <p class="font-bold text-slate-800">{{ teacher()?.className }}</p>
                   </div>
                   <div class="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
-                    <p class="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Section</p>
+                    <p class="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Primary Section</p>
                     <p class="font-bold text-slate-800">{{ teacher()?.section }}</p>
                   </div>
                 </div>
@@ -353,19 +366,19 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
         </div>
       }
 
-      <!-- New Admission Modal -->
-      @if (showNewAdmissionForm()) {
-        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center p-4 animate-in fade-in" (click)="showNewAdmissionForm.set(false)">
+      <!-- New Admission / Edit Student Modal -->
+      @if (showStudentModal()) {
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center p-4 animate-in fade-in" (click)="showStudentModal.set(false)">
           <div class="bg-white max-w-lg w-full rounded-[2rem] p-8 shadow-2xl border border-slate-100 animate-in zoom-in-95" (click)="$event.stopPropagation()">
             <div class="flex items-center justify-between mb-6">
-              <h3 class="text-xl font-bold text-slate-800">New Student Admission</h3>
-              <button (click)="showNewAdmissionForm.set(false)" class="text-slate-400 hover:text-slate-600">&times;</button>
+              <h3 class="text-xl font-bold text-slate-800">{{ isEditMode() ? 'Edit Student Profile' : 'New Student Admission' }}</h3>
+              <button (click)="showStudentModal.set(false)" class="text-slate-400 hover:text-slate-600">&times;</button>
             </div>
 
             <div class="flex gap-4 mb-4">
               <div class="w-24 h-24 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer hover:bg-slate-100 transition-colors relative" (click)="triggerPhotoUpload()">
-                @if (newStudentPhoto()) {
-                  <img [src]="newStudentPhoto()" class="w-full h-full object-cover">
+                @if (studentForm().photo) {
+                  <img [src]="studentForm().photo" class="w-full h-full object-cover">
                   <div class="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity">
                     <i class="fa-solid fa-camera text-white text-lg"></i>
                   </div>
@@ -374,20 +387,20 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
                 }
               </div>
               <div class="flex-1 grid grid-cols-1 gap-3">
-                <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
-                <input type="text" [ngModel]="newStudentName()" (ngModelChange)="newStudentName.set($event)" placeholder="Full Name" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
+                <input type="text" [ngModel]="studentForm().name" (ngModelChange)="updateStudentFormField('name', $event)" placeholder="Full Name" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
                 <div class="grid grid-cols-2 gap-3">
-                  <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
-                  <input type="text" [ngModel]="newStudentRoll()" (ngModelChange)="newStudentRoll.set($event)" placeholder="Roll #" class="p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
-                  <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
-                  <input type="tel" [ngModel]="newStudentMobile()" (ngModelChange)="newStudentMobile.set($event)" placeholder="Contact Mobile" class="p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
+                  <input type="text" [ngModel]="studentForm().roll" (ngModelChange)="updateStudentFormField('roll', $event)" placeholder="Roll #" class="p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
+                  <input type="tel" [ngModel]="studentForm().mobile" (ngModelChange)="updateStudentFormField('mobile', $event)" placeholder="Contact Mobile" class="p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
                 </div>
-                 <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
-                 <input type="number" [ngModel]="newStudentTotalFee()" (ngModelChange)="newStudentTotalFee.set($event)" placeholder="Total Fee" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
+                 <input type="number" [ngModel]="studentForm().totalFee" (ngModelChange)="updateStudentFormField('totalFee', $event)" placeholder="Total Fee" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
               </div>
             </div>
-            <button (click)="saveNewStudent()" [disabled]="!newStudentName() || !newStudentRoll() || !newStudentMobile()" class="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-              <i class="fa-solid fa-check-circle"></i> Enroll Student
+             <div class="grid grid-cols-2 gap-3 mb-4">
+                <input type="text" [ngModel]="studentForm().className" (ngModelChange)="updateStudentFormField('className', $event)" placeholder="Class" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
+                <input type="text" [ngModel]="studentForm().section" (ngModelChange)="updateStudentFormField('section', $event)" placeholder="Section" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
+            </div>
+            <button (click)="saveStudent()" [disabled]="!studentForm().name || !studentForm().roll || !studentForm().mobile" class="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+              <i class="fa-solid fa-check-circle"></i> {{ isEditMode() ? 'Save Changes' : 'Enroll Student' }}
             </button>
           </div>
         </div>
@@ -410,7 +423,6 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
 
             <div class="space-y-2">
                <label class="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Payment Amount Received</label>
-               <!-- Fix: Use [ngModel] and (ngModelChange) for signal-based two-way binding -->
                <input type="number" [ngModel]="paymentAmount()" (ngModelChange)="paymentAmount.set($event)" placeholder="Enter amount" class="w-full p-5 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-green-500/10 focus:border-green-500 outline-none transition-all bg-white font-bold text-lg text-center">
             </div>
 
@@ -424,7 +436,9 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
         </div>
       }
     </div>
-  `
+  `,
+  // FIX: Set change detection strategy to OnPush for better performance with signals.
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DashboardComponent {
   attendanceService = inject(AttendanceService);
@@ -438,13 +452,14 @@ export class DashboardComponent {
   searchQuery = signal('');
   sortKey = signal<'name' | 'roll'>('name');
   
-  // New Admission State
-  showNewAdmissionForm = signal(false);
-  newStudentName = signal('');
-  newStudentRoll = signal('');
-  newStudentMobile = signal('');
-  newStudentPhoto = signal<string | null>(null);
-  newStudentTotalFee = signal<number | null>(null);
+  // Student Modal State (for New and Edit)
+  showStudentModal = signal(false);
+  isEditMode = signal(false);
+  editingStudentId = signal<string | null>(null);
+  studentForm = signal({
+    name: '', roll: '', mobile: '', photo: null as string | null,
+    totalFee: null as number | null, className: '', section: ''
+  });
 
   // Fee Management State
   showPaymentModal = signal(false);
@@ -608,7 +623,42 @@ export class DashboardComponent {
     }
   }
 
-  // New Admission Logic
+  // Student Modal Logic (New and Edit)
+  resetStudentForm() {
+    this.studentForm.set({
+      name: '', roll: '', mobile: '', photo: null,
+      totalFee: null, className: this.teacher()?.className || '', section: this.teacher()?.section || ''
+    });
+  }
+
+  openNewAdmissionModal() {
+    this.isEditMode.set(false);
+    this.editingStudentId.set(null);
+    this.resetStudentForm();
+    this.showStudentModal.set(true);
+  }
+  
+  openEditStudentModal(student: Student) {
+    this.isEditMode.set(true);
+    this.editingStudentId.set(student.id);
+    this.studentForm.set({
+        name: student.name,
+        roll: student.rollNumber,
+        mobile: student.mobileNumber,
+        photo: student.photo || null,
+        totalFee: student.totalFee,
+        className: student.className || this.teacher()?.className || '',
+        section: student.section || this.teacher()?.section || ''
+    });
+    this.showStudentModal.set(true);
+  }
+
+  // FIX: Correctly type the 'field' parameter to be the keys of the object *within* the signal, not the signal itself.
+  // `ReturnType<typeof this.studentForm>` correctly infers the type of the signal's value.
+  updateStudentFormField(field: keyof ReturnType<typeof this.studentForm>, value: any) {
+    this.studentForm.update(form => ({...form, [field]: value }));
+  }
+
   triggerPhotoUpload() {
     this.studentPhotoInput.nativeElement.click();
   }
@@ -619,43 +669,53 @@ export class DashboardComponent {
       const file = input.files[0];
       const reader = new FileReader();
       reader.onload = (e: any) => {
-        this.newStudentPhoto.set(e.target.result);
+        this.updateStudentFormField('photo', e.target.result);
       };
       reader.readAsDataURL(file);
     }
   }
 
-  saveNewStudent() {
-    const name = this.newStudentName().trim();
-    const roll = this.newStudentRoll().trim();
-    const mobile = this.newStudentMobile().trim();
-    
-    if (!name || !roll || !mobile) {
-      alert('Please fill in all student details.');
+  saveStudent() {
+    const form = this.studentForm();
+    const { name, roll, mobile, photo, totalFee, className, section } = form;
+
+    if (!name.trim() || !roll.trim() || !mobile.trim()) {
+      alert('Please fill in student name, roll number, and mobile.');
       return;
     }
 
-    if (this.attendanceService.isRollNumberTaken(roll)) {
+    if (this.attendanceService.isRollNumberTaken(roll, this.editingStudentId() || undefined)) {
       alert(`Error: Roll number "${roll}" is already assigned to another student.`);
       return;
     }
 
-    this.attendanceService.addStudents([{
-      name,
-      roll,
-      mobile,
-      photo: this.newStudentPhoto() || undefined,
-      totalFee: this.newStudentTotalFee() || 0
-    }]);
+    if (this.isEditMode()) {
+      // Update existing student
+      this.attendanceService.updateStudentDetails(this.editingStudentId()!, {
+        name: name.trim(),
+        rollNumber: roll.trim(),
+        mobileNumber: mobile.trim(),
+        photo: photo || undefined,
+        totalFee: totalFee || 0,
+        className: className?.trim(),
+        section: section?.trim()
+      });
+      this.showToastWithMessage(`Updated profile for ${name}.`);
+    } else {
+      // Add new student
+      this.attendanceService.addStudents([{
+        name: name.trim(),
+        roll: roll.trim(),
+        mobile: mobile.trim(),
+        photo: photo || undefined,
+        totalFee: totalFee || 0,
+        className: className?.trim(),
+        section: section?.trim()
+      }]);
+      this.showToastWithMessage(`Student ${name} admitted successfully!`);
+    }
 
-    this.showToastWithMessage(`Student ${name} admitted successfully!`);
-
-    this.showNewAdmissionForm.set(false);
-    this.newStudentName.set('');
-    this.newStudentRoll.set('');
-    this.newStudentMobile.set('');
-    this.newStudentPhoto.set(null);
-    this.newStudentTotalFee.set(null);
+    this.showStudentModal.set(false);
   }
 
   // Payment Modal Logic

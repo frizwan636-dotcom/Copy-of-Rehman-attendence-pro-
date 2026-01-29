@@ -36,6 +36,8 @@ export interface Student {
   photo?: string;
   totalFee: number;
   feeHistory: FeePayment[];
+  className?: string;
+  section?: string;
 }
 
 export interface AttendanceRecord {
@@ -91,6 +93,36 @@ export class AttendanceService {
     return this.students().filter(s => s.teacherId === teacherId);
   });
 
+  teacherClasses = computed(() => {
+    const teacher = this.activeTeacher();
+    if (!teacher) return [];
+    
+    const classes = new Map<string, Set<string>>();
+    
+    // Populate from students
+    this.activeStudents().forEach(s => {
+        const className = s.className || teacher.className;
+        const section = s.section || teacher.section;
+        if (!classes.has(className)) {
+            classes.set(className, new Set());
+        }
+        classes.get(className)!.add(section);
+    });
+
+    // Ensure teacher's primary class is included, even if no students are enrolled yet
+    if (teacher.className) {
+        if (!classes.has(teacher.className)) {
+            classes.set(teacher.className, new Set());
+        }
+        classes.get(teacher.className)!.add(teacher.section);
+    }
+
+    return Array.from(classes.entries()).map(([className, sections]) => ({
+        className,
+        sections: Array.from(sections).sort()
+    })).sort((a, b) => a.className.localeCompare(b.className));
+  });
+
   constructor() {
     window.addEventListener('online', () => this.isOnline.set(true));
     window.addEventListener('offline', () => this.isOnline.set(false));
@@ -130,7 +162,7 @@ export class AttendanceService {
 
     this.isSyncing.set(true);
     const data: AppData = {
-      version: 4,
+      version: 5,
       teachers: this.teachers(),
       coordinators: this.coordinators(),
       students: this.students(),
@@ -155,8 +187,10 @@ export class AttendanceService {
     return this.teachers().some(t => t.email.toLowerCase() === lowerEmail) || this.coordinators().some(c => c.email.toLowerCase() === lowerEmail);
   }
   
-  isRollNumberTaken(rollNumber: string): boolean {
-    return this.activeStudents().some(s => s.rollNumber.toLowerCase() === rollNumber.toLowerCase());
+  isRollNumberTaken(rollNumber: string, studentIdToExclude?: string): boolean {
+    return this.activeStudents().some(s => 
+      s.rollNumber.toLowerCase() === rollNumber.toLowerCase() && s.id !== studentIdToExclude
+    );
   }
 
   verifyPassword(email: string, role: 'teacher' | 'coordinator', passwordAttempt: string): boolean {
@@ -324,15 +358,27 @@ export class AttendanceService {
     }
   }
 
-  addStudents(newStudents: { name: string, roll: string, mobile: string, photo?: string, totalFee?: number }[]) {
+  addStudents(newStudents: { name: string, roll: string, mobile: string, photo?: string, totalFee?: number, className?: string, section?: string }[]) {
     const teacherId = this.activeTeacher()!.id;
     const studentsToAdd: Student[] = newStudents.map(s => ({
       id: Math.random().toString(36).substr(2, 9), teacherId, name: s.name,
       rollNumber: s.roll, mobileNumber: s.mobile, photo: s.photo,
       totalFee: s.totalFee || 0,
-      feeHistory: []
+      feeHistory: [],
+      className: s.className,
+      section: s.section
     }));
     this.students.update(list => [...list, ...studentsToAdd]);
+    this.persistState();
+  }
+  
+  updateStudentDetails(studentId: string, details: Partial<Omit<Student, 'id' | 'teacherId' | 'feeHistory'>>) {
+    this.students.update(list => list.map(s => {
+      if (s.id === studentId) {
+        return { ...s, ...details };
+      }
+      return s;
+    }));
     this.persistState();
   }
 
@@ -369,15 +415,31 @@ export class AttendanceService {
     return this.attendance().filter(r => r.date === date && r.teacherId === teacherId);
   }
 
-  getAttendanceForRange(startDate: string, endDate: string) {
-    const teacherId = this.activeTeacher()?.id;
+  getAttendanceForRange(startDate: string, endDate: string, filters?: { className?: string, section?: string }) {
+    const teacher = this.activeTeacher();
+    if (!teacher) return [];
+
+    const studentIdsToInclude = new Set(
+      this.activeStudents()
+        .filter(s => {
+          if (!filters || (!filters.className && !filters.section)) return true;
+          const sClass = s.className || teacher.className;
+          const sSection = s.section || teacher.section;
+          const classMatch = !filters.className || sClass === filters.className;
+          const sectionMatch = !filters.section || sSection === filters.section;
+          return classMatch && sectionMatch;
+        })
+        .map(s => s.id)
+    );
+    
     const start = new Date(startDate);
     start.setUTCHours(0, 0, 0, 0);
     const end = new Date(endDate);
     end.setUTCHours(23, 59, 59, 999);
 
     return this.attendance().filter(r => {
-      if (r.teacherId !== teacherId) return false;
+      if (r.teacherId !== teacher.id) return false;
+      if (!studentIdsToInclude.has(r.studentId)) return false;
       const recordDate = new Date(r.date);
       return recordDate >= start && recordDate <= end;
     });
@@ -417,10 +479,23 @@ export class AttendanceService {
     }
   }
   
-  getMonthlyBreakdownForRange(startDate: string, endDate: string) {
-    const allRecordsInRange = this.getAttendanceForRange(startDate, endDate);
-    const students = this.activeStudents();
+  getMonthlyBreakdownForRange(startDate: string, endDate: string, filters?: { className?: string, section?: string }) {
+    const teacher = this.activeTeacher();
+    if (!teacher) return [];
     
+    const allRecordsInRange = this.getAttendanceForRange(startDate, endDate, filters);
+    
+    let students = this.activeStudents();
+    if (filters && (filters.className || filters.section)) {
+        students = students.filter(s => {
+            const sClass = s.className || teacher.className;
+            const sSection = s.section || teacher.section;
+            const classMatch = !filters.className || sClass === filters.className;
+            const sectionMatch = !filters.section || sSection === filters.section;
+            return classMatch && sectionMatch;
+        });
+    }
+
     const monthlyBreakdown: { month: string, monthName: string, records: any[] }[] = [];
     
     const start = new Date(startDate);
@@ -445,7 +520,7 @@ export class AttendanceService {
             return recordDate >= monthStart && recordDate <= monthEnd;
         });
 
-        if (monthRecords.length > 0) {
+        if (monthRecords.length > 0 || students.length > 0) {
             const studentStats = students.map(s => {
                 const studentRecords = monthRecords.filter(r => r.studentId === s.id);
                 const present = studentRecords.filter(r => r.status === 'Present').length;

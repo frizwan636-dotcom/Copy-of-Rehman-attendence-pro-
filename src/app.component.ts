@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AttendanceService } from './services/attendance.service';
 import { LoginComponent } from './components/login.component';
@@ -40,7 +40,9 @@ import { CoordinatorDashboardComponent } from './components/coordinator-dashboar
         This app is created by Rizwan Hanif
       </footer>
     </div>
-  `
+  `,
+  // FIX: Set change detection strategy to OnPush for better performance with signals.
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppComponent implements OnInit {
   attendanceService = inject(AttendanceService);

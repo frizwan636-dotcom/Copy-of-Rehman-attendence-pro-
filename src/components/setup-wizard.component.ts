@@ -1,4 +1,4 @@
-import { Component, inject, signal, ViewChild, ElementRef } from '@angular/core';
+import { Component, inject, signal, ViewChild, ElementRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AttendanceService } from '../services/attendance.service';
@@ -217,7 +217,9 @@ import { AttendanceService } from '../services/attendance.service';
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
-  `]
+  `],
+  // FIX: Set change detection strategy to OnPush for better performance with signals.
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SetupWizardComponent {
   attendanceService = inject(AttendanceService);

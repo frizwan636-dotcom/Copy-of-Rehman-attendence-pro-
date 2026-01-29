@@ -1,4 +1,4 @@
-import { Component, inject, signal, output } from '@angular/core';
+import { Component, inject, signal, output, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AttendanceService } from '../services/attendance.service';
@@ -98,7 +98,7 @@ import { DocService } from '../services/doc.service';
             </div>
           </div>
           
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div class="space-y-1">
               <label class="text-[10px] font-black text-slate-400 uppercase ml-1">From</label>
               <input type="date" [ngModel]="rangeStart()" (ngModelChange)="rangeStart.set($event)" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-bold">
@@ -107,11 +107,31 @@ import { DocService } from '../services/doc.service';
               <label class="text-[10px] font-black text-slate-400 uppercase ml-1">To</label>
               <input type="date" [ngModel]="rangeEnd()" (ngModelChange)="rangeEnd.set($event)" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-bold">
             </div>
-            <div class="flex items-end">
-              <button (click)="exportRange()" class="w-full h-[46px] bg-blue-600 text-white rounded-xl font-black hover:bg-blue-700 text-sm transition-all shadow-lg shadow-blue-100">
-                Generate Range Report
-              </button>
-            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+             <div class="space-y-1">
+                <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Class</label>
+                <select [ngModel]="selectedClass()" (ngModelChange)="onClassChange($event)" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-bold">
+                  <option value="all">All Classes</option>
+                  @for(c of teacherClasses(); track c.className) {
+                    <option [value]="c.className">{{ c.className }}</option>
+                  }
+                </select>
+             </div>
+             <div class="space-y-1">
+                <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Section</label>
+                <select [ngModel]="selectedSection()" (ngModelChange)="selectedSection.set($event)" [disabled]="selectedClass() === 'all'" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-bold disabled:opacity-50">
+                  <option value="all">All Sections</option>
+                   @for(s of availableSections(); track s) {
+                    <option [value]="s">{{ s }}</option>
+                  }
+                </select>
+             </div>
+          </div>
+          <div class="flex items-end pt-2">
+            <button (click)="exportRange()" class="w-full h-[46px] bg-blue-600 text-white rounded-xl font-black hover:bg-blue-700 text-sm transition-all shadow-lg shadow-blue-100">
+              Generate Range Report
+            </button>
           </div>
         </div>
       </div>
@@ -123,12 +143,14 @@ import { DocService } from '../services/doc.service';
         </h4>
         <ul class="text-xs space-y-2 opacity-80">
           <li>&bull; <span class="font-semibold text-blue-200">Multiple Formats</span> - Choose between PDF, data-friendly CSV, or editable Word files.</li>
-          <li>&bull; <span class="font-semibold text-blue-200">AI Analysis</span> - PDF reports include an AI-powered summary for quick insights.</li>
-          <li>&bull; <span class="font-semibold text-blue-200">Accurate Calculations</span> - Reports are now generated with a new, more reliable date engine.</li>
+          <li>&bull; <span class="font-semibold text-blue-200">AI Analysis</span> - PDF & Word reports include an AI-powered summary for quick insights.</li>
+          <li>&bull; <span class="font-semibold text-blue-200">Class Filters</span> - Generate custom range reports for specific classes or sections.</li>
         </ul>
       </div>
     </div>
-  `
+  `,
+  // FIX: Set change detection strategy to OnPush for better performance with signals.
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ReportsComponent {
   onBack = output<void>();
@@ -145,6 +167,23 @@ export class ReportsComponent {
   
   includePhotos = signal(true);
   exportFormat = signal<'pdf' | 'csv' | 'doc'>('pdf');
+
+  // Multi-class filtering state
+  teacherClasses = this.attendanceService.teacherClasses;
+  selectedClass = signal('all');
+  selectedSection = signal('all');
+
+  availableSections = computed(() => {
+    const sClass = this.selectedClass();
+    if (sClass === 'all') return [];
+    const classData = this.teacherClasses().find(c => c.className === sClass);
+    return classData ? classData.sections : [];
+  });
+
+  onClassChange(className: string) {
+    this.selectedClass.set(className);
+    this.selectedSection.set('all'); // Reset section when class changes
+  }
 
   exportDaily() {
     const teacher = this.attendanceService.activeTeacher()!;
@@ -177,7 +216,7 @@ export class ReportsComponent {
         this.csvService.exportMonthly(monthName, teacher.className, teacher.section, stats);
         break;
       case 'doc':
-        this.docService.exportMonthly(monthName, teacher.className, teacher.section, stats);
+        await this.docService.exportMonthly(monthName, teacher.className, teacher.section, stats, this.attendanceService);
         break;
     }
   }
@@ -188,22 +227,30 @@ export class ReportsComponent {
       return;
     }
     const teacher = this.attendanceService.activeTeacher()!;
-    const monthlyBreakdown = this.attendanceService.getMonthlyBreakdownForRange(this.rangeStart(), this.rangeEnd());
+    const filters: { className?: string, section?: string } = {};
+    if (this.selectedClass() !== 'all') filters.className = this.selectedClass();
+    if (this.selectedSection() !== 'all') filters.section = this.selectedSection();
+
+    const monthlyBreakdown = this.attendanceService.getMonthlyBreakdownForRange(this.rangeStart(), this.rangeEnd(), Object.keys(filters).length > 0 ? filters : undefined);
 
     if (monthlyBreakdown.length === 0) {
-      alert("No attendance data found for the selected range.");
+      alert("No attendance data found for the selected criteria.");
       return;
     }
     
+    const classNameForReport = filters.className || 'All Classes';
+    const sectionNameForReport = filters.section || (filters.className ? 'All Sections' : '');
+
+
     switch(this.exportFormat()) {
       case 'pdf':
-        await this.pdfService.exportRange(this.rangeStart(), this.rangeEnd(), teacher.className, teacher.section, monthlyBreakdown, this.includePhotos(), this.attendanceService);
+        await this.pdfService.exportRange(this.rangeStart(), this.rangeEnd(), classNameForReport, sectionNameForReport, monthlyBreakdown, this.includePhotos(), this.attendanceService);
         break;
       case 'csv':
-        this.csvService.exportRange(this.rangeStart(), this.rangeEnd(), teacher.className, teacher.section, monthlyBreakdown);
+        this.csvService.exportRange(this.rangeStart(), this.rangeEnd(), classNameForReport, sectionNameForReport, monthlyBreakdown);
         break;
       case 'doc':
-        this.docService.exportRange(this.rangeStart(), this.rangeEnd(), teacher.className, teacher.section, monthlyBreakdown);
+        await this.docService.exportRange(this.rangeStart(), this.rangeEnd(), classNameForReport, sectionNameForReport, monthlyBreakdown, this.attendanceService);
         break;
     }
   }

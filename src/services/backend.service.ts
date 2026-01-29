@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import type { Teacher, Coordinator, Student, AttendanceRecord, TeacherAttendanceRecord } from './attendance.service';
 
 const APP_DATA_KEY = 'rehman_attendance_app_data';
-const DATA_VERSION = 4;
+const DATA_VERSION = 5;
 
 // This interface must be kept in sync with the structure in attendance.service.ts
 export interface AppData {
@@ -96,13 +96,14 @@ export class BackendService {
    * Ensures the data structure is up-to-date with the latest version.
    */
   private runVersionMigrations(data: AppData): AppData {
-    const currentVersion = data.version || 1;
+    let currentVersion = data.version || 1;
     if (currentVersion < 2) {
       console.log(`Upgrading data from v${currentVersion} to v2...`);
       data.teachers = data.teachers.map(teacher => ({
         ...teacher,
         schoolName: teacher.schoolName || '',
       }));
+      currentVersion = 2;
     }
     
     if (currentVersion < 3) {
@@ -112,6 +113,7 @@ export class BackendService {
         totalFee: (student as any).totalFee || 0,
         feeHistory: (student as any).feeHistory || [],
       }));
+       currentVersion = 3;
     }
 
     if (currentVersion < 4) {
@@ -125,7 +127,29 @@ export class BackendService {
         ...coordinator,
         email: coordinator.email || `${coordinator.id}@rehman-attendance.com`, // Add placeholder
       }));
+      currentVersion = 4;
     }
+    
+    if (currentVersion < 5) {
+      console.log(`Upgrading data from v${currentVersion} to v5...`);
+      // Back-fill className and section on students from their teacher
+      const teacherMap = new Map(data.teachers.map(t => [t.id, t]));
+      data.students = data.students.map(student => {
+        if (!student.className || !student.section) {
+          const teacher = teacherMap.get(student.teacherId);
+          if (teacher) {
+            return {
+              ...student,
+              className: student.className || teacher.className,
+              section: student.section || teacher.section,
+            };
+          }
+        }
+        return student;
+      });
+      currentVersion = 5;
+    }
+
 
     data.version = DATA_VERSION;
     return data;
