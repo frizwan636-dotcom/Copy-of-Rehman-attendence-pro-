@@ -1,17 +1,17 @@
 import { Injectable } from '@angular/core';
-import type { Teacher, Coordinator, Student, AttendanceRecord, TeacherAttendanceRecord } from './attendance.service';
+import type { Teacher, Student, AttendanceRecord, TeacherAttendanceRecord } from './attendance.service';
 
 const APP_DATA_KEY = 'rehman_attendance_app_data';
-const DATA_VERSION = 5;
+const DATA_VERSION = 9;
 
 // This interface must be kept in sync with the structure in attendance.service.ts
 export interface AppData {
   version: number;
   teachers: Teacher[];
-  coordinators: Coordinator[];
   students: Student[];
   attendance: AttendanceRecord[];
   teacherAttendance: TeacherAttendanceRecord[];
+  loggedInUserId: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -20,36 +20,6 @@ export class BackendService {
   constructor() {
     console.log("BackendService Initialized: Using LocalStorage.");
   }
-
-  // --- BACKEND INTEGRATION POINT ---
-  // To use a real backend like Firebase:
-  // 1. Set up a Firebase project and enable Firestore.
-  // 2. Add your Firebase config to this project.
-  // 3. Import Firebase modules: import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
-  // 4. Replace the localStorage logic in loadData() and saveData()
-  //    with your Firestore read/write operations.
-  //
-  // EXAMPLE (Firebase):
-  //   private db = getFirestore(firebaseApp);
-  //   private dataDocRef = doc(this.db, "appData", "mainDocument");
-  //
-  //   async loadData(): Promise<AppData | null> {
-  //     const docSnap = await getDoc(this.dataDocRef);
-  //     if (docSnap.exists()) {
-  //       console.log("Data loaded from Firestore");
-  //       return this.runVersionMigrations(docSnap.data() as AppData);
-  //     } else {
-  //       console.log("No data in Firestore, starting fresh.");
-  //       return null;
-  //     }
-  //   }
-  //
-  //   async saveData(data: AppData): Promise<void> {
-  //     await setDoc(this.dataDocRef, data);
-  //     console.log("Data saved to Firestore");
-  //   }
-  // -----------------------------------------
-
 
   /**
    * Loads data from the persistent storage (currently localStorage).
@@ -66,7 +36,7 @@ export class BackendService {
     }
 
     try {
-      const data = JSON.parse(rawData) as AppData;
+      const data = JSON.parse(rawData) as any; // Parse as any to handle old structure
       console.log("Data loaded successfully, checking for migrations...");
       return this.runVersionMigrations(data);
     } catch (e) {
@@ -95,11 +65,11 @@ export class BackendService {
   /**
    * Ensures the data structure is up-to-date with the latest version.
    */
-  private runVersionMigrations(data: AppData): AppData {
+  private runVersionMigrations(data: any): AppData {
     let currentVersion = data.version || 1;
     if (currentVersion < 2) {
       console.log(`Upgrading data from v${currentVersion} to v2...`);
-      data.teachers = data.teachers.map(teacher => ({
+      data.teachers = data.teachers.map((teacher: any) => ({
         ...teacher,
         schoolName: teacher.schoolName || '',
       }));
@@ -108,7 +78,7 @@ export class BackendService {
     
     if (currentVersion < 3) {
       console.log(`Upgrading data from v${currentVersion} to v3...`);
-      data.students = data.students.map(student => ({
+      data.students = data.students.map((student: any) => ({
         ...student,
         totalFee: (student as any).totalFee || 0,
         feeHistory: (student as any).feeHistory || [],
@@ -118,14 +88,10 @@ export class BackendService {
 
     if (currentVersion < 4) {
       console.log(`Upgrading data from v${currentVersion} to v4...`);
-      // Add placeholder email to teachers and coordinators
-      data.teachers = data.teachers.map(teacher => ({
+      // Add placeholder email to teachers
+      data.teachers = data.teachers.map((teacher: any) => ({
         ...teacher,
         email: teacher.email || `${teacher.id}@rehman-attendance.com`, // Add placeholder
-      }));
-      data.coordinators = data.coordinators.map(coordinator => ({
-        ...coordinator,
-        email: coordinator.email || `${coordinator.id}@rehman-attendance.com`, // Add placeholder
       }));
       currentVersion = 4;
     }
@@ -133,10 +99,10 @@ export class BackendService {
     if (currentVersion < 5) {
       console.log(`Upgrading data from v${currentVersion} to v5...`);
       // Back-fill className and section on students from their teacher
-      const teacherMap = new Map(data.teachers.map(t => [t.id, t]));
-      data.students = data.students.map(student => {
+      const teacherMap = new Map(data.teachers.map((t: any) => [t.id, t]));
+      data.students = data.students.map((student: any) => {
         if (!student.className || !student.section) {
-          const teacher = teacherMap.get(student.teacherId);
+          const teacher = teacherMap.get(student.teacherId) as any | undefined;
           if (teacher) {
             return {
               ...student,
@@ -150,8 +116,48 @@ export class BackendService {
       currentVersion = 5;
     }
 
+    if (currentVersion < 6) {
+      console.log(`Upgrading data from v${currentVersion} to v6...`);
+      data.teacherAttendance = data.teacherAttendance || [];
+      currentVersion = 6;
+    }
+    
+    if (currentVersion < 7) {
+        console.log(`Upgrading data from v${currentVersion} to v7...`);
+        data.loggedInUserId = null; // Initialize loggedInUserId for existing users
+        currentVersion = 7;
+    }
 
-    data.version = DATA_VERSION;
-    return data;
+    if (currentVersion < 8) {
+        console.log(`Upgrading data from v${currentVersion} to v8...`);
+        if (data.teachers && Array.isArray(data.teachers)) {
+            // Remove the 'role' property as it's no longer needed in the single-user version.
+            data.teachers.forEach((teacher: any) => delete teacher.role);
+        }
+        currentVersion = 8;
+    }
+    
+    if (currentVersion < 9) {
+        console.log(`Upgrading data from v${currentVersion} to v9...`);
+        if (data.teachers && Array.isArray(data.teachers) && data.teachers.length > 0) {
+            // Re-introduce roles. The first user becomes the coordinator.
+            data.teachers = data.teachers.map((teacher: any, index: number) => ({
+                ...teacher,
+                role: index === 0 ? 'coordinator' : 'teacher'
+            }));
+        }
+        currentVersion = 9;
+    }
+
+    const finalData: AppData = {
+      version: DATA_VERSION,
+      teachers: data.teachers || [],
+      students: data.students || [],
+      attendance: data.attendance || [],
+      teacherAttendance: data.teacherAttendance || [],
+      loggedInUserId: data.loggedInUserId !== undefined ? data.loggedInUserId : null,
+    };
+
+    return finalData;
   }
 }

@@ -54,70 +54,6 @@ export class PdfService {
 
     doc.save(`Student_Attendance_${className}_${date}.pdf`);
   }
-  
-  exportTeacherReport(date: string, coordinatorName: string, records: any[], includePhotos: boolean) {
-    const doc = new jspdf.jsPDF();
-    
-    doc.setFontSize(20);
-    doc.text('Rehman Attendance - Daily Teacher Report', 105, 15, { align: 'center' });
-    
-    doc.setFontSize(12);
-    doc.text(`Coordinator: ${coordinatorName}`, 14, 25);
-    doc.text(`Date: ${date}`, 14, 32);
-
-    const head = includePhotos
-      ? [['Photo', 'Name', 'Class', 'Mobile', 'Status']]
-      : [['Name', 'Class', 'Mobile', 'Status']];
-    
-    const body = records.map(r => includePhotos
-      ? [r.photo || '', r.name, r.className ? `${r.className} - ${r.section}` : 'N/A', r.mobileNumber || 'N/A', r.status]
-      : [r.name, r.className ? `${r.className} - ${r.section}` : 'N/A', r.mobileNumber || 'N/A', r.status]
-    );
-
-    doc.autoTable({
-      head: head,
-      body: body,
-      startY: 40,
-      theme: 'grid',
-      headStyles: { fillColor: [22, 163, 74] }, // Green color for header
-      didDrawCell: includePhotos ? (data: any) => this.drawPhoto(doc, data) : null,
-      columnStyles: includePhotos ? { 0: { cellWidth: 15, minCellHeight: 15 } } : {}
-    });
-
-    doc.save(`Teacher_Attendance_${date}.pdf`);
-  }
-
-  exportTeacherMonthlyReport(monthLabel: string, coordinatorName: string, data: any[], includePhotos: boolean) {
-    const doc = new jspdf.jsPDF();
-    
-    doc.setFontSize(20);
-    doc.text('Rehman Attendance - Monthly Teacher Report', 105, 15, { align: 'center' });
-    
-    doc.setFontSize(12);
-    doc.text(`Coordinator: ${coordinatorName}`, 14, 25);
-    doc.text(`Month: ${monthLabel}`, 14, 32);
-
-    const head = includePhotos 
-      ? [['Photo', 'Teacher Name', 'Present', 'Absent', '%']] 
-      : [['Teacher Name', 'Present', 'Absent', '%']];
-
-    const body = data.map(d => includePhotos 
-      ? [d.photo || '', d.name, d.present, d.absent, d.percentage + '%']
-      : [d.name, d.present, d.absent, d.percentage + '%']
-    );
-
-    doc.autoTable({
-      head: head,
-      body: body,
-      startY: 40,
-      theme: 'striped',
-      headStyles: { fillColor: [22, 163, 74] }, // Green
-      didDrawCell: includePhotos ? (data: any) => this.drawPhoto(doc, data) : null,
-      columnStyles: includePhotos ? { 0: { cellWidth: 15, minCellHeight: 15 } } : {}
-    });
-
-    doc.save(`Monthly_Teacher_Report_${monthLabel.replace(' ', '_')}.pdf`);
-  }
 
   async exportRange(
     startDate: string,
@@ -260,5 +196,86 @@ export class PdfService {
     });
 
     doc.save(`Monthly_${className}_${monthLabel.replace(' ', '_')}.pdf`);
+  }
+
+  exportTeacherReport(date: string, coordinatorName: string, records: any[], includePhotos: boolean) {
+    const doc = new jspdf.jsPDF();
+    
+    doc.setFontSize(20);
+    doc.text('Rehman Attendance - Daily Teacher Report', 105, 15, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.text(`Coordinator: ${coordinatorName}`, 14, 25);
+    doc.text(`Date: ${date}`, 14, 32);
+
+    const totalTeachers = records.length;
+    const presentTeachers = records.filter(r => r.status === 'Present').length;
+    const teachersWithStatus = records.filter(r => r.status !== 'N/A').length;
+    const overallPercentage = teachersWithStatus > 0 ? ((presentTeachers / teachersWithStatus) * 100).toFixed(1) : '0.0';
+
+    doc.text(`Total Staff: ${totalTeachers}`, 196, 25, { align: 'right' });
+    doc.text(`Today's Attendance: ${overallPercentage}%`, 196, 32, { align: 'right' });
+
+    const head = includePhotos 
+      ? [['Photo', 'Name', 'Class', 'Contact', 'Status']] 
+      : [['Name', 'Class', 'Contact', 'Status']];
+    
+    const body = records.map(r => includePhotos 
+      ? [r.photo || '', r.name, `${r.className}-${r.section}`, r.mobileNumber || 'N/A', r.status] 
+      : [r.name, `${r.className}-${r.section}`, r.mobileNumber || 'N/A', r.status]
+    );
+
+    doc.autoTable({
+      head: head,
+      body: body,
+      startY: 40,
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229] },
+      didDrawCell: includePhotos ? (data: any) => this.drawPhoto(doc, data) : null,
+      columnStyles: includePhotos ? { 0: { cellWidth: 15, minCellHeight: 15 } } : {}
+    });
+
+    doc.save(`Teacher_Attendance_${date}.pdf`);
+  }
+
+  exportTeacherMonthlyReport(monthLabel: string, coordinatorName: string, data: any[], includePhotos: boolean) {
+    const doc = new jspdf.jsPDF();
+    
+    doc.setFontSize(20);
+    doc.text('Rehman Attendance - Monthly Teacher Report', 105, 15, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.text(`Coordinator: ${coordinatorName}`, 14, 25);
+    doc.text(`Month: ${monthLabel}`, 14, 32);
+
+    const totalTeachers = data.length;
+    const totalPresent = data.reduce((sum: number, s: any) => sum + s.present, 0);
+    const totalAbsent = data.reduce((sum: number, s: any) => sum + s.absent, 0);
+    const totalRecords = totalPresent + totalAbsent;
+    const overallPercentage = totalRecords > 0 ? ((totalPresent / totalRecords) * 100).toFixed(1) : '0.0';
+
+    doc.text(`Total Staff: ${totalTeachers}`, 196, 25, { align: 'right' });
+    doc.text(`Overall Attendance: ${overallPercentage}%`, 196, 32, { align: 'right' });
+
+    const head = includePhotos 
+      ? [['Photo', 'Name', 'Class', 'Present', 'Absent', 'Month %']] 
+      : [['Name', 'Class', 'Present', 'Absent', 'Month %']];
+
+    const body = data.map(d => includePhotos 
+      ? [d.photo || '', d.name, `${d.className}-${d.section}`, d.present, d.absent, d.percentage + '%']
+      : [d.name, `${d.className}-${d.section}`, d.present, d.absent, d.percentage + '%']
+    );
+
+    doc.autoTable({
+      head: head,
+      body: body,
+      startY: 40,
+      theme: 'striped',
+      headStyles: { fillColor: [5, 150, 105] },
+      didDrawCell: includePhotos ? (data: any) => this.drawPhoto(doc, data) : null,
+      columnStyles: includePhotos ? { 0: { cellWidth: 15, minCellHeight: 15 } } : {}
+    });
+
+    doc.save(`Monthly_Teachers_${monthLabel.replace(' ', '_')}.pdf`);
   }
 }

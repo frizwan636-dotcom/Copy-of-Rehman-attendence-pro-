@@ -126,28 +126,52 @@ export class DocService {
       html += this.getHtmlFooter();
       this.downloadDoc(html, `RangeReport_${className}_${startDate}_to_${endDate}.doc`);
   }
-  
+
   exportTeacherReport(date: string, coordinatorName: string, records: any[]) {
     const title = `Daily Teacher Report - ${date}`;
+    const totalTeachers = records.length;
+    const presentTeachers = records.filter(r => r.status === 'Present').length;
+    const teachersWithStatus = records.filter(r => r.status !== 'N/A').length;
+    const overallPercentage = teachersWithStatus > 0 ? ((presentTeachers / teachersWithStatus) * 100).toFixed(1) : '0.0';
+    
     let html = this.getHtmlHeader(title);
-    html += `<h1>${title}</h1><p><strong>Coordinator:</strong> ${coordinatorName}</p>`;
-    html += `<table><thead><tr><th>Name</th><th>Class</th><th>Mobile</th><th>Status</th></tr></thead><tbody>`;
+    html += `<h1>${title}</h1>`;
+    html += `<div class="summary">
+      <p><strong>Coordinator:</strong> ${coordinatorName}</p>
+      <p><strong>Total Staff:</strong> ${totalTeachers}</p>
+      <p><strong>Today's Attendance:</strong> ${overallPercentage}%</p>
+    </div>`;
+    html += `<table><thead><tr><th>Name</th><th>Class</th><th>Contact</th><th>Status</th></tr></thead><tbody>`;
     records.forEach(r => {
-      html += `<tr><td>${r.name}</td><td>${r.className ? `${r.className} - ${r.section}` : 'N/A'}</td><td>${r.mobileNumber || 'N/A'}</td><td>${r.status}</td></tr>`;
+      html += `<tr><td>${r.name}</td><td>${r.className}-${r.section}</td><td>${r.mobileNumber || 'N/A'}</td><td>${r.status}</td></tr>`;
     });
     html += `</tbody></table>` + this.getHtmlFooter();
+
     this.downloadDoc(html, `Teacher_Attendance_${date}.doc`);
   }
-  
+
   exportTeacherMonthlyReport(monthLabel: string, coordinatorName: string, data: any[]) {
     const title = `Monthly Teacher Report - ${monthLabel}`;
+    const totalTeachers = data.length;
+    const totalPresent = data.reduce((sum, s) => sum + s.present, 0);
+    const totalAbsent = data.reduce((sum, s) => sum + s.absent, 0);
+    const totalRecords = totalPresent + totalAbsent;
+    const overallPercentage = totalRecords > 0 ? ((totalPresent / totalRecords) * 100).toFixed(1) : '0.0';
+
     let html = this.getHtmlHeader(title);
-    html += `<h1>${title}</h1><p><strong>Coordinator:</strong> ${coordinatorName}</p>`;
-    html += `<table><thead><tr><th>Teacher Name</th><th>Present</th><th>Absent</th><th>%</th></tr></thead><tbody>`;
+    html += `<h1>${title}</h1>`;
+    html += `<div class="summary">
+      <p><strong>Coordinator:</strong> ${coordinatorName}</p>
+      <p><strong>Total Staff:</strong> ${totalTeachers}</p>
+      <p><strong>Overall Attendance:</strong> ${overallPercentage}%</p>
+    </div>`;
+
+    html += `<table><thead><tr><th>Name</th><th>Class</th><th>Present</th><th>Absent</th><th>Month %</th></tr></thead><tbody>`;
     data.forEach(d => {
-      html += `<tr><td>${d.name}</td><td>${d.present}</td><td>${d.absent}</td><td>${d.percentage}%</td></tr>`;
+      html += `<tr><td>${d.name}</td><td>${d.className}-${d.section}</td><td>${d.present}</td><td>${d.absent}</td><td>${d.percentage}%</td></tr>`;
     });
     html += `</tbody></table>` + this.getHtmlFooter();
-    this.downloadDoc(html, `Monthly_Teacher_Report_${monthLabel.replace(/\s/g, '_')}.doc`);
+    
+    this.downloadDoc(html, `Monthly_Teachers_${monthLabel.replace(/\s/g, '_')}.doc`);
   }
 }

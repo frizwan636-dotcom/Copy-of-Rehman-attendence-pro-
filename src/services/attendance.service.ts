@@ -1,25 +1,18 @@
-import { Injectable, signal, computed, effect, inject } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import { GoogleGenAI, Type } from "@google/genai";
 import { BackendService, AppData } from './backend.service';
 
 export interface Teacher {
-  id: string;
+  id: string; // local id
   name: string;
   email: string;
+  role: 'teacher' | 'coordinator';
   schoolName?: string;
   className: string;
   section: string;
   setupComplete: boolean;
-  password?: string;
   photo?: string;
   mobileNumber?: string;
-}
-
-export interface Coordinator {
-  id: string;
-  name: string;
-  email: string;
-  password?: string;
 }
 
 export interface FeePayment {
@@ -50,9 +43,9 @@ export interface AttendanceRecord {
 
 export interface TeacherAttendanceRecord {
   date: string;
-  coordinatorId: string;
   teacherId: string;
   status: 'Present' | 'Absent';
+  lastUpdated: number;
 }
 
 type CurrentUser = { id: string, role: 'teacher' | 'coordinator' };
@@ -63,18 +56,20 @@ export class AttendanceService {
   private backendService = inject(BackendService);
   
   isOnline = signal(navigator.onLine);
-  isSyncing = signal(false); // Used now to indicate "Saving..."
+  isSyncing = signal(false);
   isInitialized = signal(false);
 
-  // Private state signals
   private currentUser = signal<CurrentUser | null>(null);
   private teachers = signal<Teacher[]>([]);
-  private coordinators = signal<Coordinator[]>([]);
   private students = signal<Student[]>([]);
   private attendance = signal<AttendanceRecord[]>([]);
   private teacherAttendance = signal<TeacherAttendanceRecord[]>([]);
 
-  // Computed views
+  activeUserRole = computed(() => this.currentUser()?.role);
+  
+  coordinator = computed(() => this.teachers().find(t => t.role === 'coordinator'));
+  teachersOnly = computed(() => this.teachers().filter(t => t.role === 'teacher'));
+
   activeTeacher = computed(() => {
     const user = this.currentUser();
     if (user?.role !== 'teacher') return null;
@@ -84,7 +79,7 @@ export class AttendanceService {
   activeCoordinator = computed(() => {
     const user = this.currentUser();
     if (user?.role !== 'coordinator') return null;
-    return this.coordinators().find(c => c.id === user.id) || null;
+    return this.teachers().find(t => t.id === user.id) || null;
   });
 
   activeStudents = computed(() => {
@@ -99,7 +94,6 @@ export class AttendanceService {
     
     const classes = new Map<string, Set<string>>();
     
-    // Populate from students
     this.activeStudents().forEach(s => {
         const className = s.className || teacher.className;
         const section = s.section || teacher.section;
@@ -109,7 +103,6 @@ export class AttendanceService {
         classes.get(className)!.add(section);
     });
 
-    // Ensure teacher's primary class is included, even if no students are enrolled yet
     if (teacher.className) {
         if (!classes.has(teacher.className)) {
             classes.set(teacher.className, new Set());
@@ -126,65 +119,92 @@ export class AttendanceService {
   constructor() {
     window.addEventListener('online', () => this.isOnline.set(true));
     window.addEventListener('offline', () => this.isOnline.set(false));
-
-    // This effect must run in an injection context (like the constructor).
-    effect(() => {
-      const user = this.currentUser();
-      if (user) {
-        sessionStorage.setItem('currentUser', JSON.stringify(user));
-      } else {
-        sessionStorage.removeItem('currentUser');
-      }
-    });
   }
   
   async initialize() {
     if (this.isInitialized()) return;
 
-    // Load persistent data from backend
     const data = await this.backendService.loadData();
     if (data) {
       this.teachers.set(data.teachers || []);
-      this.coordinators.set(data.coordinators || []);
       this.students.set(data.students || []);
       this.attendance.set(data.attendance || []);
       this.teacherAttendance.set(data.teacherAttendance || []);
     }
-
-    // Current user is session state, not part of the main data blob
-    this.currentUser.set(JSON.parse(sessionStorage.getItem('currentUser') || 'null'));
-
+    
+    // Restore session if available
+    if (data && data.loggedInUserId) {
+        const loggedInTeacher = this.teachers().find(t => t.id === data.loggedInUserId);
+        if (loggedInTeacher) {
+          this.currentUser.set({ id: loggedInTeacher.id, role: loggedInTeacher.role });
+        }
+    }
+    
     this.isInitialized.set(true);
   }
 
-  private async persistState() {
-    if (!this.isInitialized()) return; // Don't save before data is loaded
+  private async persistState(loggedInUserId: string | null) {
+    if (!this.isInitialized()) return;
 
     this.isSyncing.set(true);
     const data: AppData = {
-      version: 5,
+      version: 9,
       teachers: this.teachers(),
-      coordinators: this.coordinators(),
       students: this.students(),
       attendance: this.attendance(),
       teacherAttendance: this.teacherAttendance(),
+      loggedInUserId: loggedInUserId,
     };
     await this.backendService.saveData(data);
     this.isSyncing.set(false);
   }
 
-  isNameTaken(name: string, role: 'teacher' | 'coordinator'): boolean {
-    const id = name.toLowerCase().replace(/\s/g, '_');
-    if (role === 'teacher') {
-      return this.teachers().some(t => t.id === id);
-    } else {
-      return this.coordinators().some(c => c.id === id);
+  async createInitialCoordinator(details: { schoolName: string; name: string; className: string; section: string; mobile: string; }) {
+    if (this.teachers().some(t => t.role === 'coordinator')) {
+        throw new Error("Coordinator already exists.");
     }
+    const id = 'coord_' + Math.random().toString(36).substr(2, 5);
+    const coordinator: Teacher = {
+        id,
+        name: details.name,
+        email: `${id}@local.app`, // dummy email
+        role: 'coordinator',
+        schoolName: details.schoolName,
+        className: details.className,
+        section: details.section,
+        setupComplete: true, // Setup is done in one step
+        mobileNumber: details.mobile,
+    };
+    this.teachers.update(list => [...list, coordinator]);
+    await this.setActiveUser(id);
   }
 
-  isEmailRegistered(email: string): boolean {
-    const lowerEmail = email.toLowerCase();
-    return this.teachers().some(t => t.email.toLowerCase() === lowerEmail) || this.coordinators().some(c => c.email.toLowerCase() === lowerEmail);
+  async createInitialTeacher(details: { schoolName: string; name: string; className: string; section: string; mobile: string; }) {
+    const id = 'teacher_' + Math.random().toString(36).substr(2, 5);
+    const teacher: Teacher = {
+        id,
+        name: details.name,
+        email: `${id}@local.app`, // dummy email
+        role: 'teacher',
+        schoolName: details.schoolName,
+        className: details.className,
+        section: details.section,
+        setupComplete: true,
+        mobileNumber: details.mobile,
+    };
+    this.teachers.update(list => [...list, teacher]);
+    await this.setActiveUser(id);
+  }
+
+
+  async setActiveUser(userId: string): Promise<void> {
+    const user = this.teachers().find(t => t.id === userId);
+    if (user) {
+        this.currentUser.set({ id: user.id, role: user.role });
+        await this.persistState(user.id);
+    } else {
+        throw new Error('User not found');
+    }
   }
   
   isRollNumberTaken(rollNumber: string, studentIdToExclude?: string): boolean {
@@ -193,152 +213,11 @@ export class AttendanceService {
     );
   }
 
-  verifyPassword(email: string, role: 'teacher' | 'coordinator', passwordAttempt: string): boolean {
-    const lowerEmail = email.toLowerCase();
-    const user = role === 'teacher' 
-      ? this.teachers().find(t => t.email.toLowerCase() === lowerEmail) 
-      : this.coordinators().find(c => c.email.toLowerCase() === lowerEmail);
-
-    return !!user && !!user.password && user.password === passwordAttempt;
-  }
-  
-  login(email: string, role: 'teacher' | 'coordinator') {
-    const lowerEmail = email.toLowerCase();
-    const user = role === 'teacher'
-      ? this.teachers().find(t => t.email.toLowerCase() === lowerEmail)
-      : this.coordinators().find(c => c.email.toLowerCase() === lowerEmail);
-    
-    if (user) {
-        this.currentUser.set({ id: user.id, role });
-    }
+  async logout() { 
+    this.currentUser.set(null);
+    await this.persistState(null);
   }
 
-  logout() { this.currentUser.set(null); }
-
-  // Teacher specific actions
-  registerTeacher(name: string, email: string, password: string) {
-    const id = name.toLowerCase().replace(/\s/g, '_');
-    const newTeacher: Teacher = { id, name, email, schoolName: '', className: '', section: '', setupComplete: false, password: password };
-    this.teachers.update(t => [...t, newTeacher]);
-    this.persistState(); // Save changes
-    this.login(email, 'teacher');
-  }
-  
-  updateTeacherSetup(schoolName: string, className: string, section: string) {
-    this.teachers.update(list => list.map(t => 
-      t.id === this.activeTeacher()?.id ? { ...t, schoolName, className, section, setupComplete: true } : t
-    ));
-    this.persistState();
-  }
-
-  // Coordinator specific actions
-  registerCoordinator(name: string, email: string, password: string) {
-    const id = name.toLowerCase().replace(/\s/g, '_');
-    const newCoordinator: Coordinator = { id, name, email, password: password };
-    this.coordinators.update(c => [...c, newCoordinator]);
-    this.persistState();
-    this.login(email, 'coordinator');
-  }
-
-  getTeachers(): Teacher[] {
-    return this.teachers();
-  }
-
-  addTeacher(details: { name: string; email: string; photo?: string; mobile?: string; className?: string; section?: string; }) {
-    const id = details.name.toLowerCase().replace(/\s/g, '_');
-    if (this.teachers().some(t => t.id === id)) {
-      throw new Error("A teacher with this name already exists.");
-    }
-    if (this.teachers().some(t => t.email.toLowerCase() === details.email.toLowerCase())) {
-        throw new Error("A teacher with this email already exists.");
-    }
-    const newTeacher: Teacher = {
-      id,
-      name: details.name,
-      email: details.email,
-      schoolName: '',
-      className: details.className || '',
-      section: details.section || '',
-      setupComplete: false,
-      photo: details.photo,
-      mobileNumber: details.mobile
-    };
-    this.teachers.update(t => [...t, newTeacher]);
-    this.persistState();
-  }
-
-  updateTeacherDetails(teacherId: string, details: Partial<Pick<Teacher, 'name' | 'email' | 'photo' | 'mobileNumber' | 'className' | 'section'>>) {
-    if (details.email) {
-        const lowerEmail = details.email.toLowerCase();
-        if (this.teachers().some(t => t.id !== teacherId && t.email.toLowerCase() === lowerEmail)) {
-            throw new Error('This email is already in use by another teacher.');
-        }
-    }
-    this.teachers.update(list => list.map(t => {
-        if (t.id === teacherId) {
-            return { ...t, ...details };
-        }
-        return t;
-    }));
-    this.persistState();
-  }
-
-  removeTeacher(teacherId: string) {
-    this.teachers.update(t => t.filter(teacher => teacher.id !== teacherId));
-    this.students.update(s => s.filter(student => student.teacherId !== teacherId));
-    this.attendance.update(a => a.filter(att => att.teacherId !== teacherId));
-    this.persistState();
-  }
-
-  saveTeacherAttendance(date: string, records: { teacherId: string, status: 'Present' | 'Absent' }[]) {
-    const coordinatorId = this.activeCoordinator()!.id;
-    this.teacherAttendance.update(list => list.filter(r => !(r.date === date && r.coordinatorId === coordinatorId)));
-    
-    const newRecords: TeacherAttendanceRecord[] = records.map(r => ({
-      date, coordinatorId, teacherId: r.teacherId, status: r.status
-    }));
-    this.teacherAttendance.update(list => [...list, ...newRecords]);
-    this.persistState();
-  }
-
-  getTeacherAttendanceForDate(date: string): TeacherAttendanceRecord[] {
-    const coordinatorId = this.activeCoordinator()!.id;
-    return this.teacherAttendance().filter(r => r.date === date && r.coordinatorId === coordinatorId);
-  }
-
-  getTeacherMonthlyReport(yearMonth: string) {
-    const coordinatorId = this.activeCoordinator()!.id;
-    const [year, month] = yearMonth.split('-').map(Number);
-    
-    const startDate = new Date(Date.UTC(year, month - 1, 1));
-    const endDate = new Date(Date.UTC(year, month, 0));
-    endDate.setUTCHours(23, 59, 59, 999);
-
-    const records = this.teacherAttendance().filter(r => {
-      if (r.coordinatorId !== coordinatorId) return false;
-      const recordDate = new Date(r.date);
-      return recordDate >= startDate && recordDate <= endDate;
-    });
-    
-    const allTeachers = this.teachers();
-    
-    return allTeachers.map(teacher => {
-      const teacherRecords = records.filter(r => r.teacherId === teacher.id);
-      const present = teacherRecords.filter(r => r.status === 'Present').length;
-      const absent = teacherRecords.filter(r => r.status === 'Absent').length;
-      const total = present + absent;
-      const percentage = total > 0 ? ((present / total) * 100).toFixed(1) : '0.0';
-      return { 
-        name: teacher.name, 
-        photo: teacher.photo,
-        present, 
-        absent, 
-        percentage 
-      };
-    });
-  }
-
-  // Student & Student Attendance
   async parseStudentListFromImage(base64Image: string): Promise<{ name: string, roll: string, mobile: string }[]> {
     try {
       const data = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
@@ -369,7 +248,7 @@ export class AttendanceService {
       section: s.section
     }));
     this.students.update(list => [...list, ...studentsToAdd]);
-    this.persistState();
+    this.persistState(this.currentUser()?.id || null);
   }
   
   updateStudentDetails(studentId: string, details: Partial<Omit<Student, 'id' | 'teacherId' | 'feeHistory'>>) {
@@ -379,7 +258,7 @@ export class AttendanceService {
       }
       return s;
     }));
-    this.persistState();
+    this.persistState(this.currentUser()?.id || null);
   }
 
   recordFeePayment(studentId: string, amount: number) {
@@ -396,7 +275,7 @@ export class AttendanceService {
         }
         return s;
     }));
-    this.persistState();
+    this.persistState(this.currentUser()?.id || null);
   }
 
   saveAttendance(date: string, records: { studentId: string, status: 'Present' | 'Absent' }[]) {
@@ -407,7 +286,7 @@ export class AttendanceService {
       date, teacherId, studentId: r.studentId, status: r.status, lastUpdated: Date.now()
     }));
     this.attendance.update(list => [...list, ...newRecords]);
-    this.persistState();
+    this.persistState(this.currentUser()?.id || null);
   }
 
   getAttendanceForDate(date: string) {
@@ -593,6 +472,88 @@ export class AttendanceService {
             status: status,
             percentage: percentage
         };
+    });
+  }
+
+  // --- Coordinator Methods ---
+
+  getTeachers(): Teacher[] {
+    return this.teachers();
+  }
+
+  getTeacherAttendanceForDate(date: string): TeacherAttendanceRecord[] {
+    return this.teacherAttendance().filter(r => r.date === date);
+  }
+
+  async addTeacher(teacherData: { name: string, email: string, photo?: string, mobile?: string, className?: string, section?: string }): Promise<void> {
+    if (this.teachers().some(t => t.email.toLowerCase() === teacherData.email.toLowerCase())) {
+        throw new Error('Email already exists');
+    }
+    const id = teacherData.name.toLowerCase().replace(/\s/g, '_') + '_' + Math.random().toString(36).substr(2, 5);
+    const newTeacher: Teacher = {
+        id,
+        name: teacherData.name,
+        email: teacherData.email,
+        role: 'teacher',
+        schoolName: this.activeCoordinator()?.schoolName || '',
+        className: teacherData.className || '',
+        section: teacherData.section || '',
+        setupComplete: !!(teacherData.className && teacherData.section),
+        photo: teacherData.photo,
+        mobileNumber: teacherData.mobile
+    };
+    this.teachers.update(t => [...t, newTeacher]);
+    await this.persistState(this.currentUser()?.id || null);
+  }
+
+  removeTeacher(teacherId: string): void {
+    this.teachers.update(teachers => teachers.filter(t => t.id !== teacherId));
+    this.persistState(this.currentUser()?.id || null);
+  }
+
+  updateTeacherDetails(teacherId: string, details: Partial<Omit<Teacher, 'id' | 'role'>>) {
+    this.teachers.update(list => list.map(t => {
+        if (t.id === teacherId) {
+            return { ...t, ...details };
+        }
+        return t;
+    }));
+    this.persistState(this.currentUser()?.id || null);
+  }
+
+  saveTeacherAttendance(date: string, records: { teacherId: string, status: 'Present' | 'Absent' }[]) {
+    this.teacherAttendance.update(list => list.filter(r => r.date !== date));
+
+    const newRecords: TeacherAttendanceRecord[] = records.map(r => ({
+        date,
+        teacherId: r.teacherId,
+        status: r.status,
+        lastUpdated: Date.now()
+    }));
+
+    this.teacherAttendance.update(list => [...list, ...newRecords]);
+    this.persistState(this.currentUser()?.id || null);
+  }
+
+  getTeacherMonthlyReport(yearMonth: string) {
+    const [year, month] = yearMonth.split('-').map(Number);
+    const start = new Date(Date.UTC(year, month - 1, 1));
+    const end = new Date(Date.UTC(year, month, 0));
+    end.setUTCHours(23, 59, 59, 999);
+
+    const records = this.teacherAttendance().filter(r => {
+        const recordDate = new Date(r.date);
+        return recordDate >= start && recordDate <= end;
+    });
+
+    const teachers = this.getTeachers();
+    return teachers.map(t => {
+        const teacherRecords = records.filter(r => r.teacherId === t.id);
+        const present = teacherRecords.filter(r => r.status === 'Present').length;
+        const absent = teacherRecords.filter(r => r.status === 'Absent').length;
+        const total = present + absent;
+        const percentage = total > 0 ? ((present / total) * 100).toFixed(1) : '0.0';
+        return { ...t, present, absent, percentage };
     });
   }
 }

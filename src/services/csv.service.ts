@@ -42,30 +42,6 @@ export class CsvService {
     ]);
     this.downloadCsv([headers, ...data], filename);
   }
-  
-  exportTeacherReport(date: string, coordinatorName: string, records: any[]) {
-    const filename = `Teacher_Attendance_${date}.csv`;
-    const headers = ['Name', 'Class', 'Mobile', 'Status'];
-    const data = records.map(r => [
-      r.name,
-      r.className ? `${r.className} - ${r.section}` : 'N/A',
-      r.mobileNumber || 'N/A',
-      r.status
-    ]);
-    this.downloadCsv([headers, ...data], filename);
-  }
-  
-  exportTeacherMonthlyReport(monthLabel: string, coordinatorName: string, data: any[]) {
-    const filename = `Monthly_Teacher_Report_${monthLabel.replace(/\s/g, '_')}.csv`;
-    const headers = ['Teacher Name', 'Present', 'Absent', '%'];
-    const dataRows = data.map(d => [
-      d.name,
-      d.present,
-      d.absent,
-      d.percentage
-    ]);
-    this.downloadCsv([headers, ...dataRows], filename);
-  }
 
   exportRange(
     startDate: string,
@@ -101,6 +77,33 @@ export class CsvService {
     const dataRows = data.map(d => [
       d.roll,
       d.name,
+      d.present,
+      d.absent,
+      d.percentage
+    ]);
+    this.downloadCsv([headers, ...dataRows], filename);
+  }
+
+  exportTeacherReport(date: string, coordinatorName: string, records: any[]) {
+    const filename = `Teacher_Attendance_${date}.csv`;
+    const headers = ['Name', 'Class', 'Section', 'Contact', 'Status'];
+    const data = records.map(r => [
+      r.name,
+      r.className,
+      r.section,
+      r.mobileNumber || 'N/A',
+      r.status,
+    ]);
+    this.downloadCsv([headers, ...data], filename);
+  }
+
+  exportTeacherMonthlyReport(monthLabel: string, coordinatorName: string, data: any[]) {
+    const filename = `Monthly_Teachers_${monthLabel.replace(/\s/g, '_')}.csv`;
+    const headers = ['Name', 'Class', 'Section', 'Present', 'Absent', 'Month %'];
+    const dataRows = data.map(d => [
+      d.name,
+      d.className,
+      d.section,
       d.present,
       d.absent,
       d.percentage

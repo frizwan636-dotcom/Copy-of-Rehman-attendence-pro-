@@ -1,14 +1,13 @@
-import { Component, inject, signal, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, OnInit, ChangeDetectionStrategy, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AttendanceService } from './services/attendance.service';
-import { LoginComponent } from './components/login.component';
-import { SetupWizardComponent } from './components/setup-wizard.component';
 import { DashboardComponent } from './components/dashboard.component';
 import { CoordinatorDashboardComponent } from './components/coordinator-dashboard.component';
+import { PortalChoiceComponent } from './components/portal-choice.component';
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, LoginComponent, SetupWizardComponent, DashboardComponent, CoordinatorDashboardComponent],
+  imports: [CommonModule, DashboardComponent, CoordinatorDashboardComponent, PortalChoiceComponent],
   template: `
     <div class="min-h-screen">
       @if (!attendanceService.isInitialized()) {
@@ -22,16 +21,14 @@ import { CoordinatorDashboardComponent } from './components/coordinator-dashboar
           </div>
         </div>
       } @else {
-        @if (attendanceService.activeCoordinator(); as coordinator) {
-          <app-coordinator-dashboard />
-        } @else if (attendanceService.activeTeacher(); as teacher) {
-          @if (!teacher.setupComplete || attendanceService.activeStudents().length === 0) {
-            <app-setup-wizard />
+        @if (attendanceService.activeUserRole()) {
+          @if (attendanceService.activeUserRole() === 'coordinator') {
+            <app-coordinator-dashboard />
           } @else {
             <app-dashboard />
           }
         } @else {
-          <app-login />
+          <app-portal-choice />
         }
       }
 
@@ -41,7 +38,6 @@ import { CoordinatorDashboardComponent } from './components/coordinator-dashboar
       </footer>
     </div>
   `,
-  // FIX: Set change detection strategy to OnPush for better performance with signals.
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppComponent implements OnInit {

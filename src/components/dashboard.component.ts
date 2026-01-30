@@ -139,8 +139,8 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
 
                     <div class="flex items-center gap-2">
                       @if (getStatus(student.id) === 'Absent') {
-                        <a [href]="getWhatsAppSafeUrl(student)" target="_blank" class="w-10 h-10 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center hover:bg-green-600 hover:text-white transition-all">
-                          <i class="fa-brands fa-whatsapp text-lg"></i>
+                        <a [href]="getSmsSafeUrl(student)" target="_blank" class="w-10 h-10 bg-sky-50 text-sky-600 rounded-2xl flex items-center justify-center hover:bg-sky-600 hover:text-white transition-all">
+                          <i class="fa-solid fa-comment-sms text-lg"></i>
                         </a>
                       }
                       <div class="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
@@ -156,8 +156,8 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
                 <button (click)="saveAttendance()" class="flex-1 py-5 bg-slate-900 text-white rounded-[1.75rem] font-black shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3">
                   <i class="fa-solid fa-check-double text-indigo-400"></i> Submit Records
                 </button>
-                <button (click)="sendBulkAbsenceAlerts()" [disabled]="absentCount() === 0" class="flex-1 py-5 bg-green-600 text-white rounded-[1.75rem] font-black shadow-xl hover:bg-green-700 transition-all flex items-center justify-center gap-3 disabled:opacity-50">
-                  <i class="fa-brands fa-whatsapp"></i> Alert Absentees
+                <button (click)="sendSmsAlertsToAbsentees()" [disabled]="absentCount() === 0" class="flex-1 py-5 bg-sky-600 text-white rounded-[1.75rem] font-black shadow-xl hover:bg-sky-700 transition-all flex items-center justify-center gap-3 disabled:opacity-50">
+                  <i class="fa-solid fa-comment-sms"></i> SMS Absentees
                 </button>
               </div>
             </div>
@@ -260,6 +260,10 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
                   <h2 class="text-2xl font-black text-slate-800 tracking-tight">Fee Management</h2>
                   <p class="text-slate-500 text-sm font-medium">Tracking student payments and dues</p>
                 </div>
+                 <button (click)="sendBulkFeeReminders()" [disabled]="studentsWithDuesCount() === 0" class="flex items-center gap-2 px-6 py-4 bg-green-600 text-white rounded-2xl font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-200 disabled:opacity-50">
+                    <i class="fa-solid fa-comment-dollar"></i>
+                    <span>Remind All Dues</span>
+                </button>
               </div>
               
               <div class="space-y-3">
@@ -288,7 +292,7 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
                     <div class="flex items-center justify-end gap-2 col-span-1">
                       @if (student.feeDue > 0) {
                         <a [href]="getFeeReminderSafeUrl(student)" target="_blank" class="w-10 h-10 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center hover:bg-green-600 hover:text-white transition-all">
-                          <i class="fa-brands fa-whatsapp text-lg"></i>
+                          <i class="fa-solid fa-file-invoice-dollar text-lg"></i>
                         </a>
                       }
                       <button (click)="openPaymentModal(student)" class="px-4 py-2 bg-slate-800 text-white rounded-xl font-bold text-xs hover:bg-slate-700 transition-all">
@@ -334,14 +338,13 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
                 </div>
 
                 <div class="pt-6 border-t border-slate-100 text-left">
-                  <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Security Credentials</h4>
+                  <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Account Details</h4>
                   <div class="flex items-center gap-3 p-4 bg-orange-50 rounded-2xl border border-orange-100">
-                    <i class="fa-solid fa-key text-orange-600 text-xl"></i>
+                    <i class="fa-solid fa-envelope text-orange-600 text-xl"></i>
                     <div>
-                      <p class="text-[10px] font-black text-orange-800 uppercase leading-none">Password Protection</p>
-                      <p class="text-[10px] text-orange-600 font-medium">Account secured with a password</p>
+                      <p class="text-[10px] font-black text-orange-800 uppercase leading-none">Login Email</p>
+                      <p class="text-sm text-orange-900 font-medium">{{ teacher()?.email }}</p>
                     </div>
-                    <span class="ml-auto text-[8px] bg-orange-600 text-white px-2 py-0.5 rounded-full font-black">ACTIVE</span>
                   </div>
                 </div>
               </div>
@@ -437,7 +440,6 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
       }
     </div>
   `,
-  // FIX: Set change detection strategy to OnPush for better performance with signals.
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DashboardComponent {
@@ -561,25 +563,25 @@ export class DashboardComponent {
     this.showToastWithMessage('Attendance Saved Successfully');
   }
 
-  // WhatsApp Alert Logic for Absentees
-  private buildWhatsAppUrl(student: any): string {
+  // SMS Alert Logic for Absentees
+  private buildSmsUrl(student: any): string {
     const dateStr = new Date(this.selectedDate()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    const message = `*ABSENCE ALERT* 📢\n\nDear Parent,\nThis is to inform you that your child *${student.name}* (Roll: ${student.rollNumber}) was *ABSENT* from class today (${dateStr}).\n\n_Regards,_\n*${this.teacher()?.name}*\n${this.teacher()?.className} Section ${this.teacher()?.section}`;
+    const message = `ABSENCE ALERT\n\nDear Parent,\nThis is to inform you that your child ${student.name} (Roll: ${student.rollNumber}) was ABSENT from class today (${dateStr}).\n\nRegards,\n${this.teacher()?.name}\n${this.teacher()?.className} Section ${this.teacher()?.section}`;
     
     const cleanNumber = student.mobileNumber.replace(/\D/g, '');
-    return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}`;
+    return `sms:${cleanNumber}?body=${encodeURIComponent(message)}`;
   }
 
-  getWhatsAppSafeUrl(student: any): SafeUrl {
-    return this.sanitizer.bypassSecurityTrustUrl(this.buildWhatsAppUrl(student));
+  getSmsSafeUrl(student: any): SafeUrl {
+    return this.sanitizer.bypassSecurityTrustUrl(this.buildSmsUrl(student));
   }
 
-  sendDirectAlert(student: any) {
-    const url = this.buildWhatsAppUrl(student);
+  sendDirectSmsAlert(student: any) {
+    const url = this.buildSmsUrl(student);
     window.open(url, '_blank');
   }
 
-  sendBulkAbsenceAlerts() {
+  sendSmsAlertsToAbsentees() {
     const absentees: any[] = [];
     this.dailyRecords().forEach((status, studentId) => {
       if (status === 'Absent') {
@@ -590,23 +592,23 @@ export class DashboardComponent {
 
     if (absentees.length === 0) return;
 
-    if (confirm(`Send alerts to all ${absentees.length} absentees?`)) {
+    if (confirm(`This will open your SMS app to send alerts to all ${absentees.length} absentees. Continue?`)) {
       absentees.forEach((s, index) => {
-        setTimeout(() => this.sendDirectAlert(s), index * 1000);
+        setTimeout(() => this.sendDirectSmsAlert(s), index * 500);
       });
-      this.showToastWithMessage(`Dispatching Alerts...`);
+      this.showToastWithMessage(`Opening SMS app for alerts...`);
     }
   }
 
   // Fee Reminder Logic
-  buildFeeReminderUrl(student: StudentWithFeeStatus): string {
-    const message = `*FEE REMINDER* 💰\n\nDear Parent,\nThis is a reminder regarding the outstanding school fee for your child *${student.name}* (Roll: ${student.rollNumber}).\n\n- Total Fee: *${student.totalFee}*\n- Amount Paid: *${student.feePaid}*\n- *Outstanding Due: ${student.feeDue}*\n\nPlease clear the dues at your earliest convenience.\n\n_Regards,_\n*${this.teacher()?.name}*\n${this.teacher()?.schoolName}`;
+  buildFeeReminderSmsUrl(student: StudentWithFeeStatus): string {
+    const message = `FEE REMINDER\n\nDear Parent,\nThis is a reminder regarding the outstanding school fee for your child ${student.name} (Roll: ${student.rollNumber}).\n\n- Total Fee: ${student.totalFee}\n- Amount Paid: ${student.feePaid}\n- Outstanding Due: ${student.feeDue}\n\nPlease clear the dues at your earliest convenience.\n\nRegards,\n${this.teacher()?.name}\n${this.teacher()?.schoolName}`;
     const cleanNumber = student.mobileNumber.replace(/\D/g, '');
-    return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}`;
+    return `sms:${cleanNumber}?body=${encodeURIComponent(message)}`;
   }
 
   getFeeReminderSafeUrl(student: StudentWithFeeStatus): SafeUrl {
-    return this.sanitizer.bypassSecurityTrustUrl(this.buildFeeReminderUrl(student));
+    return this.sanitizer.bypassSecurityTrustUrl(this.buildFeeReminderSmsUrl(student));
   }
   
   sendBulkFeeReminders() {
@@ -615,11 +617,11 @@ export class DashboardComponent {
       this.showToastWithMessage('No students with pending fees.');
       return;
     }
-    if (confirm(`This will open WhatsApp chats for all ${studentsWithDues.length} students with outstanding fees. Continue?`)) {
+    if (confirm(`This will open your SMS app for all ${studentsWithDues.length} students with outstanding fees. Continue?`)) {
       studentsWithDues.forEach((s, index) => {
-        setTimeout(() => window.open(this.buildFeeReminderUrl(s), '_blank'), index * 1000);
+        setTimeout(() => window.open(this.buildFeeReminderSmsUrl(s), '_blank'), index * 1000);
       });
-      this.showToastWithMessage(`Dispatching ${studentsWithDues.length} fee reminders...`);
+      this.showToastWithMessage(`Opening SMS app for ${studentsWithDues.length} fee reminders...`);
     }
   }
 
@@ -653,8 +655,6 @@ export class DashboardComponent {
     this.showStudentModal.set(true);
   }
 
-  // FIX: Correctly type the 'field' parameter to be the keys of the object *within* the signal, not the signal itself.
-  // `ReturnType<typeof this.studentForm>` correctly infers the type of the signal's value.
   updateStudentFormField(field: keyof ReturnType<typeof this.studentForm>, value: any) {
     this.studentForm.update(form => ({...form, [field]: value }));
   }
