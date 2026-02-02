@@ -185,26 +185,6 @@ export class AttendanceService {
     await this.setActiveUser(id);
   }
 
-  async createInitialTeacher(details: { schoolName: string; name: string; className: string; section: string; mobile: string; pin: string; securityQuestion: string; securityAnswer: string; }) {
-    const id = 'teacher_' + Math.random().toString(36).substr(2, 5);
-    const teacher: Teacher = {
-        id,
-        name: details.name,
-        email: `${id}@local.app`, // dummy email
-        pin: details.pin,
-        securityQuestion: details.securityQuestion,
-        securityAnswer: details.securityAnswer,
-        role: 'teacher',
-        schoolName: details.schoolName,
-        className: details.className,
-        section: details.section,
-        setupComplete: true,
-        mobileNumber: details.mobile,
-    };
-    this.teachers.update(list => [...list, teacher]);
-    await this.setActiveUser(id);
-  }
-
   verifyPin(userId: string, pin: string): boolean {
     const user = this.teachers().find(t => t.id === userId);
     if (!user) {

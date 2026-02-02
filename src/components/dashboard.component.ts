@@ -58,7 +58,7 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
       <main class="max-w-4xl mx-auto p-4 md:p-8">
         
         <!-- Navigation Hub -->
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <button (click)="view.set('attendance')" 
             class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3 group"
             [class]="view() === 'attendance'
@@ -84,15 +84,6 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
               : 'bg-white text-slate-600 hover:bg-green-50 border border-slate-100 shadow-sm'">
             <i class="fa-solid fa-wallet text-xl" [class]="view() === 'fees' ? 'text-white' : 'text-green-500'"></i>
             <span class="text-xs font-black uppercase tracking-widest">Fees</span>
-          </button>
-          
-          <button (click)="view.set('teacher')" 
-            class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3 group"
-            [class]="view() === 'teacher'
-              ? 'bg-orange-600 text-white shadow-xl shadow-orange-200'
-              : 'bg-white text-slate-600 hover:bg-orange-50 border border-slate-100 shadow-sm'">
-            <i class="fa-solid fa-user-tie text-xl" [class]="view() === 'teacher' ? 'text-white' : 'text-orange-500'"></i>
-            <span class="text-xs font-black uppercase tracking-widest">Profile</span>
           </button>
 
           <button (click)="view.set('reports')" 
@@ -305,52 +296,6 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
             </div>
           }
 
-          @case ('teacher') {
-            <!-- Teacher Profile -->
-            <div class="max-w-xl mx-auto space-y-8 animate-in fade-in slide-in-from-top-4">
-              <div class="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-100 text-center space-y-6">
-                <div class="relative mx-auto w-40 h-40">
-                  <div class="absolute inset-0 border-4 border-orange-500/20 rounded-full animate-pulse"></div>
-                  <div class="absolute inset-2 rounded-full overflow-hidden border-4 border-white shadow-xl bg-orange-50">
-                    <div class="w-full h-full flex items-center justify-center text-orange-300">
-                      <i class="fa-solid fa-user-tie text-5xl"></i>
-                    </div>
-                  </div>
-                  <div class="absolute bottom-1 right-1 w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center border-4 border-white shadow-lg">
-                    <i class="fa-solid fa-shield-check"></i>
-                  </div>
-                </div>
-
-                <div>
-                  <h2 class="text-3xl font-black text-slate-800 tracking-tight">{{ teacher()?.name }}</h2>
-                  <p class="text-orange-600 font-bold uppercase tracking-[0.2em] text-xs mt-1">Authorized Educator</p>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                  <div class="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
-                    <p class="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Primary Class</p>
-                    <p class="font-bold text-slate-800">{{ teacher()?.className }}</p>
-                  </div>
-                  <div class="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
-                    <p class="text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Primary Section</p>
-                    <p class="font-bold text-slate-800">{{ teacher()?.section }}</p>
-                  </div>
-                </div>
-
-                <div class="pt-6 border-t border-slate-100 text-left">
-                  <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Account Details</h4>
-                  <div class="flex items-center gap-3 p-4 bg-orange-50 rounded-2xl border border-orange-100">
-                    <i class="fa-solid fa-envelope text-orange-600 text-xl"></i>
-                    <div>
-                      <p class="text-[10px] font-black text-orange-800 uppercase leading-none">Login Email</p>
-                      <p class="text-sm text-orange-900 font-medium">{{ teacher()?.email }}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          }
-
           @case ('reports') {
             <div class="animate-in fade-in zoom-in-95">
               <app-reports (onBack)="view.set('attendance')" />
@@ -446,7 +391,7 @@ export class DashboardComponent {
   attendanceService = inject(AttendanceService);
   sanitizer: DomSanitizer = inject(DomSanitizer);
   
-  view = signal<'attendance' | 'students' | 'fees' | 'teacher' | 'reports'>('attendance');
+  view = signal<'attendance' | 'students' | 'fees' | 'reports'>('attendance');
   teacher = this.attendanceService.activeTeacher;
   students = this.attendanceService.activeStudents;
   

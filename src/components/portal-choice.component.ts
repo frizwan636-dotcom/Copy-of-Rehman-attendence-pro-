@@ -203,20 +203,8 @@ import { AttendanceService, Teacher } from '../services/attendance.service';
               <i class="fa-solid fa-arrow-left"></i>
             </button>
             <div>
-              <h3 class="text-2xl font-bold text-slate-800 tracking-tight">
-                @if(setupRole() === 'coordinator') {
-                  Coordinator Setup
-                } @else {
-                  First Teacher Setup
-                }
-              </h3>
-              <p class="text-sm text-slate-500">
-                @if(setupRole() === 'coordinator') {
-                  Create the primary coordinator account.
-                } @else {
-                  Create the first teacher account for this school.
-                }
-              </p>
+              <h3 class="text-2xl font-bold text-slate-800 tracking-tight">Coordinator Setup</h3>
+              <p class="text-sm text-slate-500">Create the primary coordinator account for the school.</p>
             </div>
           </div>
           
@@ -249,7 +237,7 @@ export class PortalChoiceComponent {
   teachers = this.attendanceService.teachersOnly;
 
   view = signal<'choice' | 'teacher-selection' | 'setup' | 'pin-entry' | 'forgot-pin-question' | 'forgot-pin-reset'>('choice');
-  setupRole = signal<'coordinator' | 'teacher' | null>(null);
+  setupRole = signal<'coordinator' | null>(null);
 
   // Login State
   userForLogin = signal<Teacher | null>(null);
@@ -286,21 +274,22 @@ export class PortalChoiceComponent {
   }
 
   onTeacherClick() {
+    if (!this.coordinator()) {
+      alert('The system has not been set up. Please contact your coordinator to set up the school account first.');
+      return;
+    }
+
     const teacherList = this.teachers();
-    if (teacherList.length > 0) {
-      if (teacherList.length === 1) {
-        this.userForLogin.set(teacherList[0]);
-        this.view.set('pin-entry');
-      } else {
-        this.view.set('teacher-selection');
-      }
+    if (teacherList.length === 0) {
+      alert('No teacher accounts have been created yet. Please contact your coordinator to set up your profile.');
+      return;
+    }
+    
+    if (teacherList.length === 1) {
+      this.userForLogin.set(teacherList[0]);
+      this.view.set('pin-entry');
     } else {
-       if (this.coordinator()) {
-         alert('No teacher accounts found. Please ask your coordinator to create one for you.');
-       } else {
-         this.setupRole.set('teacher');
-         this.view.set('setup');
-       }
+      this.view.set('teacher-selection');
     }
   }
 
@@ -392,10 +381,6 @@ export class PortalChoiceComponent {
       securityAnswer: this.setupSecurityAnswer()
     };
 
-    if (this.setupRole() === 'coordinator') {
-      this.attendanceService.createInitialCoordinator(details);
-    } else {
-      this.attendanceService.createInitialTeacher(details);
-    }
+    this.attendanceService.createInitialCoordinator(details);
   }
 }
