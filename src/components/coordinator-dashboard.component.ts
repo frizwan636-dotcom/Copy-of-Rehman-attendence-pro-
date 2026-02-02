@@ -143,9 +143,14 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
                     <input type="tel" [ngModel]="newTeacherMobile()" (ngModelChange)="newTeacherMobile.set($event)" placeholder="Contact Mobile" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
                     <input type="text" [ngModel]="newTeacherClass()" (ngModelChange)="newTeacherClass.set($event)" placeholder="Class" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
                     <input type="text" [ngModel]="newTeacherSection()" (ngModelChange)="newTeacherSection.set($event)" placeholder="Section" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                    <input type="password" maxlength="4" inputmode="numeric" pattern="[0-9]*" [ngModel]="newTeacherPin()" (ngModelChange)="newTeacherPin.set($event)" placeholder="4-Digit PIN" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
                   </div>
                 </div>
-                 <button (click)="addTeacher()" [disabled]="!newTeacherName() || !newTeacherEmail()" class="w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50">
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="text" [ngModel]="newTeacherSecurityQuestion()" (ngModelChange)="newTeacherSecurityQuestion.set($event)" placeholder="Security Question" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                    <input type="text" [ngModel]="newTeacherSecurityAnswer()" (ngModelChange)="newTeacherSecurityAnswer.set($event)" placeholder="Security Answer" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                </div>
+                 <button (click)="addTeacher()" [disabled]="!newTeacherName() || !newTeacherEmail() || newTeacherPin().length < 4 || !newTeacherSecurityQuestion() || !newTeacherSecurityAnswer()" class="w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50">
                   <i class="fa-solid fa-user-plus mr-2"></i>Add Teacher Profile
                 </button>
                 <input type="file" #teacherPhotoInput accept="image/*" (change)="onPhotoSelected($event)" class="hidden">
@@ -281,25 +286,32 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
         <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center p-4" (click)="showEditModal.set(false)">
           <div class="bg-white max-w-lg w-full rounded-[2rem] p-8 shadow-2xl border animate-in zoom-in-95" (click)="$event.stopPropagation()">
             <h3 class="text-xl font-bold text-slate-800 mb-6">Edit Teacher Profile</h3>
-            <div class="flex gap-4">
-              <div class="w-24 h-24 bg-slate-50 rounded-2xl border-2 border-dashed flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer relative" (click)="triggerEditPhotoUpload()">
-                @if(editTeacherPhoto()) {
-                  <img [src]="editTeacherPhoto()" class="w-full h-full object-cover">
-                } @else {
-                  <i class="fa-solid fa-camera text-slate-300 text-xl"></i>
-                }
+            <div class="space-y-4">
+              <div class="flex gap-4">
+                <div class="w-24 h-24 bg-slate-50 rounded-2xl border-2 border-dashed flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer relative" (click)="triggerEditPhotoUpload()">
+                  @if(editTeacherPhoto()) {
+                    <img [src]="editTeacherPhoto()" class="w-full h-full object-cover">
+                  } @else {
+                    <i class="fa-solid fa-camera text-slate-300 text-xl"></i>
+                  }
+                </div>
+                <div class="flex-1 grid grid-cols-2 gap-3">
+                  <input type="text" [ngModel]="editTeacherName()" (ngModelChange)="editTeacherName.set($event)" placeholder="Full Name" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                  <input type="email" [ngModel]="editTeacherEmail()" (ngModelChange)="editTeacherEmail.set($event)" placeholder="Email Address" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                  <input type="tel" [ngModel]="editTeacherMobile()" (ngModelChange)="editTeacherMobile.set($event)" placeholder="Contact Mobile" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                  <input type="text" [ngModel]="editTeacherClass()" (ngModelChange)="editTeacherClass.set($event)" placeholder="Class" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                  <input type="text" [ngModel]="editTeacherSection()" (ngModelChange)="editTeacherSection.set($event)" placeholder="Section" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                  <input type="password" maxlength="4" inputmode="numeric" pattern="[0-9]*" [ngModel]="editTeacherPin()" (ngModelChange)="editTeacherPin.set($event)" placeholder="4-Digit PIN" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                </div>
               </div>
-              <div class="flex-1 grid grid-cols-2 gap-3">
-                <input type="text" [ngModel]="editTeacherName()" (ngModelChange)="editTeacherName.set($event)" placeholder="Full Name" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                <input type="email" [ngModel]="editTeacherEmail()" (ngModelChange)="editTeacherEmail.set($event)" placeholder="Email Address" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                <input type="tel" [ngModel]="editTeacherMobile()" (ngModelChange)="editTeacherMobile.set($event)" placeholder="Contact Mobile" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                <input type="text" [ngModel]="editTeacherClass()" (ngModelChange)="editTeacherClass.set($event)" placeholder="Class" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                <input type="text" [ngModel]="editTeacherSection()" (ngModelChange)="editTeacherSection.set($event)" placeholder="Section" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+              <div class="grid grid-cols-2 gap-3">
+                  <input type="text" [ngModel]="editTeacherSecurityQuestion()" (ngModelChange)="editTeacherSecurityQuestion.set($event)" placeholder="Security Question" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                  <input type="text" [ngModel]="editTeacherSecurityAnswer()" (ngModelChange)="editTeacherSecurityAnswer.set($event)" placeholder="Security Answer" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
               </div>
             </div>
             <div class="flex gap-3 mt-6">
               <button (click)="showEditModal.set(false)" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold">Cancel</button>
-              <button (click)="saveTeacherChanges()" class="flex-[2] py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700">Save Changes</button>
+              <button (click)="saveTeacherChanges()" [disabled]="editTeacherPin().length < 4 || !editTeacherSecurityQuestion() || !editTeacherSecurityAnswer()" class="flex-[2] py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50">Save Changes</button>
             </div>
           </div>
         </div>
@@ -327,6 +339,9 @@ export class CoordinatorDashboardComponent {
   newTeacherMobile = signal('');
   newTeacherClass = signal('');
   newTeacherSection = signal('');
+  newTeacherPin = signal('');
+  newTeacherSecurityQuestion = signal('');
+  newTeacherSecurityAnswer = signal('');
   
   // Edit Teacher State
   showEditModal = signal(false);
@@ -337,6 +352,9 @@ export class CoordinatorDashboardComponent {
   editTeacherClass = signal('');
   editTeacherSection = signal('');
   editTeacherPhoto = signal<string | null | undefined>(undefined);
+  editTeacherPin = signal('');
+  editTeacherSecurityQuestion = signal('');
+  editTeacherSecurityAnswer = signal('');
 
   // Attendance State
   selectedDate = signal(new Date().toISOString().split('T')[0]);
@@ -400,10 +418,22 @@ export class CoordinatorDashboardComponent {
         return;
     }
 
+    if (this.newTeacherPin().length !== 4) {
+      alert('PIN must be exactly 4 digits.');
+      return;
+    }
+    if (!this.newTeacherSecurityQuestion().trim() || !this.newTeacherSecurityAnswer().trim()) {
+      alert('Security question and answer are required.');
+      return;
+    }
+
     try {
       await this.attendanceService.addTeacher({
         name: this.newTeacherName(),
         email: this.newTeacherEmail(),
+        pin: this.newTeacherPin(),
+        securityQuestion: this.newTeacherSecurityQuestion(),
+        securityAnswer: this.newTeacherSecurityAnswer(),
         photo: this.newTeacherPhoto() || undefined,
         mobile: this.newTeacherMobile(),
         className: this.newTeacherClass(),
@@ -419,6 +449,10 @@ export class CoordinatorDashboardComponent {
       this.newTeacherMobile.set('');
       this.newTeacherClass.set('');
       this.newTeacherSection.set('');
+      this.newTeacherPin.set('');
+      this.newTeacherSecurityQuestion.set('');
+      this.newTeacherSecurityAnswer.set('');
+
 
       this.showToastMessage('Teacher account created successfully');
     } catch (e: any) {
@@ -443,6 +477,9 @@ export class CoordinatorDashboardComponent {
     this.editTeacherClass.set(teacher.className || '');
     this.editTeacherSection.set(teacher.section || '');
     this.editTeacherPhoto.set(teacher.photo);
+    this.editTeacherPin.set(teacher.pin);
+    this.editTeacherSecurityQuestion.set(teacher.securityQuestion);
+    this.editTeacherSecurityAnswer.set(teacher.securityAnswer);
     this.showEditModal.set(true);
   }
 
@@ -465,11 +502,23 @@ export class CoordinatorDashboardComponent {
         alert('Please enter a valid email address.');
         return;
     }
+
+    if (this.editTeacherPin().length !== 4) {
+      alert('PIN must be exactly 4 digits.');
+      return;
+    }
+    if (!this.editTeacherSecurityQuestion().trim() || !this.editTeacherSecurityAnswer().trim()) {
+      alert('Security question and answer are required.');
+      return;
+    }
     
     try {
       this.attendanceService.updateTeacherDetails(teacher.id, {
         name: this.editTeacherName(),
         email: this.editTeacherEmail(),
+        pin: this.editTeacherPin(),
+        securityQuestion: this.editTeacherSecurityQuestion(),
+        securityAnswer: this.editTeacherSecurityAnswer(),
         mobileNumber: this.editTeacherMobile(),
         className: this.editTeacherClass(),
         section: this.editTeacherSection(),

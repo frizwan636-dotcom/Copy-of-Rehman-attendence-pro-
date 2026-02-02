@@ -6,6 +6,9 @@ export interface Teacher {
   id: string; // local id
   name: string;
   email: string;
+  pin: string;
+  securityQuestion: string;
+  securityAnswer: string;
   role: 'teacher' | 'coordinator';
   schoolName?: string;
   className: string;
@@ -148,7 +151,7 @@ export class AttendanceService {
 
     this.isSyncing.set(true);
     const data: AppData = {
-      version: 9,
+      version: 11,
       teachers: this.teachers(),
       students: this.students(),
       attendance: this.attendance(),
@@ -159,7 +162,7 @@ export class AttendanceService {
     this.isSyncing.set(false);
   }
 
-  async createInitialCoordinator(details: { schoolName: string; name: string; className: string; section: string; mobile: string; }) {
+  async createInitialCoordinator(details: { schoolName: string; name: string; className: string; section: string; mobile: string; pin: string; securityQuestion: string; securityAnswer: string; }) {
     if (this.teachers().some(t => t.role === 'coordinator')) {
         throw new Error("Coordinator already exists.");
     }
@@ -168,6 +171,9 @@ export class AttendanceService {
         id,
         name: details.name,
         email: `${id}@local.app`, // dummy email
+        pin: details.pin,
+        securityQuestion: details.securityQuestion,
+        securityAnswer: details.securityAnswer,
         role: 'coordinator',
         schoolName: details.schoolName,
         className: details.className,
@@ -179,12 +185,15 @@ export class AttendanceService {
     await this.setActiveUser(id);
   }
 
-  async createInitialTeacher(details: { schoolName: string; name: string; className: string; section: string; mobile: string; }) {
+  async createInitialTeacher(details: { schoolName: string; name: string; className: string; section: string; mobile: string; pin: string; securityQuestion: string; securityAnswer: string; }) {
     const id = 'teacher_' + Math.random().toString(36).substr(2, 5);
     const teacher: Teacher = {
         id,
         name: details.name,
         email: `${id}@local.app`, // dummy email
+        pin: details.pin,
+        securityQuestion: details.securityQuestion,
+        securityAnswer: details.securityAnswer,
         role: 'teacher',
         schoolName: details.schoolName,
         className: details.className,
@@ -196,6 +205,14 @@ export class AttendanceService {
     await this.setActiveUser(id);
   }
 
+  verifyPin(userId: string, pin: string): boolean {
+    const user = this.teachers().find(t => t.id === userId);
+    if (!user) {
+      console.error("User not found for PIN verification");
+      return false;
+    }
+    return user.pin === pin;
+  }
 
   async setActiveUser(userId: string): Promise<void> {
     const user = this.teachers().find(t => t.id === userId);
@@ -485,7 +502,7 @@ export class AttendanceService {
     return this.teacherAttendance().filter(r => r.date === date);
   }
 
-  async addTeacher(teacherData: { name: string, email: string, photo?: string, mobile?: string, className?: string, section?: string }): Promise<void> {
+  async addTeacher(teacherData: { name: string, email: string, pin: string, securityQuestion: string, securityAnswer: string, photo?: string, mobile?: string, className?: string, section?: string }): Promise<void> {
     if (this.teachers().some(t => t.email.toLowerCase() === teacherData.email.toLowerCase())) {
         throw new Error('Email already exists');
     }
@@ -494,6 +511,9 @@ export class AttendanceService {
         id,
         name: teacherData.name,
         email: teacherData.email,
+        pin: teacherData.pin,
+        securityQuestion: teacherData.securityQuestion,
+        securityAnswer: teacherData.securityAnswer,
         role: 'teacher',
         schoolName: this.activeCoordinator()?.schoolName || '',
         className: teacherData.className || '',
@@ -517,6 +537,16 @@ export class AttendanceService {
             return { ...t, ...details };
         }
         return t;
+    }));
+    this.persistState(this.currentUser()?.id || null);
+  }
+
+  updatePin(userId: string, newPin: string) {
+    this.teachers.update(list => list.map(t => {
+      if (t.id === userId) {
+        return { ...t, pin: newPin };
+      }
+      return t;
     }));
     this.persistState(this.currentUser()?.id || null);
   }
