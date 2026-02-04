@@ -6,10 +6,11 @@ import { PdfService } from '../services/pdf.service';
 import { CsvService } from '../services/csv.service';
 import { DocService } from '../services/doc.service';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
+import { CameraComponent } from './camera.component';
 
 @Component({
   selector: 'app-coordinator-dashboard',
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, CameraComponent],
   template: `
     <div class="min-h-screen pb-24 bg-slate-50/50">
       <nav class="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 py-4 shadow-sm">
@@ -130,7 +131,7 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
               <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-4">
                 <h2 class="text-2xl font-black tracking-tight text-slate-800">Create Teacher Account</h2>
                 <div class="flex gap-4">
-                  <div class="w-24 h-24 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer hover:bg-slate-100 relative" (click)="triggerPhotoUpload()">
+                  <div class="w-24 h-24 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer hover:bg-slate-100 relative" (click)="openPhotoSourceModal('new')">
                     @if(newTeacherPhoto()) {
                       <img [src]="newTeacherPhoto()" class="w-full h-full object-cover">
                     } @else {
@@ -287,7 +288,7 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
             <h3 class="text-xl font-bold text-slate-800 mb-6">Edit Teacher Profile</h3>
             <div class="space-y-4">
               <div class="flex gap-4">
-                <div class="w-24 h-24 bg-slate-50 rounded-2xl border-2 border-dashed flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer relative" (click)="triggerEditPhotoUpload()">
+                <div class="w-24 h-24 bg-slate-50 rounded-2xl border-2 border-dashed flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer relative" (click)="openPhotoSourceModal('edit')">
                   @if(editTeacherPhoto()) {
                     <img [src]="editTeacherPhoto()" class="w-full h-full object-cover">
                   } @else {
@@ -311,6 +312,34 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
           </div>
         </div>
         <input type="file" #editTeacherPhotoInput accept="image/*" (change)="onEditPhotoSelected($event)" class="hidden">
+      }
+
+      <!-- Photo Source Selection Modal -->
+      @if (showPhotoSourceModal()) {
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" (click)="showPhotoSourceModal.set(false)">
+          <div class="bg-white max-w-sm w-full rounded-[2rem] p-8 shadow-2xl border animate-in zoom-in-95" (click)="$event.stopPropagation()">
+            <h3 class="text-xl font-bold text-slate-800 mb-6 text-center">Select Photo Source</h3>
+            <div class="grid grid-cols-2 gap-4">
+              <button (click)="selectPhotoSource('file')" class="flex flex-col items-center gap-3 p-6 bg-slate-50 rounded-2xl hover:bg-indigo-50 border-2 border-transparent hover:border-indigo-400 transition-all">
+                <i class="fa-solid fa-upload text-3xl text-indigo-500"></i>
+                <span class="font-bold text-slate-700">Upload File</span>
+              </button>
+              <button (click)="selectPhotoSource('camera')" class="flex flex-col items-center gap-3 p-6 bg-slate-50 rounded-2xl hover:bg-green-50 border-2 border-transparent hover:border-green-400 transition-all">
+                <i class="fa-solid fa-camera-retro text-3xl text-green-500"></i>
+                <span class="font-bold text-slate-700">Use Camera</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Camera Modal -->
+      @if (showCameraModal()) {
+        <div class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" (click)="showCameraModal.set(false)">
+          <div class="bg-black max-w-lg w-full aspect-square rounded-[2rem] shadow-2xl border animate-in zoom-in-95" (click)="$event.stopPropagation()">
+            <app-camera (photoCaptured)="onPhotoCaptured($event)" (close)="showCameraModal.set(false)"></app-camera>
+          </div>
+        </div>
       }
     </div>
   `,
@@ -367,6 +396,11 @@ export class CoordinatorDashboardComponent {
   showToast = signal(false);
   toastMessage = signal('');
   
+  // Photo Upload State
+  showPhotoSourceModal = signal(false);
+  showCameraModal = signal(false);
+  photoContext = signal<'new' | 'edit' | null>(null);
+  
   @ViewChild('teacherPhotoInput') teacherPhotoInput!: ElementRef<HTMLInputElement>;
   @ViewChild('editTeacherPhotoInput') editTeacherPhotoInput!: ElementRef<HTMLInputElement>;
 
@@ -391,6 +425,34 @@ export class CoordinatorDashboardComponent {
     });
   }
   
+  // --- Teacher Photo Management ---
+  openPhotoSourceModal(context: 'new' | 'edit') {
+    this.photoContext.set(context);
+    this.showPhotoSourceModal.set(true);
+  }
+
+  selectPhotoSource(source: 'file' | 'camera') {
+    this.showPhotoSourceModal.set(false);
+    if (source === 'file') {
+      if (this.photoContext() === 'new') {
+        this.triggerPhotoUpload();
+      } else {
+        this.triggerEditPhotoUpload();
+      }
+    } else { // camera
+      this.showCameraModal.set(true);
+    }
+  }
+
+  onPhotoCaptured(dataUrl: string) {
+    if (this.photoContext() === 'new') {
+      this.newTeacherPhoto.set(dataUrl);
+    } else {
+      this.editTeacherPhoto.set(dataUrl);
+    }
+    this.showCameraModal.set(false);
+  }
+
   // --- Teacher Management ---
   triggerPhotoUpload() { this.teacherPhotoInput.nativeElement.click(); }
   onPhotoSelected(event: Event) {
