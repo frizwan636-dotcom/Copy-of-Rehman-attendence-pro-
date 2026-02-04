@@ -34,12 +34,12 @@ export class PdfService {
     doc.text(`Today's Attendance: ${overallPercentage}%`, 196, 32, { align: 'right' });
 
     const head = includePhotos 
-      ? [['Photo', 'Roll', 'Name', 'Contact', 'Status', 'Month %']] 
-      : [['Roll', 'Name', 'Contact', 'Status', 'Month %']];
+      ? [['Photo', 'Roll', 'Name', 'Contact', 'Attendance %']] 
+      : [['Roll', 'Name', 'Contact', 'Attendance %']];
     
     const body = records.map(r => includePhotos 
-      ? [r.photo || '', r.roll, r.name, r.mobile || 'N/A', r.status, r.percentage + '%'] 
-      : [r.roll, r.name, r.mobile || 'N/A', r.status, r.percentage + '%']
+      ? [r.photo || '', r.roll, r.name, r.mobile || 'N/A', r.percentage + '%'] 
+      : [r.roll, r.name, r.mobile || 'N/A', r.percentage + '%']
     );
 
     doc.autoTable({
@@ -47,7 +47,13 @@ export class PdfService {
       body: body,
       startY: 40,
       theme: 'grid',
-      headStyles: { fillColor: [79, 70, 229] },
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: { fontSize: 10, fillColor: [79, 70, 229] },
+      willDrawCell: (data: any) => {
+        if (includePhotos && data.cell.section === 'body' && data.column.index === 0) {
+            data.cell.text = ''; // Clear text for photo cell
+        }
+      },
       didDrawCell: includePhotos ? (data: any) => this.drawPhoto(doc, data) : null,
       columnStyles: includePhotos ? { 0: { cellWidth: 15, minCellHeight: 15 } } : {}
     });
@@ -123,7 +129,13 @@ export class PdfService {
         body: body,
         startY: startY,
         theme: 'striped',
-        headStyles: { fillColor: [59, 130, 246] },
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fontSize: 10, fillColor: [59, 130, 246] },
+        willDrawCell: (data: any) => {
+            if (includePhotos && data.cell.section === 'body' && data.column.index === 0) {
+                data.cell.text = '';
+            }
+        },
         didDrawCell: includePhotos ? (data: any) => this.drawPhoto(doc, data) : null,
         columnStyles: includePhotos ? { 0: { cellWidth: 15, minCellHeight: 15 } } : {}
       });
@@ -190,7 +202,13 @@ export class PdfService {
       body: body,
       startY: startY,
       theme: 'striped',
-      headStyles: { fillColor: [5, 150, 105] },
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: { fontSize: 10, fillColor: [5, 150, 105] },
+      willDrawCell: (data: any) => {
+        if (includePhotos && data.cell.section === 'body' && data.column.index === 0) {
+            data.cell.text = '';
+        }
+      },
       didDrawCell: includePhotos ? (data: any) => this.drawPhoto(doc, data) : null,
       columnStyles: includePhotos ? { 0: { cellWidth: 15, minCellHeight: 15 } } : {}
     });
@@ -217,12 +235,12 @@ export class PdfService {
     doc.text(`Today's Attendance: ${overallPercentage}%`, 196, 32, { align: 'right' });
 
     const head = includePhotos 
-      ? [['Photo', 'Name', 'Class', 'Contact', 'Status']] 
-      : [['Name', 'Class', 'Contact', 'Status']];
+      ? [['Photo', 'Name', 'Class', 'Contact', 'Attendance %']] 
+      : [['Name', 'Class', 'Contact', 'Attendance %']];
     
     const body = records.map(r => includePhotos 
-      ? [r.photo || '', r.name, `${r.className}-${r.section}`, r.mobileNumber || 'N/A', r.status] 
-      : [r.name, `${r.className}-${r.section}`, r.mobileNumber || 'N/A', r.status]
+      ? [r.photo || '', r.name, `${r.className}-${r.section}`, r.mobileNumber || 'N/A', r.percentage + '%'] 
+      : [r.name, `${r.className}-${r.section}`, r.mobileNumber || 'N/A', r.percentage + '%']
     );
 
     doc.autoTable({
@@ -230,7 +248,13 @@ export class PdfService {
       body: body,
       startY: 40,
       theme: 'grid',
-      headStyles: { fillColor: [79, 70, 229] },
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: { fontSize: 10, fillColor: [79, 70, 229] },
+      willDrawCell: (data: any) => {
+        if (includePhotos && data.cell.section === 'body' && data.column.index === 0) {
+            data.cell.text = '';
+        }
+      },
       didDrawCell: includePhotos ? (data: any) => this.drawPhoto(doc, data) : null,
       columnStyles: includePhotos ? { 0: { cellWidth: 15, minCellHeight: 15 } } : {}
     });
@@ -238,7 +262,7 @@ export class PdfService {
     doc.save(`Teacher_Attendance_${date}.pdf`);
   }
 
-  exportTeacherMonthlyReport(monthLabel: string, coordinatorName: string, data: any[], includePhotos: boolean) {
+  async exportTeacherMonthlyReport(monthLabel: string, coordinatorName: string, data: any[], includePhotos: boolean, attendanceService: AttendanceService) {
     const doc = new jspdf.jsPDF();
     
     doc.setFontSize(20);
@@ -248,7 +272,7 @@ export class PdfService {
     doc.text(`Coordinator: ${coordinatorName}`, 14, 25);
     doc.text(`Month: ${monthLabel}`, 14, 32);
 
-    const totalTeachers = data.length;
+    const totalTeachers = data.filter(t => t.role === 'teacher').length;
     const totalPresent = data.reduce((sum: number, s: any) => sum + s.present, 0);
     const totalAbsent = data.reduce((sum: number, s: any) => sum + s.absent, 0);
     const totalRecords = totalPresent + totalAbsent;
@@ -257,11 +281,27 @@ export class PdfService {
     doc.text(`Total Staff: ${totalTeachers}`, 196, 25, { align: 'right' });
     doc.text(`Overall Attendance: ${overallPercentage}%`, 196, 32, { align: 'right' });
 
+    let startY = 42;
+
+    // AI Analysis
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.text('AI-Powered Analysis:', 14, startY);
+    startY += 6;
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    const analysis = await attendanceService.generateTeacherMonthlyAnalysis(monthLabel, data);
+    const analysisLines = doc.splitTextToSize(analysis, 180);
+    doc.text(analysisLines, 14, startY);
+    startY += analysisLines.length * 5 + 5;
+    doc.setTextColor(0);
+
     const head = includePhotos 
       ? [['Photo', 'Name', 'Class', 'Present', 'Absent', 'Month %']] 
       : [['Name', 'Class', 'Present', 'Absent', 'Month %']];
 
-    const body = data.map(d => includePhotos 
+    const body = data.filter(t => t.role === 'teacher').map(d => includePhotos 
       ? [d.photo || '', d.name, `${d.className}-${d.section}`, d.present, d.absent, d.percentage + '%']
       : [d.name, `${d.className}-${d.section}`, d.present, d.absent, d.percentage + '%']
     );
@@ -269,9 +309,15 @@ export class PdfService {
     doc.autoTable({
       head: head,
       body: body,
-      startY: 40,
+      startY: startY,
       theme: 'striped',
-      headStyles: { fillColor: [5, 150, 105] },
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: { fontSize: 10, fillColor: [5, 150, 105] },
+      willDrawCell: (data: any) => {
+        if (includePhotos && data.cell.section === 'body' && data.column.index === 0) {
+            data.cell.text = '';
+        }
+      },
       didDrawCell: includePhotos ? (data: any) => this.drawPhoto(doc, data) : null,
       columnStyles: includePhotos ? { 0: { cellWidth: 15, minCellHeight: 15 } } : {}
     });

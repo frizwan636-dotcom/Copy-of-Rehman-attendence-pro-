@@ -572,11 +572,7 @@ export class CoordinatorDashboardComponent {
 
   // --- Reports ---
   exportDailyReport() {
-    const records = this.attendanceService.getTeacherAttendanceForDate(this.selectedDate());
-    const data = this.teachers().map(t => {
-      const record = records.find(r => r.teacherId === t.id);
-      return { ...t, status: record ? record.status : 'N/A' };
-    });
+    const data = this.attendanceService.getTeacherDailyReportData(this.selectedDate());
     
     switch (this.reportExportFormat()) {
       case 'pdf':
@@ -591,20 +587,20 @@ export class CoordinatorDashboardComponent {
     }
   }
 
-  exportMonthlyReport() {
+  async exportMonthlyReport() {
     const data = this.attendanceService.getTeacherMonthlyReport(this.monthlyMonth());
     const [year, month] = this.monthlyMonth().split('-');
     const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
     
     switch (this.reportExportFormat()) {
       case 'pdf':
-        this.pdfService.exportTeacherMonthlyReport(monthName, this.coordinator()!.name, data, this.reportIncludePhotos());
+        await this.pdfService.exportTeacherMonthlyReport(monthName, this.coordinator()!.name, data, this.reportIncludePhotos(), this.attendanceService);
         break;
       case 'csv':
         this.csvService.exportTeacherMonthlyReport(monthName, this.coordinator()!.name, data);
         break;
       case 'doc':
-        this.docService.exportTeacherMonthlyReport(monthName, this.coordinator()!.name, data);
+        await this.docService.exportTeacherMonthlyReport(monthName, this.coordinator()!.name, data, this.attendanceService);
         break;
     }
   }

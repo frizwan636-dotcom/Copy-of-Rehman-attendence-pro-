@@ -32,12 +32,11 @@ export class CsvService {
 
   exportDaily(date: string, className: string, section: string, records: any[]) {
     const filename = `Student_Attendance_${className}_${date}.csv`;
-    const headers = ['Roll', 'Name', 'Contact', 'Status', 'Month %'];
+    const headers = ['Roll', 'Name', 'Contact', 'Attendance %'];
     const data = records.map(r => [
       r.roll,
       r.name,
       r.mobile || 'N/A',
-      r.status,
       r.percentage
     ]);
     this.downloadCsv([headers, ...data], filename);
@@ -86,13 +85,13 @@ export class CsvService {
 
   exportTeacherReport(date: string, coordinatorName: string, records: any[]) {
     const filename = `Teacher_Attendance_${date}.csv`;
-    const headers = ['Name', 'Class', 'Section', 'Contact', 'Status'];
+    const headers = ['Name', 'Class', 'Section', 'Contact', 'Attendance %'];
     const data = records.map(r => [
       r.name,
       r.className,
       r.section,
       r.mobileNumber || 'N/A',
-      r.status,
+      r.percentage,
     ]);
     this.downloadCsv([headers, ...data], filename);
   }

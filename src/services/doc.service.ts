@@ -18,7 +18,7 @@ export class DocService {
           th { background-color: #f2f2f2; }
           h1, h2, h3, p { font-family: Arial, sans-serif; }
           .summary { margin-bottom: 20px; }
-          .ai-analysis { margin-top: 20px; padding: 15px; background-color: #f8f8f8; border: 1px solid #ddd; border-radius: 5px; }
+          .ai-analysis { margin-top: 20px; margin-bottom: 20px; padding: 15px; background-color: #f8f8f8; border: 1px solid #ddd; border-radius: 5px; }
         </style>
       </head>
       <body>
@@ -57,9 +57,9 @@ export class DocService {
       <p><strong>Total Students:</strong> ${totalStudents}</p>
       <p><strong>Today's Attendance:</strong> ${overallPercentage}%</p>
     </div>`;
-    html += `<table><thead><tr><th>Roll</th><th>Name</th><th>Contact</th><th>Status</th><th>Month %</th></tr></thead><tbody>`;
+    html += `<table><thead><tr><th>Roll</th><th>Name</th><th>Contact</th><th>Attendance %</th></tr></thead><tbody>`;
     records.forEach(r => {
-      html += `<tr><td>${r.roll}</td><td>${r.name}</td><td>${r.mobile || 'N/A'}</td><td>${r.status}</td><td>${r.percentage}%</td></tr>`;
+      html += `<tr><td>${r.roll}</td><td>${r.name}</td><td>${r.mobile || 'N/A'}</td><td>${r.percentage}%</td></tr>`;
     });
     html += `</tbody></table>` + this.getHtmlFooter();
 
@@ -141,20 +141,20 @@ export class DocService {
       <p><strong>Total Staff:</strong> ${totalTeachers}</p>
       <p><strong>Today's Attendance:</strong> ${overallPercentage}%</p>
     </div>`;
-    html += `<table><thead><tr><th>Name</th><th>Class</th><th>Contact</th><th>Status</th></tr></thead><tbody>`;
+    html += `<table><thead><tr><th>Name</th><th>Class</th><th>Contact</th><th>Attendance %</th></tr></thead><tbody>`;
     records.forEach(r => {
-      html += `<tr><td>${r.name}</td><td>${r.className}-${r.section}</td><td>${r.mobileNumber || 'N/A'}</td><td>${r.status}</td></tr>`;
+      html += `<tr><td>${r.name}</td><td>${r.className}-${r.section}</td><td>${r.mobileNumber || 'N/A'}</td><td>${r.percentage}%</td></tr>`;
     });
     html += `</tbody></table>` + this.getHtmlFooter();
 
     this.downloadDoc(html, `Teacher_Attendance_${date}.doc`);
   }
 
-  exportTeacherMonthlyReport(monthLabel: string, coordinatorName: string, data: any[]) {
+  async exportTeacherMonthlyReport(monthLabel: string, coordinatorName: string, data: any[], attendanceService: AttendanceService) {
     const title = `Monthly Teacher Report - ${monthLabel}`;
-    const totalTeachers = data.length;
-    const totalPresent = data.reduce((sum, s) => sum + s.present, 0);
-    const totalAbsent = data.reduce((sum, s) => sum + s.absent, 0);
+    const totalTeachers = data.filter(t => t.role === 'teacher').length;
+    const totalPresent = data.reduce((sum: number, s: any) => sum + s.present, 0);
+    const totalAbsent = data.reduce((sum: number, s: any) => sum + s.absent, 0);
     const totalRecords = totalPresent + totalAbsent;
     const overallPercentage = totalRecords > 0 ? ((totalPresent / totalRecords) * 100).toFixed(1) : '0.0';
 
@@ -166,8 +166,16 @@ export class DocService {
       <p><strong>Overall Attendance:</strong> ${overallPercentage}%</p>
     </div>`;
 
+    const analysis = await attendanceService.generateTeacherMonthlyAnalysis(monthLabel, data);
+    html += `
+      <div class="ai-analysis">
+        <h2 style="margin-top: 0;">AI-Powered Analysis</h2>
+        <p>${analysis}</p>
+      </div>
+    `;
+
     html += `<table><thead><tr><th>Name</th><th>Class</th><th>Present</th><th>Absent</th><th>Month %</th></tr></thead><tbody>`;
-    data.forEach(d => {
+    data.filter(t => t.role === 'teacher').forEach(d => {
       html += `<tr><td>${d.name}</td><td>${d.className}-${d.section}</td><td>${d.present}</td><td>${d.absent}</td><td>${d.percentage}%</td></tr>`;
     });
     html += `</tbody></table>` + this.getHtmlFooter();

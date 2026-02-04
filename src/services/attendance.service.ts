@@ -333,13 +333,20 @@ export class AttendanceService {
     const classPercentage = totalRecords > 0 ? ((overallPresent / totalRecords) * 100).toFixed(1) : "0.0";
 
     const prompt = `
-      Analyze the student attendance for ${monthName}. The class has an overall attendance of ${classPercentage}%.
-      Provide a concise, professional analysis (2-3 sentences) for a teacher's report.
-      Highlight the student with the highest attendance and the student with the lowest attendance.
-      Do not use markdown formatting (like * or #).
-      Example: Overall attendance was strong this month. John Doe achieved perfect attendance, while Jane Smith's attendance was lowest and needs attention.
+      You are an assistant for a school teacher. Analyze the student attendance data for the month of ${monthName}.
+      The class's overall attendance percentage was ${classPercentage}%. The total number of absences recorded was ${overallAbsent}.
       
-      Student Data:
+      Based on the data provided, write a short, professional summary (2-3 sentences) for the report.
+      Your summary MUST include:
+      1. A comment on the overall attendance.
+      2. The name of the student with the MOST absences (lowest percentage).
+      3. The name of the student with the FEWEST absences (highest percentage).
+      
+      Do not use any markdown formatting (like asterisks or hashtags).
+      
+      Example analysis: "Overall attendance for the month was strong. Attention may be required for Jane Smith, who had the most absences. John Doe demonstrated excellent attendance with the fewest absences."
+      
+      Here is the student data:
       ${JSON.stringify(simplifiedData)}
     `;
 
@@ -482,6 +489,37 @@ export class AttendanceService {
     return this.teacherAttendance().filter(r => r.date === date);
   }
 
+  getTeacherDailyReportData(date: string) {
+    const teachers = this.getTeachers().filter(t => t.role === 'teacher');
+    const recordsForDate = this.getTeacherAttendanceForDate(date);
+    
+    const [year, monthStr] = date.split('-');
+    const monthStart = new Date(Date.UTC(parseInt(year), parseInt(monthStr) - 1, 1));
+    const reportDate = new Date(date);
+    reportDate.setUTCHours(23, 59, 59, 999);
+
+    const allRecordsThisMonth = this.teacherAttendance().filter(r => {
+        const recordDate = new Date(r.date);
+        return recordDate >= monthStart && recordDate <= reportDate;
+    });
+
+    return teachers.map(t => {
+        const statusRecord = recordsForDate.find(r => r.teacherId === t.id);
+        const status = statusRecord ? statusRecord.status : 'N/A';
+        
+        const teacherTotalRecords = allRecordsThisMonth.filter(r => r.teacherId === t.id);
+        const present = teacherTotalRecords.filter(r => r.status === 'Present').length;
+        const total = teacherTotalRecords.length;
+        const percentage = total > 0 ? ((present / total) * 100).toFixed(1) : '0.0';
+
+        return {
+            ...t,
+            status,
+            percentage
+        };
+    });
+  }
+
   async addTeacher(teacherData: { name: string, email: string, pin: string, securityQuestion: string, securityAnswer: string, photo?: string, mobile?: string, className?: string, section?: string }): Promise<void> {
     if (this.teachers().some(t => t.email.toLowerCase() === teacherData.email.toLowerCase())) {
         throw new Error('Email already exists');
@@ -565,5 +603,52 @@ export class AttendanceService {
         const percentage = total > 0 ? ((present / total) * 100).toFixed(1) : '0.0';
         return { ...t, present, absent, percentage };
     });
+  }
+
+  async generateTeacherMonthlyAnalysis(monthName: string, reportData: any[]): Promise<string> {
+    if (!reportData || reportData.length === 0) {
+        return "No staff attendance data available for this month to analyze.";
+    }
+
+    const simplifiedData = reportData
+        .filter(d => d.role === 'teacher')
+        .map(d => ({ name: d.name, present: d.present, absent: d.absent, percentage: d.percentage }));
+
+    if (simplifiedData.length === 0) {
+        return "No teacher attendance data available for analysis.";
+    }
+
+    const overallPresent = simplifiedData.reduce((acc, d) => acc + d.present, 0);
+    const overallAbsent = simplifiedData.reduce((acc, d) => acc + d.absent, 0);
+    const totalRecords = overallPresent + overallAbsent;
+    const staffPercentage = totalRecords > 0 ? ((overallPresent / totalRecords) * 100).toFixed(1) : "0.0";
+
+    const prompt = `
+      You are an assistant for a school coordinator. Analyze the staff attendance data for the month of ${monthName}.
+      The staff's overall attendance percentage was ${staffPercentage}%.
+      
+      Based on the data provided, write a short, professional summary (2-3 sentences) for the report.
+      Your summary MUST include:
+      1. A comment on the overall staff attendance.
+      2. The name of the teacher with the MOST absences (lowest percentage).
+      
+      Do not use any markdown formatting (like asterisks or hashtags).
+      
+      Example analysis: "Overall staff attendance was excellent this month. Jane Doe had the most absences and may require a follow-up."
+      
+      Here is the staff data:
+      ${JSON.stringify(simplifiedData)}
+    `;
+
+    try {
+        const response = await this.ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+        return response.text.trim();
+    } catch (e) {
+        console.error("AI Teacher Analysis generation failed:", e);
+        return "Could not generate an AI-powered analysis for this period.";
+    }
   }
 }
