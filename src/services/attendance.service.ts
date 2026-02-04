@@ -7,8 +7,6 @@ export interface Teacher {
   name: string;
   email: string;
   pin: string;
-  securityQuestion: string;
-  securityAnswer: string;
   role: 'teacher' | 'coordinator';
   schoolName?: string;
   className: string;
@@ -151,7 +149,7 @@ export class AttendanceService {
 
     this.isSyncing.set(true);
     const data: AppData = {
-      version: 11,
+      version: 12,
       teachers: this.teachers(),
       students: this.students(),
       attendance: this.attendance(),
@@ -162,7 +160,7 @@ export class AttendanceService {
     this.isSyncing.set(false);
   }
 
-  async createInitialCoordinator(details: { schoolName: string; name: string; className: string; section: string; mobile: string; pin: string; securityQuestion: string; securityAnswer: string; }) {
+  async createInitialCoordinator(details: { schoolName: string; name: string; className: string; section: string; mobile: string; pin: string; }) {
     if (this.teachers().some(t => t.role === 'coordinator')) {
         throw new Error("Coordinator already exists.");
     }
@@ -172,8 +170,6 @@ export class AttendanceService {
         name: details.name,
         email: `${id}@local.app`, // dummy email
         pin: details.pin,
-        securityQuestion: details.securityQuestion,
-        securityAnswer: details.securityAnswer,
         role: 'coordinator',
         schoolName: details.schoolName,
         className: details.className,
@@ -520,7 +516,7 @@ export class AttendanceService {
     });
   }
 
-  async addTeacher(teacherData: { name: string, email: string, pin: string, securityQuestion: string, securityAnswer: string, photo?: string, mobile?: string, className?: string, section?: string }): Promise<void> {
+  async addTeacher(teacherData: { name: string, email: string, pin: string, photo?: string, mobile?: string, className?: string, section?: string }): Promise<void> {
     if (this.teachers().some(t => t.email.toLowerCase() === teacherData.email.toLowerCase())) {
         throw new Error('Email already exists');
     }
@@ -530,8 +526,6 @@ export class AttendanceService {
         name: teacherData.name,
         email: teacherData.email,
         pin: teacherData.pin,
-        securityQuestion: teacherData.securityQuestion,
-        securityAnswer: teacherData.securityAnswer,
         role: 'teacher',
         schoolName: this.activeCoordinator()?.schoolName || '',
         className: teacherData.className || '',

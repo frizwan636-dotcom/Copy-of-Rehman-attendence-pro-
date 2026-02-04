@@ -28,27 +28,43 @@ export class PdfService {
     const totalStudents = records.length;
     const presentStudents = records.filter(r => r.status === 'Present').length;
     const studentsWithStatus = records.filter(r => r.status !== 'N/A').length;
+    const absentStudents = studentsWithStatus - presentStudents;
     const overallPercentage = studentsWithStatus > 0 ? ((presentStudents / studentsWithStatus) * 100).toFixed(1) : '0.0';
 
-    doc.text(`Total Students: ${totalStudents}`, 196, 25, { align: 'right' });
+    const summaryText = `Total: ${totalStudents} | Present: ${presentStudents} | Absent: ${absentStudents}`;
+    doc.text(summaryText, 196, 25, { align: 'right' });
     doc.text(`Today's Attendance: ${overallPercentage}%`, 196, 32, { align: 'right' });
 
     const head = includePhotos 
-      ? [['Photo', 'Roll', 'Name', 'Contact', 'Attendance %']] 
-      : [['Roll', 'Name', 'Contact', 'Attendance %']];
+      ? [['Photo', 'Roll', 'Name', 'Contact', 'Status', 'Attendance %']] 
+      : [['Roll', 'Name', 'Contact', 'Status', 'Attendance %']];
     
     const body = records.map(r => includePhotos 
-      ? [r.photo || '', r.roll, r.name, r.mobile || 'N/A', r.percentage + '%'] 
-      : [r.roll, r.name, r.mobile || 'N/A', r.percentage + '%']
+      ? [r.photo || '', r.roll, r.name, r.mobile || 'N/A', r.status, r.percentage + '%'] 
+      : [r.roll, r.name, r.mobile || 'N/A', r.status, r.percentage + '%']
     );
+    
+    const statusColumnIndex = includePhotos ? 4 : 3;
 
     doc.autoTable({
       head: head,
       body: body,
       startY: 40,
       theme: 'grid',
-      styles: { fontSize: 9, cellPadding: 2 },
+      styles: { fontSize: 9, cellPadding: 2, valign: 'middle' },
       headStyles: { fontSize: 10, fillColor: [79, 70, 229] },
+      didParseCell: (data: any) => {
+        if (data.cell.section === 'body' && data.column.index === statusColumnIndex) {
+          const status = data.cell.raw;
+          if (status === 'Present') {
+            data.cell.styles.textColor = [39, 174, 96]; // Green
+            data.cell.styles.fontStyle = 'bold';
+          } else if (status === 'Absent') {
+            data.cell.styles.textColor = [192, 57, 43]; // Red
+            data.cell.styles.fontStyle = 'bold';
+          }
+        }
+      },
       willDrawCell: (data: any) => {
         if (includePhotos && data.cell.section === 'body' && data.column.index === 0) {
             data.cell.text = ''; // Clear text for photo cell
@@ -227,29 +243,45 @@ export class PdfService {
     doc.text(`Date: ${date}`, 14, 32);
 
     const totalTeachers = records.length;
-    const presentTeachers = records.filter(r => r.status === 'Present').length;
     const teachersWithStatus = records.filter(r => r.status !== 'N/A').length;
+    const presentTeachers = records.filter(r => r.status === 'Present').length;
+    const absentTeachers = teachersWithStatus - presentTeachers;
     const overallPercentage = teachersWithStatus > 0 ? ((presentTeachers / teachersWithStatus) * 100).toFixed(1) : '0.0';
 
-    doc.text(`Total Staff: ${totalTeachers}`, 196, 25, { align: 'right' });
+    const summaryText = `Total Staff: ${totalTeachers} | Present: ${presentTeachers} | Absent: ${absentTeachers}`;
+    doc.text(summaryText, 196, 25, { align: 'right' });
     doc.text(`Today's Attendance: ${overallPercentage}%`, 196, 32, { align: 'right' });
 
     const head = includePhotos 
-      ? [['Photo', 'Name', 'Class', 'Contact', 'Attendance %']] 
-      : [['Name', 'Class', 'Contact', 'Attendance %']];
+      ? [['Photo', 'Name', 'Class', 'Contact', 'Status', 'Attendance %']] 
+      : [['Name', 'Class', 'Contact', 'Status', 'Attendance %']];
     
     const body = records.map(r => includePhotos 
-      ? [r.photo || '', r.name, `${r.className}-${r.section}`, r.mobileNumber || 'N/A', r.percentage + '%'] 
-      : [r.name, `${r.className}-${r.section}`, r.mobileNumber || 'N/A', r.percentage + '%']
+      ? [r.photo || '', r.name, `${r.className}-${r.section}`, r.mobileNumber || 'N/A', r.status, r.percentage + '%'] 
+      : [r.name, `${r.className}-${r.section}`, r.mobileNumber || 'N/A', r.status, r.percentage + '%']
     );
+
+    const statusColumnIndex = includePhotos ? 4 : 3;
 
     doc.autoTable({
       head: head,
       body: body,
       startY: 40,
       theme: 'grid',
-      styles: { fontSize: 9, cellPadding: 2 },
+      styles: { fontSize: 9, cellPadding: 2, valign: 'middle' },
       headStyles: { fontSize: 10, fillColor: [79, 70, 229] },
+      didParseCell: (data: any) => {
+        if (data.cell.section === 'body' && data.column.index === statusColumnIndex) {
+          const status = data.cell.raw;
+          if (status === 'Present') {
+            data.cell.styles.textColor = [39, 174, 96]; // Green
+            data.cell.styles.fontStyle = 'bold';
+          } else if (status === 'Absent') {
+            data.cell.styles.textColor = [192, 57, 43]; // Red
+            data.cell.styles.fontStyle = 'bold';
+          }
+        }
+      },
       willDrawCell: (data: any) => {
         if (includePhotos && data.cell.section === 'body' && data.column.index === 0) {
             data.cell.text = '';

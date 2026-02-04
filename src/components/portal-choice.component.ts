@@ -119,79 +119,6 @@ import { AttendanceService, Teacher } from '../services/attendance.service';
                     class="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 transition-all">
               Login
             </button>
-
-            <button (click)="view.set('forgot-pin-question')"
-                    class="text-sm font-semibold text-indigo-600 hover:underline mt-2">
-              Forgot PIN?
-            </button>
-          </div>
-        </div>
-      }
-      
-      @if (view() === 'forgot-pin-question') {
-        <div class="max-w-sm w-full bg-white p-8 rounded-[2.5rem] shadow-2xl shadow-slate-200 border animate-in fade-in zoom-in-95">
-           <div class="flex items-center gap-4 mb-6 text-left">
-            <button (click)="view.set('pin-entry')" class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 flex-shrink-0">
-              <i class="fa-solid fa-arrow-left"></i>
-            </button>
-            <div>
-              <h3 class="text-2xl font-bold text-slate-800 tracking-tight">PIN Reset</h3>
-              <p class="text-sm text-slate-500">Answer your security question</p>
-            </div>
-          </div>
-          <div class="space-y-4">
-             <label class="block text-sm font-semibold text-slate-600 text-left">{{ userForLogin()?.securityQuestion }}</label>
-             <input type="text" 
-                   [ngModel]="securityAnswer()"
-                   (ngModelChange)="onResetErrorClear($event, 'answer')"
-                   placeholder="Your Answer"
-                   class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-400">
-            
-            @if(resetError()) {
-              <p class="text-red-500 text-sm font-semibold animate-in fade-in shake">{{ resetError() }}</p>
-            }
-
-            <button (click)="verifySecurityAnswer()" 
-                    [disabled]="!securityAnswer()"
-                    class="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 transition-all">
-              Verify Answer
-            </button>
-          </div>
-        </div>
-      }
-
-      @if (view() === 'forgot-pin-reset') {
-        <div class="max-w-sm w-full bg-white p-8 rounded-[2.5rem] shadow-2xl shadow-slate-200 border animate-in fade-in zoom-in-95">
-           <div class="flex items-center gap-4 mb-6 text-left">
-            <button (click)="view.set('forgot-pin-question')" class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 flex-shrink-0">
-              <i class="fa-solid fa-arrow-left"></i>
-            </button>
-            <div>
-              <h3 class="text-2xl font-bold text-slate-800 tracking-tight">Set New PIN</h3>
-              <p class="text-sm text-slate-500">for {{ userForLogin()?.name }}</p>
-            </div>
-          </div>
-          <div class="space-y-4">
-             <input type="password" maxlength="4" inputmode="numeric" pattern="[0-9]*"
-                   [ngModel]="resetPin()"
-                   (ngModelChange)="onResetErrorClear($event, 'pin')"
-                   placeholder="New 4-Digit PIN"
-                   class="w-full p-4 text-center text-xl font-bold tracking-[0.5em] bg-slate-50 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-400">
-             <input type="password" maxlength="4" inputmode="numeric" pattern="[0-9]*"
-                   [ngModel]="confirmResetPin()"
-                   (ngModelChange)="onResetErrorClear($event, 'confirm')"
-                   placeholder="Confirm New PIN"
-                   class="w-full p-4 text-center text-xl font-bold tracking-[0.5em] bg-slate-50 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-400">
-            
-            @if(resetError()) {
-              <p class="text-red-500 text-sm font-semibold animate-in fade-in shake">{{ resetError() }}</p>
-            }
-
-            <button (click)="saveNewPin()" 
-                    [disabled]="resetPin().length < 4 || confirmResetPin().length < 4"
-                    class="w-full py-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 disabled:opacity-50 transition-all">
-              Save New PIN
-            </button>
           </div>
         </div>
       }
@@ -217,10 +144,8 @@ import { AttendanceService, Teacher } from '../services/attendance.service';
               <input type="text" [ngModel]="sectionName()" (ngModelChange)="sectionName.set($event)" placeholder="Section (e.g., A)" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium">
             </div>
             <input type="password" maxlength="4" inputmode="numeric" pattern="[0-9]*" [ngModel]="pin()" (ngModelChange)="pin.set($event)" placeholder="Set 4-Digit PIN" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium">
-            <input type="text" [ngModel]="securityQuestion()" (ngModelChange)="securityQuestion.set($event)" placeholder="Security Question (e.g., Favorite color?)" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium">
-            <input type="text" [ngModel]="setupSecurityAnswer()" (ngModelChange)="setupSecurityAnswer.set($event)" placeholder="Answer to Security Question" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium">
             
-            <button (click)="completeSetup()" [disabled]="!schoolName() || !userName() || !className() || !sectionName() || !mobileNumber() || pin().length !== 4 || !securityQuestion() || !setupSecurityAnswer()" class="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 transition-all">
+            <button (click)="completeSetup()" [disabled]="!schoolName() || !userName() || !className() || !sectionName() || !mobileNumber() || pin().length !== 4" class="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 transition-all">
               Complete Setup & Enter Portal
             </button>
           </div>
@@ -236,20 +161,13 @@ export class PortalChoiceComponent {
   coordinator = this.attendanceService.coordinator;
   teachers = this.attendanceService.teachersOnly;
 
-  view = signal<'choice' | 'teacher-selection' | 'setup' | 'pin-entry' | 'forgot-pin-question' | 'forgot-pin-reset'>('choice');
+  view = signal<'choice' | 'teacher-selection' | 'setup' | 'pin-entry'>('choice');
   setupRole = signal<'coordinator' | null>(null);
 
   // Login State
   userForLogin = signal<Teacher | null>(null);
   enteredPin = signal('');
   pinError = signal('');
-
-  // Forgot PIN State
-  securityAnswer = signal('');
-  resetPin = signal('');
-  confirmResetPin = signal('');
-  resetError = signal('');
-
 
   // Form state for setup
   schoolName = signal('');
@@ -258,8 +176,6 @@ export class PortalChoiceComponent {
   className = signal('');
   sectionName = signal('');
   pin = signal('');
-  securityQuestion = signal('');
-  setupSecurityAnswer = signal('');
 
 
   onCoordinatorClick() {
@@ -315,57 +231,10 @@ export class PortalChoiceComponent {
     this.enteredPin.set(value);
   }
 
-  onResetErrorClear(value: string, field: 'answer' | 'pin' | 'confirm') {
-    this.resetError.set('');
-    if (field === 'answer') this.securityAnswer.set(value);
-    if (field === 'pin') this.resetPin.set(value);
-    if (field === 'confirm') this.confirmResetPin.set(value);
-  }
-
-  verifySecurityAnswer() {
-    const user = this.userForLogin();
-    if (!user) return;
-
-    // Case-insensitive and trim whitespace
-    if (this.securityAnswer().trim().toLowerCase() === user.securityAnswer.trim().toLowerCase()) {
-      this.view.set('forgot-pin-reset');
-    } else {
-      this.resetError.set('Incorrect answer. Please try again.');
-    }
-  }
-
-  saveNewPin() {
-    if (this.resetPin() !== this.confirmResetPin()) {
-      this.resetError.set('PINs do not match.');
-      return;
-    }
-    if (this.resetPin().length !== 4) {
-      this.resetError.set('New PIN must be exactly 4 digits.');
-      return;
-    }
-
-    const user = this.userForLogin();
-    if (!user) return;
-
-    this.attendanceService.updatePin(user.id, this.resetPin());
-    alert('PIN has been successfully updated! Please log in with your new PIN.');
-    
-    // Reset state and go back to PIN entry
-    this.resetPin.set('');
-    this.confirmResetPin.set('');
-    this.securityAnswer.set('');
-    this.enteredPin.set('');
-    this.view.set('pin-entry');
-  }
-
   resetToChoice() {
     this.userForLogin.set(null);
     this.enteredPin.set('');
     this.pinError.set('');
-    this.securityAnswer.set('');
-    this.resetPin.set('');
-    this.confirmResetPin.set('');
-    this.resetError.set('');
     this.view.set('choice');
   }
 
@@ -376,9 +245,7 @@ export class PortalChoiceComponent {
       mobile: this.mobileNumber(),
       className: this.className(),
       section: this.sectionName(),
-      pin: this.pin(),
-      securityQuestion: this.securityQuestion(),
-      securityAnswer: this.setupSecurityAnswer()
+      pin: this.pin()
     };
 
     this.attendanceService.createInitialCoordinator(details);

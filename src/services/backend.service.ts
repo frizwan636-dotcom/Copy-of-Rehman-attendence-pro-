@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import type { Teacher, Student, AttendanceRecord, TeacherAttendanceRecord } from './attendance.service';
 
 const APP_DATA_KEY = 'rehman_attendance_app_data';
-const DATA_VERSION = 11;
+const DATA_VERSION = 12;
 
 // This interface must be kept in sync with the structure in attendance.service.ts
 export interface AppData {
@@ -170,6 +170,17 @@ export class BackendService {
             }));
         }
         currentVersion = 11;
+    }
+    
+    if (currentVersion < 12) {
+        console.log(`Upgrading data from v${currentVersion} to v12...`);
+        if (data.teachers && Array.isArray(data.teachers)) {
+            data.teachers.forEach((teacher: any) => {
+                delete teacher.securityQuestion;
+                delete teacher.securityAnswer;
+            });
+        }
+        currentVersion = 12;
     }
 
 

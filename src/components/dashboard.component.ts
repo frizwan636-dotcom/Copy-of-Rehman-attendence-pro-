@@ -27,7 +27,7 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
             </div>
           </div>
 
-          <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2">
             <!-- Sync Status Indicator -->
             <div class="hidden sm:flex items-center gap-3">
               @if (attendanceService.isSyncing()) {
@@ -47,7 +47,10 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
                 </div>
               }
             </div>
-
+            
+            <button (click)="view.set('profile')" class="p-2.5 text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition-colors">
+               <i class="fa-solid fa-user-circle"></i>
+            </button>
             <button (click)="attendanceService.logout()" class="p-2.5 text-slate-400 hover:text-red-500 rounded-xl hover:bg-red-50 transition-colors">
                <i class="fa-solid fa-power-off"></i>
             </button>
@@ -301,6 +304,33 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
               <app-reports (onBack)="view.set('attendance')" />
             </div>
           }
+          
+          @case ('profile') {
+            <div class="space-y-6 animate-in fade-in">
+              <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
+                <h2 class="text-2xl font-black text-slate-800 tracking-tight">My Profile</h2>
+                <p class="text-slate-500 text-sm font-medium">Your personal and class information</p>
+              </div>
+              <div class="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col items-center text-center">
+                <div class="w-32 h-32 rounded-full bg-indigo-50 overflow-hidden border-4 border-white shadow-lg mb-6">
+                  @if (teacher()?.photo) {
+                    <img [src]="teacher()?.photo" class="w-full h-full object-cover">
+                  } @else {
+                    <div class="w-full h-full flex items-center justify-center text-indigo-200">
+                      <i class="fa-solid fa-user-tie text-5xl"></i>
+                    </div>
+                  }
+                </div>
+                <h3 class="text-3xl font-black text-slate-800">{{ teacher()?.name }}</h3>
+                <p class="text-indigo-600 font-bold">{{ teacher()?.schoolName }}</p>
+                
+                <div class="mt-6 pt-6 border-t w-full max-w-sm space-y-2">
+                   <p class="text-sm font-bold uppercase text-slate-400 tracking-widest">Assigned Class</p>
+                   <p class="text-xl font-bold text-slate-700">{{ teacher()?.className }} - {{ teacher()?.section }}</p>
+                </div>
+              </div>
+            </div>
+          }
         }
       </main>
 
@@ -391,7 +421,7 @@ export class DashboardComponent {
   attendanceService = inject(AttendanceService);
   sanitizer: DomSanitizer = inject(DomSanitizer);
   
-  view = signal<'attendance' | 'students' | 'fees' | 'reports'>('attendance');
+  view = signal<'attendance' | 'students' | 'fees' | 'reports' | 'profile'>('attendance');
   teacher = this.attendanceService.activeTeacher;
   students = this.attendanceService.activeStudents;
   
