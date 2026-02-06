@@ -214,6 +214,7 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
                         <div class="flex justify-between items-start">
                           <div>
                             <h4 class="font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{{ student.name }}</h4>
+                            <p class="text-xs text-slate-500">S/O: {{ student.fatherName || 'N/A' }}</p>
                             <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Roll: {{ student.rollNumber }}</p>
                              <p class="text-[10px] font-bold text-indigo-400 mt-1">{{ student.className || teacher()?.className }} - {{ student.section || teacher()?.section }}</p>
                           </div>
@@ -366,6 +367,7 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
               </div>
               <div class="flex-1 grid grid-cols-1 gap-3">
                 <input type="text" [ngModel]="studentForm().name" (ngModelChange)="updateStudentFormField('name', $event)" placeholder="Full Name" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
+                <input type="text" [ngModel]="studentForm().fatherName" (ngModelChange)="updateStudentFormField('fatherName', $event)" placeholder="Father's Name" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
                 <div class="grid grid-cols-2 gap-3">
                   <input type="text" [ngModel]="studentForm().roll" (ngModelChange)="updateStudentFormField('roll', $event)" placeholder="Roll #" class="p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
                   <input type="tel" [ngModel]="studentForm().mobile" (ngModelChange)="updateStudentFormField('mobile', $event)" placeholder="Contact Mobile" class="p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
@@ -435,6 +437,7 @@ export class DashboardComponent {
   editingStudentId = signal<string | null>(null);
   studentForm = signal({
     name: '', roll: '', mobile: '', photo: null as string | null,
+    fatherName: '',
     totalFee: null as number | null, className: '', section: ''
   });
 
@@ -604,6 +607,7 @@ export class DashboardComponent {
   resetStudentForm() {
     this.studentForm.set({
       name: '', roll: '', mobile: '', photo: null,
+      fatherName: '',
       totalFee: null, className: this.teacher()?.className || '', section: this.teacher()?.section || ''
     });
   }
@@ -623,6 +627,7 @@ export class DashboardComponent {
         roll: student.rollNumber,
         mobile: student.mobileNumber,
         photo: student.photo || null,
+        fatherName: student.fatherName || '',
         totalFee: student.totalFee,
         className: student.className || this.teacher()?.className || '',
         section: student.section || this.teacher()?.section || ''
@@ -652,7 +657,7 @@ export class DashboardComponent {
 
   saveStudent() {
     const form = this.studentForm();
-    const { name, roll, mobile, photo, totalFee, className, section } = form;
+    const { name, fatherName, roll, mobile, photo, totalFee, className, section } = form;
 
     if (!name.trim() || !roll.trim() || !mobile.trim()) {
       alert('Please fill in student name, roll number, and mobile.');
@@ -668,6 +673,7 @@ export class DashboardComponent {
       // Update existing student
       this.attendanceService.updateStudentDetails(this.editingStudentId()!, {
         name: name.trim(),
+        fatherName: fatherName?.trim(),
         rollNumber: roll.trim(),
         mobileNumber: mobile.trim(),
         photo: photo || undefined,
@@ -680,6 +686,7 @@ export class DashboardComponent {
       // Add new student
       this.attendanceService.addStudents([{
         name: name.trim(),
+        fatherName: fatherName?.trim(),
         roll: roll.trim(),
         mobile: mobile.trim(),
         photo: photo || undefined,

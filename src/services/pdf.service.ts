@@ -6,16 +6,7 @@ declare var jspdf: any;
 @Injectable({ providedIn: 'root' })
 export class PdfService {
 
-  private drawPhoto(doc: any, data: any) {
-    if (data.cell.section === 'body' && data.column.index === 0 && data.cell.raw) {
-      const base64 = data.cell.raw;
-      if (base64 && base64.startsWith('data:image')) {
-        doc.addImage(base64, 'JPEG', data.cell.x + 2, data.cell.y + 2, 10, 10);
-      }
-    }
-  }
-
-  exportDaily(date: string, className: string, section: string, records: any[], includePhotos: boolean) {
+  exportDaily(date: string, className: string, section: string, records: any[]) {
     const doc = new jspdf.jsPDF();
     
     doc.setFontSize(20);
@@ -35,16 +26,9 @@ export class PdfService {
     doc.text(summaryText, 196, 25, { align: 'right' });
     doc.text(`Today's Attendance: ${overallPercentage}%`, 196, 32, { align: 'right' });
 
-    const head = includePhotos 
-      ? [['Photo', 'Roll', 'Name', 'Contact', 'Status', 'Attendance %']] 
-      : [['Roll', 'Name', 'Contact', 'Status', 'Attendance %']];
-    
-    const body = records.map(r => includePhotos 
-      ? [r.photo || '', r.roll, r.name, r.mobile || 'N/A', r.status, r.percentage + '%'] 
-      : [r.roll, r.name, r.mobile || 'N/A', r.status, r.percentage + '%']
-    );
-    
-    const statusColumnIndex = includePhotos ? 4 : 3;
+    const head = [['Roll', 'Name', "Father's Name", 'Contact', 'Status', 'Attendance %']];
+    const body = records.map(r => [r.roll, r.name, r.fatherName || 'N/A', r.mobile || 'N/A', r.status, r.percentage + '%']);
+    const statusColumnIndex = 4;
 
     doc.autoTable({
       head: head,
@@ -65,13 +49,6 @@ export class PdfService {
           }
         }
       },
-      willDrawCell: (data: any) => {
-        if (includePhotos && data.cell.section === 'body' && data.column.index === 0) {
-            data.cell.text = ''; // Clear text for photo cell
-        }
-      },
-      didDrawCell: includePhotos ? (data: any) => this.drawPhoto(doc, data) : null,
-      columnStyles: includePhotos ? { 0: { cellWidth: 15, minCellHeight: 15 } } : {}
     });
 
     doc.save(`Student_Attendance_${className}_${date}.pdf`);
@@ -83,7 +60,6 @@ export class PdfService {
     className: string,
     section: string,
     monthlyBreakdown: { monthName: string, records: any[] }[],
-    includePhotos: boolean,
     attendanceService: AttendanceService
   ) {
     const doc = new jspdf.jsPDF();
@@ -131,14 +107,8 @@ export class PdfService {
       doc.setTextColor(0);
 
 
-      const head = includePhotos
-        ? [['Photo', 'Roll', 'Name', 'Pres.', 'Abs.', 'Month %']]
-        : [['Roll', 'Name', 'Pres.', 'Abs.', 'Month %']];
-
-      const body = monthData.records.map(d => includePhotos
-        ? [d.photo || '', d.roll, d.name, d.present, d.absent, d.percentage + '%']
-        : [d.roll, d.name, d.present, d.absent, d.percentage + '%']
-      );
+      const head = [['Roll', 'Name', "Father's Name", 'Pres.', 'Abs.', 'Month %']];
+      const body = monthData.records.map(d => [d.roll, d.name, d.fatherName || 'N/A', d.present, d.absent, d.percentage + '%']);
 
       doc.autoTable({
         head: head,
@@ -147,13 +117,6 @@ export class PdfService {
         theme: 'striped',
         styles: { fontSize: 9, cellPadding: 2 },
         headStyles: { fontSize: 10, fillColor: [59, 130, 246] },
-        willDrawCell: (data: any) => {
-            if (includePhotos && data.cell.section === 'body' && data.column.index === 0) {
-                data.cell.text = '';
-            }
-        },
-        didDrawCell: includePhotos ? (data: any) => this.drawPhoto(doc, data) : null,
-        columnStyles: includePhotos ? { 0: { cellWidth: 15, minCellHeight: 15 } } : {}
       });
 
       isFirstPage = false;
@@ -167,7 +130,6 @@ export class PdfService {
     className: string,
     section: string,
     data: any[],
-    includePhotos: boolean,
     attendanceService: AttendanceService
   ) {
     const doc = new jspdf.jsPDF();
@@ -204,14 +166,8 @@ export class PdfService {
     startY += analysisLines.length * 5 + 5;
     doc.setTextColor(0);
 
-    const head = includePhotos 
-      ? [['Photo', 'Roll', 'Name', 'Present', 'Absent', 'Month %']] 
-      : [['Roll', 'Name', 'Present', 'Absent', 'Month %']];
-
-    const body = data.map(d => includePhotos 
-      ? [d.photo || '', d.roll, d.name, d.present, d.absent, d.percentage + '%']
-      : [d.roll, d.name, d.present, d.absent, d.percentage + '%']
-    );
+    const head = [['Roll', 'Name', "Father's Name", 'Present', 'Absent', 'Month %']];
+    const body = data.map(d => [d.roll, d.name, d.fatherName || 'N/A', d.present, d.absent, d.percentage + '%']);
 
     doc.autoTable({
       head: head,
@@ -220,19 +176,12 @@ export class PdfService {
       theme: 'striped',
       styles: { fontSize: 9, cellPadding: 2 },
       headStyles: { fontSize: 10, fillColor: [5, 150, 105] },
-      willDrawCell: (data: any) => {
-        if (includePhotos && data.cell.section === 'body' && data.column.index === 0) {
-            data.cell.text = '';
-        }
-      },
-      didDrawCell: includePhotos ? (data: any) => this.drawPhoto(doc, data) : null,
-      columnStyles: includePhotos ? { 0: { cellWidth: 15, minCellHeight: 15 } } : {}
     });
 
     doc.save(`Monthly_${className}_${monthLabel.replace(' ', '_')}.pdf`);
   }
 
-  exportTeacherReport(date: string, coordinatorName: string, records: any[], includePhotos: boolean) {
+  exportTeacherReport(date: string, coordinatorName: string, records: any[]) {
     const doc = new jspdf.jsPDF();
     
     doc.setFontSize(20);
@@ -252,16 +201,9 @@ export class PdfService {
     doc.text(summaryText, 196, 25, { align: 'right' });
     doc.text(`Today's Attendance: ${overallPercentage}%`, 196, 32, { align: 'right' });
 
-    const head = includePhotos 
-      ? [['Photo', 'Name', 'Class', 'Contact', 'Status', 'Attendance %']] 
-      : [['Name', 'Class', 'Contact', 'Status', 'Attendance %']];
-    
-    const body = records.map(r => includePhotos 
-      ? [r.photo || '', r.name, `${r.className}-${r.section}`, r.mobileNumber || 'N/A', r.status, r.percentage + '%'] 
-      : [r.name, `${r.className}-${r.section}`, r.mobileNumber || 'N/A', r.status, r.percentage + '%']
-    );
-
-    const statusColumnIndex = includePhotos ? 4 : 3;
+    const head = [['Name', 'Class', 'Contact', 'Status', 'Attendance %']];
+    const body = records.map(r => [r.name, `${r.className}-${r.section}`, r.mobileNumber || 'N/A', r.status, r.percentage + '%']);
+    const statusColumnIndex = 3;
 
     doc.autoTable({
       head: head,
@@ -282,19 +224,12 @@ export class PdfService {
           }
         }
       },
-      willDrawCell: (data: any) => {
-        if (includePhotos && data.cell.section === 'body' && data.column.index === 0) {
-            data.cell.text = '';
-        }
-      },
-      didDrawCell: includePhotos ? (data: any) => this.drawPhoto(doc, data) : null,
-      columnStyles: includePhotos ? { 0: { cellWidth: 15, minCellHeight: 15 } } : {}
     });
 
     doc.save(`Teacher_Attendance_${date}.pdf`);
   }
 
-  async exportTeacherMonthlyReport(monthLabel: string, coordinatorName: string, data: any[], includePhotos: boolean, attendanceService: AttendanceService) {
+  async exportTeacherMonthlyReport(monthLabel: string, coordinatorName: string, data: any[], attendanceService: AttendanceService) {
     const doc = new jspdf.jsPDF();
     
     doc.setFontSize(20);
@@ -329,14 +264,8 @@ export class PdfService {
     startY += analysisLines.length * 5 + 5;
     doc.setTextColor(0);
 
-    const head = includePhotos 
-      ? [['Photo', 'Name', 'Class', 'Present', 'Absent', 'Month %']] 
-      : [['Name', 'Class', 'Present', 'Absent', 'Month %']];
-
-    const body = data.filter(t => t.role === 'teacher').map(d => includePhotos 
-      ? [d.photo || '', d.name, `${d.className}-${d.section}`, d.present, d.absent, d.percentage + '%']
-      : [d.name, `${d.className}-${d.section}`, d.present, d.absent, d.percentage + '%']
-    );
+    const head = [['Name', 'Class', 'Present', 'Absent', 'Month %']];
+    const body = data.filter(t => t.role === 'teacher').map(d => [d.name, `${d.className}-${d.section}`, d.present, d.absent, d.percentage + '%']);
 
     doc.autoTable({
       head: head,
@@ -345,13 +274,6 @@ export class PdfService {
       theme: 'striped',
       styles: { fontSize: 9, cellPadding: 2 },
       headStyles: { fontSize: 10, fillColor: [5, 150, 105] },
-      willDrawCell: (data: any) => {
-        if (includePhotos && data.cell.section === 'body' && data.column.index === 0) {
-            data.cell.text = '';
-        }
-      },
-      didDrawCell: includePhotos ? (data: any) => this.drawPhoto(doc, data) : null,
-      columnStyles: includePhotos ? { 0: { cellWidth: 15, minCellHeight: 15 } } : {}
     });
 
     doc.save(`Monthly_Teachers_${monthLabel.replace(' ', '_')}.pdf`);

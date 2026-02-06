@@ -234,8 +234,8 @@ import { CameraComponent } from './camera.component';
               <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-4">
                 <h2 class="text-2xl font-black tracking-tight text-slate-800">Export Staff Reports</h2>
                 
-                <div class="flex flex-col sm:flex-row items-center justify-between p-2 bg-slate-100 rounded-2xl border border-slate-200 gap-2">
-                  <div class="flex-1 flex bg-white p-1 rounded-xl shadow-sm w-full">
+                <div class="p-2 bg-slate-100 rounded-2xl border border-slate-200">
+                  <div class="flex bg-white p-1 rounded-xl shadow-sm w-full">
                     <button (click)="reportExportFormat.set('pdf')" [class]="reportExportFormat() === 'pdf' ? 'flex-1 py-2 bg-indigo-600 text-white rounded-lg shadow-md font-bold text-xs' : 'flex-1 py-2 text-slate-500 font-medium text-xs'">
                       <i class="fa-solid fa-file-pdf mr-2"></i>PDF
                     </button>
@@ -244,12 +244,6 @@ import { CameraComponent } from './camera.component';
                     </button>
                     <button (click)="reportExportFormat.set('doc')" [class]="reportExportFormat() === 'doc' ? 'flex-1 py-2 bg-blue-600 text-white rounded-lg shadow-md font-bold text-xs' : 'flex-1 py-2 text-slate-500 font-medium text-xs'">
                       <i class="fa-solid fa-file-word mr-2"></i>Word
-                    </button>
-                  </div>
-                  <div class="flex-1 flex justify-center items-center gap-2" [class.opacity-50]="reportExportFormat() !== 'pdf'">
-                    <span class="text-[10px] font-black uppercase text-slate-400">Photos</span>
-                    <button (click)="reportIncludePhotos.set(!reportIncludePhotos())" [disabled]="reportExportFormat() !== 'pdf'" [class]="reportIncludePhotos() ? 'bg-indigo-600' : 'bg-slate-200'" class="w-10 h-5 rounded-full relative transition-colors">
-                      <div [class]="reportIncludePhotos() ? 'right-1' : 'left-1'" class="absolute top-1 w-3 h-3 bg-white rounded-full transition-all"></div>
                     </button>
                   </div>
                 </div>
@@ -389,7 +383,6 @@ export class CoordinatorDashboardComponent {
 
   // Reports State
   monthlyMonth = signal(new Date().toISOString().slice(0, 7));
-  reportIncludePhotos = signal(true);
   reportExportFormat = signal<'pdf' | 'csv' | 'doc'>('pdf');
 
   // General UI State
@@ -408,7 +401,7 @@ export class CoordinatorDashboardComponent {
     this.teachers.set(this.attendanceService.getTeachers());
     effect(() => {
       this.teachers.set(this.attendanceService.getTeachers());
-    }, { allowSignalWrites: true });
+    });
 
     effect(() => {
       const date = this.selectedDate();
@@ -613,7 +606,7 @@ export class CoordinatorDashboardComponent {
     
     switch (this.reportExportFormat()) {
       case 'pdf':
-        this.pdfService.exportTeacherReport(this.selectedDate(), this.coordinator()!.name, data, this.reportIncludePhotos());
+        this.pdfService.exportTeacherReport(this.selectedDate(), this.coordinator()!.name, data);
         break;
       case 'csv':
         this.csvService.exportTeacherReport(this.selectedDate(), this.coordinator()!.name, data);
@@ -631,7 +624,7 @@ export class CoordinatorDashboardComponent {
     
     switch (this.reportExportFormat()) {
       case 'pdf':
-        await this.pdfService.exportTeacherMonthlyReport(monthName, this.coordinator()!.name, data, this.reportIncludePhotos(), this.attendanceService);
+        await this.pdfService.exportTeacherMonthlyReport(monthName, this.coordinator()!.name, data, this.attendanceService);
         break;
       case 'csv':
         this.csvService.exportTeacherMonthlyReport(monthName, this.coordinator()!.name, data);

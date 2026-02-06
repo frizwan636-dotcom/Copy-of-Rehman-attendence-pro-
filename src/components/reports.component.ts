@@ -33,16 +33,6 @@ import { DocService } from '../services/doc.service';
               <i class="fa-solid fa-file-word mr-2"></i>Word
             </button>
         </div>
-        <div class="flex-1 flex justify-center items-center gap-2" [class.opacity-50]="exportFormat() !== 'pdf'">
-          <span class="text-[10px] font-black uppercase text-slate-400">Include Photos</span>
-          <button 
-            (click)="includePhotos.set(!includePhotos())"
-            [disabled]="exportFormat() !== 'pdf'"
-            [class]="includePhotos() ? 'w-10 h-5 bg-indigo-600 rounded-full relative transition-colors' : 'w-10 h-5 bg-slate-200 rounded-full relative transition-colors'"
-          >
-            <div [class]="includePhotos() ? 'absolute right-1 top-1 w-3 h-3 bg-white rounded-full transition-all' : 'absolute left-1 top-1 w-3 h-3 bg-white rounded-full transition-all'"></div>
-          </button>
-        </div>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -149,7 +139,6 @@ import { DocService } from '../services/doc.service';
       </div>
     </div>
   `,
-  // FIX: Set change detection strategy to OnPush for better performance with signals.
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ReportsComponent {
@@ -165,7 +154,6 @@ export class ReportsComponent {
   rangeStart = signal(new Date().toISOString().split('T')[0]);
   rangeEnd = signal(new Date().toISOString().split('T')[0]);
   
-  includePhotos = signal(true);
   exportFormat = signal<'pdf' | 'csv' | 'doc'>('pdf');
 
   // Multi-class filtering state
@@ -190,7 +178,7 @@ export class ReportsComponent {
     const data = this.attendanceService.getDailyReportData(this.dailyDate());
     switch(this.exportFormat()) {
       case 'pdf':
-        this.pdfService.exportDaily(this.dailyDate(), teacher.className, teacher.section, data, this.includePhotos());
+        this.pdfService.exportDaily(this.dailyDate(), teacher.className, teacher.section, data);
         break;
       case 'csv':
         this.csvService.exportDaily(this.dailyDate(), teacher.className, teacher.section, data);
@@ -210,7 +198,7 @@ export class ReportsComponent {
 
     switch(this.exportFormat()) {
       case 'pdf':
-        await this.pdfService.exportMonthly(monthName, teacher.className, teacher.section, stats, this.includePhotos(), this.attendanceService);
+        await this.pdfService.exportMonthly(monthName, teacher.className, teacher.section, stats, this.attendanceService);
         break;
       case 'csv':
         this.csvService.exportMonthly(monthName, teacher.className, teacher.section, stats);
@@ -244,7 +232,7 @@ export class ReportsComponent {
 
     switch(this.exportFormat()) {
       case 'pdf':
-        await this.pdfService.exportRange(this.rangeStart(), this.rangeEnd(), classNameForReport, sectionNameForReport, monthlyBreakdown, this.includePhotos(), this.attendanceService);
+        await this.pdfService.exportRange(this.rangeStart(), this.rangeEnd(), classNameForReport, sectionNameForReport, monthlyBreakdown, this.attendanceService);
         break;
       case 'csv':
         this.csvService.exportRange(this.rangeStart(), this.rangeEnd(), classNameForReport, sectionNameForReport, monthlyBreakdown);

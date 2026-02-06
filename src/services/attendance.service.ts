@@ -25,6 +25,7 @@ export interface Student {
   id: string;
   teacherId: string;
   name: string;
+  fatherName?: string;
   rollNumber: string;
   mobileNumber: string;
   photo?: string;
@@ -211,17 +212,17 @@ export class AttendanceService {
     await this.persistState(null);
   }
 
-  async parseStudentListFromImage(base64Image: string): Promise<{ name: string, roll: string, mobile: string }[]> {
+  async parseStudentListFromImage(base64Image: string): Promise<{ name: string, fatherName: string, roll: string, mobile: string }[]> {
     try {
       const data = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
       const response = await this.ai.models.generateContent({
         model: 'gemini-2.5-flash', contents: [{ parts: [
-              { text: "Extract student information from this image of a list or roster. Return an array of objects with keys: name, roll, mobile. If a field is missing, use an empty string. Ensure 'roll' and 'mobile' are strings. Focus on accuracy." },
+              { text: "Extract student information from this image of a list or roster. Return an array of objects with keys: name, fatherName, roll, mobile. If a field is missing, use an empty string. Ensure 'roll' and 'mobile' are strings. Focus on accuracy." },
               { inlineData: { mimeType: 'image/jpeg', data } } ] }],
         config: { responseMimeType: "application/json", responseSchema: { type: Type.ARRAY, items: {
                 type: Type.OBJECT, properties: {
-                  name: { type: Type.STRING }, roll: { type: Type.STRING }, mobile: { type: Type.STRING }
-                }, required: ["name", "roll", "mobile"] } } }
+                  name: { type: Type.STRING }, fatherName: { type: Type.STRING }, roll: { type: Type.STRING }, mobile: { type: Type.STRING }
+                }, required: ["name", "fatherName", "roll", "mobile"] } } }
       });
       return JSON.parse(response.text.trim());
     } catch (e) {
@@ -230,10 +231,10 @@ export class AttendanceService {
     }
   }
 
-  addStudents(newStudents: { name: string, roll: string, mobile: string, photo?: string, totalFee?: number, className?: string, section?: string }[]) {
+  addStudents(newStudents: { name: string, fatherName?: string, roll: string, mobile: string, photo?: string, totalFee?: number, className?: string, section?: string }[]) {
     const teacherId = this.activeTeacher()!.id;
     const studentsToAdd: Student[] = newStudents.map(s => ({
-      id: Math.random().toString(36).substr(2, 9), teacherId, name: s.name,
+      id: Math.random().toString(36).substr(2, 9), teacherId, name: s.name, fatherName: s.fatherName,
       rollNumber: s.roll, mobileNumber: s.mobile, photo: s.photo,
       totalFee: s.totalFee || 0,
       feeHistory: [],
@@ -406,7 +407,7 @@ export class AttendanceService {
                 const absent = studentRecords.filter(r => r.status === 'Absent').length;
                 const total = present + absent;
                 const percentage = total > 0 ? ((present / total) * 100).toFixed(1) : '0.0';
-                return { name: s.name, roll: s.rollNumber, mobile: s.mobileNumber, photo: s.photo, present, absent, percentage };
+                return { name: s.name, roll: s.rollNumber, fatherName: s.fatherName, mobile: s.mobileNumber, present, absent, percentage };
             });
             monthlyBreakdown.push({ month: yearMonth, monthName, records: studentStats });
         }
@@ -436,7 +437,7 @@ export class AttendanceService {
       const absent = studentRecords.filter(r => r.status === 'Absent').length;
       const total = present + absent;
       const percentage = total > 0 ? ((present / total) * 100).toFixed(1) : '0.0';
-      return { name: s.name, roll: s.rollNumber, mobile: s.mobileNumber, photo: s.photo, present, absent, percentage };
+      return { name: s.name, roll: s.rollNumber, fatherName: s.fatherName, mobile: s.mobileNumber, present, absent, percentage };
     });
   }
 
@@ -467,7 +468,7 @@ export class AttendanceService {
         return {
             roll: s.rollNumber,
             name: s.name,
-            photo: s.photo,
+            fatherName: s.fatherName,
             mobile: s.mobileNumber,
             status: status,
             percentage: percentage
