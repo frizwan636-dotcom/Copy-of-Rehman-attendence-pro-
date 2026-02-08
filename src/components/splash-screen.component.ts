@@ -14,7 +14,8 @@ import { CommonModule } from '@angular/common';
         Welcome to Rehman Attendance Pro
       </h1>
       <p class="text-indigo-200/70 mt-4 max-w-2xl animate-in slide-in-from-bottom-10 fade-in duration-700 delay-400">
-        This application is the result of the tireless hard work and dedication of <strong>Rizwan Hanif</strong>. 
+        This application is the result of the tireless hard work and dedication of 
+        <span class="font-extrabold text-cyan-300 tracking-wider underline decoration-cyan-300/50 underline-offset-4">Rizwan Hanif</span>. 
         Enjoy a seamless and efficient attendance management experience.
       </p>
     </div>

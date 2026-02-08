@@ -518,7 +518,7 @@ export class AttendanceService {
   }
 
   async addTeacher(teacherData: { name: string, email: string, pin: string, photo?: string, mobile?: string, className?: string, section?: string }): Promise<void> {
-    if (this.teachers().some(t => t.email.toLowerCase() === teacherData.email.toLowerCase())) {
+    if (teacherData.email && this.teachers().some(t => t.email.toLowerCase() === teacherData.email.toLowerCase())) {
         throw new Error('Email already exists');
     }
     const id = teacherData.name.toLowerCase().replace(/\s/g, '_') + '_' + Math.random().toString(36).substr(2, 5);

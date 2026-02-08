@@ -40,11 +40,6 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
                   <i class="fa-solid fa-cloud-check text-[10px]"></i>
                   <span class="text-[9px] font-black uppercase tracking-tighter">Data Saved</span>
                 </div>
-              } @else {
-                <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-100 border-amber-200 text-amber-700">
-                  <i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
-                  <span class="text-[9px] font-black uppercase tracking-tighter">Offline Mode</span>
-                </div>
               }
             </div>
             
@@ -59,6 +54,16 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
       </nav>
 
       <main class="max-w-4xl mx-auto p-4 md:p-8">
+        <!-- Offline Mode Banner -->
+        @if (!attendanceService.isOnline()) {
+          <div class="bg-amber-100 border-l-4 border-amber-500 text-amber-800 p-4 rounded-md mb-6 flex items-center gap-4 shadow-sm" role="alert">
+            <i class="fa-solid fa-wifi-slash text-xl"></i>
+            <div>
+              <p class="font-bold">You are in Offline Mode</p>
+              <p class="text-sm">Changes will be saved locally and synced when you reconnect.</p>
+            </div>
+          </div>
+        }
         
         <!-- Navigation Hub -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -660,7 +665,7 @@ export class DashboardComponent {
     const { name, fatherName, roll, mobile, photo, totalFee, className, section } = form;
 
     if (!name.trim() || !roll.trim() || !mobile.trim()) {
-      alert('Please fill in student name, roll number, and mobile.');
+      alert('Please fill in the student name, roll number, and contact mobile.');
       return;
     }
 

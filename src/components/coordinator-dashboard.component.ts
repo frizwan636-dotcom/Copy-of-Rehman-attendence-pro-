@@ -39,11 +39,6 @@ import { CameraComponent } from './camera.component';
                   <i class="fa-solid fa-cloud-check text-[10px]"></i>
                   <span class="text-[9px] font-black uppercase tracking-tighter">Data Saved</span>
                 </div>
-              } @else {
-                <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-100 border-amber-200 text-amber-700">
-                  <i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
-                  <span class="text-[9px] font-black uppercase tracking-tighter">Offline Mode</span>
-                </div>
               }
             </div>
 
@@ -55,217 +50,229 @@ import { CameraComponent } from './camera.component';
       </nav>
 
       <main class="max-w-4xl mx-auto p-4 md:p-8">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <button (click)="view.set('attendance')" 
-            class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3"
-            [class]="view() === 'attendance' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200' : 'bg-white text-slate-600 hover:bg-indigo-50 border'">
-            <i class="fa-solid fa-user-check text-xl" [class]="view() === 'attendance' ? 'text-white' : 'text-indigo-500'"></i>
-            <span class="text-xs font-black uppercase tracking-widest">Staff Attendance</span>
-          </button>
-          <button (click)="view.set('teachers')" 
-            class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3"
-            [class]="view() === 'teachers' ? 'bg-blue-600 text-white shadow-xl shadow-blue-200' : 'bg-white text-slate-600 hover:bg-blue-50 border'">
-            <i class="fa-solid fa-users-gear text-xl" [class]="view() === 'teachers' ? 'text-white' : 'text-blue-500'"></i>
-            <span class="text-xs font-black uppercase tracking-widest">Manage Teachers</span>
-          </button>
-           <button (click)="view.set('meetings')" 
-            class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3"
-            [class]="view() === 'meetings' ? 'bg-purple-600 text-white shadow-xl shadow-purple-200' : 'bg-white text-slate-600 hover:bg-purple-50 border'">
-            <i class="fa-solid fa-calendar-check text-xl" [class]="view() === 'meetings' ? 'text-white' : 'text-purple-500'"></i>
-            <span class="text-xs font-black uppercase tracking-widest">Meetings</span>
-          </button>
-          <button (click)="view.set('reports')" 
-            class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3"
-            [class]="view() === 'reports' ? 'bg-slate-900 text-white shadow-xl shadow-slate-200' : 'bg-white text-slate-600 hover:bg-slate-50 border'">
-            <i class="fa-solid fa-file-export text-xl" [class]="view() === 'reports' ? 'text-white' : 'text-slate-500'"></i>
-            <span class="text-xs font-black uppercase tracking-widest">Staff Reports</span>
-          </button>
-        </div>
+        @if (attendanceService.isOnline()) {
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <button (click)="view.set('attendance')" 
+              class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3"
+              [class]="view() === 'attendance' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200' : 'bg-white text-slate-600 hover:bg-indigo-50 border'">
+              <i class="fa-solid fa-user-check text-xl" [class]="view() === 'attendance' ? 'text-white' : 'text-indigo-500'"></i>
+              <span class="text-xs font-black uppercase tracking-widest">Staff Attendance</span>
+            </button>
+            <button (click)="view.set('teachers')" 
+              class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3"
+              [class]="view() === 'teachers' ? 'bg-blue-600 text-white shadow-xl shadow-blue-200' : 'bg-white text-slate-600 hover:bg-blue-50 border'">
+              <i class="fa-solid fa-users-gear text-xl" [class]="view() === 'teachers' ? 'text-white' : 'text-blue-500'"></i>
+              <span class="text-xs font-black uppercase tracking-widest">Manage Teachers</span>
+            </button>
+            <button (click)="view.set('meetings')" 
+              class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3"
+              [class]="view() === 'meetings' ? 'bg-purple-600 text-white shadow-xl shadow-purple-200' : 'bg-white text-slate-600 hover:bg-purple-50 border'">
+              <i class="fa-solid fa-calendar-check text-xl" [class]="view() === 'meetings' ? 'text-white' : 'text-purple-500'"></i>
+              <span class="text-xs font-black uppercase tracking-widest">Meetings</span>
+            </button>
+            <button (click)="view.set('reports')" 
+              class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3"
+              [class]="view() === 'reports' ? 'bg-slate-900 text-white shadow-xl shadow-slate-200' : 'bg-white text-slate-600 hover:bg-slate-50 border'">
+              <i class="fa-solid fa-file-export text-xl" [class]="view() === 'reports' ? 'text-white' : 'text-slate-500'"></i>
+              <span class="text-xs font-black uppercase tracking-widest">Staff Reports</span>
+            </button>
+          </div>
 
-        @switch (view()) {
-          @case ('attendance') {
-            <div class="space-y-6 animate-in fade-in">
-              <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div>
-                  <h2 class="text-2xl font-black text-slate-800 tracking-tight">Staff Roll Call</h2>
-                  <p class="text-slate-500 text-sm font-medium">Marking teacher attendance for today</p>
-                </div>
-                <input type="date" [ngModel]="selectedDate()" (ngModelChange)="selectedDate.set($event)" class="bg-slate-50 px-4 py-3 rounded-2xl border font-bold text-slate-700 outline-none text-sm">
-              </div>
-              <div class="space-y-3">
-                @for (teacher of teachers(); track teacher.id) {
-                  @if (teacher.id !== coordinator()?.id) {
-                    <div class="bg-white p-4 rounded-3xl border shadow-sm flex items-center justify-between">
-                      <div class="flex items-center gap-4">
-                        <div class="w-14 h-14 rounded-2xl bg-indigo-50 overflow-hidden border-2 border-white shadow-sm flex items-center justify-center">
-                          @if (teacher.photo) {
-                            <img [src]="teacher.photo" class="w-full h-full object-cover">
-                          } @else {
-                            <i class="fa-solid fa-user-tie text-2xl text-indigo-200"></i>
-                          }
-                        </div>
-                        <div>
-                          <h4 class="font-bold text-slate-800">{{ teacher.name }}</h4>
-                          <span class="text-xs text-slate-400">{{ teacher.className || 'N/A' }} - {{ teacher.section || 'N/A' }}</span>
-                        </div>
-                      </div>
-                      <div class="flex items-center gap-2">
-                        <div class="flex bg-slate-100 p-1 rounded-2xl border">
-                          <button (click)="toggleStatus(teacher.id, 'Present')" [class]="getStatus(teacher.id) === 'Present' ? 'px-4 py-2 bg-indigo-600 text-white rounded-xl shadow font-black text-[10px]' : 'px-4 py-2 text-slate-400 font-bold text-[10px]'">P</button>
-                          <button (click)="toggleStatus(teacher.id, 'Absent')" [class]="getStatus(teacher.id) === 'Absent' ? 'px-4 py-2 bg-red-500 text-white rounded-xl shadow font-black text-[10px]' : 'px-4 py-2 text-slate-400 font-bold text-[10px]'">A</button>
-                        </div>
-                      </div>
-                    </div>
-                  }
-                }
-              </div>
-              <div class="bg-white/80 backdrop-blur-md p-4 rounded-[2.5rem] border shadow-2xl flex sticky bottom-6 z-40">
-                <button (click)="saveAttendance()" class="flex-1 py-5 bg-slate-900 text-white rounded-[1.75rem] font-black shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3">
-                  <i class="fa-solid fa-check-double text-indigo-400"></i> Save Staff Attendance
-                </button>
-              </div>
-            </div>
-          }
-          @case ('teachers') {
-            <div class="space-y-6 animate-in fade-in">
-              <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-4">
-                <h2 class="text-2xl font-black tracking-tight text-slate-800">Create Teacher Account</h2>
-                <div class="flex gap-4">
-                  <div class="w-24 h-24 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer hover:bg-slate-100 relative" (click)="openPhotoSourceModal('new')">
-                    @if(newTeacherPhoto()) {
-                      <img [src]="newTeacherPhoto()" class="w-full h-full object-cover">
-                    } @else {
-                      <i class="fa-solid fa-camera text-slate-300 text-xl"></i>
-                    }
+          @switch (view()) {
+            @case ('attendance') {
+              <div class="space-y-6 animate-in fade-in">
+                <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div>
+                    <h2 class="text-2xl font-black text-slate-800 tracking-tight">Staff Roll Call</h2>
+                    <p class="text-slate-500 text-sm font-medium">Marking teacher attendance for today</p>
                   </div>
-                  <div class="flex-1 grid grid-cols-2 gap-3">
-                    <input type="text" [ngModel]="newTeacherName()" (ngModelChange)="newTeacherName.set($event)" placeholder="Full Name" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                    <input type="email" [ngModel]="newTeacherEmail()" (ngModelChange)="newTeacherEmail.set($event)" placeholder="Email Address (for login)" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                    <input type="tel" [ngModel]="newTeacherMobile()" (ngModelChange)="newTeacherMobile.set($event)" placeholder="Contact Mobile" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                    <input type="text" [ngModel]="newTeacherClass()" (ngModelChange)="newTeacherClass.set($event)" placeholder="Class" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                    <input type="text" [ngModel]="newTeacherSection()" (ngModelChange)="newTeacherSection.set($event)" placeholder="Section" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                    <input type="password" maxlength="4" inputmode="numeric" pattern="[0-9]*" [ngModel]="newTeacherPin()" (ngModelChange)="newTeacherPin.set($event)" placeholder="4-Digit PIN" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                  </div>
+                  <input type="date" [ngModel]="selectedDate()" (ngModelChange)="selectedDate.set($event)" class="bg-slate-50 px-4 py-3 rounded-2xl border font-bold text-slate-700 outline-none text-sm">
                 </div>
-                 <button (click)="addTeacher()" [disabled]="!newTeacherName() || !newTeacherEmail() || newTeacherPin().length < 4" class="w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50">
-                  <i class="fa-solid fa-user-plus mr-2"></i>Add Teacher Profile
-                </button>
-                <input type="file" #teacherPhotoInput accept="image/*" (change)="onPhotoSelected($event)" class="hidden">
-              </div>
-              <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-3">
-                <h2 class="text-2xl font-black tracking-tight text-slate-800">Registered Teachers ({{ teachers().length - 1 }})</h2>
-                @for (teacher of teachers(); track teacher.id) {
-                  @if(teacher.id !== coordinator()?.id) {
-                    <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border">
-                      <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 rounded-lg bg-white overflow-hidden border shadow-sm">
-                          @if (teacher.photo) {
-                            <img [src]="teacher.photo" class="w-full h-full object-cover">
-                          } @else {
-                            <div class="w-full h-full flex items-center justify-center text-slate-300"><i class="fa-solid fa-user-tie"></i></div>
-                          }
+                <div class="space-y-3">
+                  @for (teacher of teachers(); track teacher.id) {
+                    @if (teacher.id !== coordinator()?.id) {
+                      <div class="bg-white p-4 rounded-3xl border shadow-sm flex items-center justify-between">
+                        <div class="flex items-center gap-4">
+                          <div class="w-14 h-14 rounded-2xl bg-indigo-50 overflow-hidden border-2 border-white shadow-sm flex items-center justify-center">
+                            @if (teacher.photo) {
+                              <img [src]="teacher.photo" class="w-full h-full object-cover">
+                            } @else {
+                              <i class="fa-solid fa-user-tie text-2xl text-indigo-200"></i>
+                            }
+                          </div>
+                          <div>
+                            <h4 class="font-bold text-slate-800">{{ teacher.name }}</h4>
+                            <span class="text-xs text-slate-400">{{ teacher.className || 'N/A' }} - {{ teacher.section || 'N/A' }}</span>
+                          </div>
                         </div>
-                        <div>
-                          <p class="font-bold text-slate-700">{{ teacher.name }}</p>
-                          <div class="flex items-center gap-4">
-                            <p class="text-xs text-slate-500">{{ teacher.className }} - {{ teacher.section }}</p>
-                            <p class="text-xs font-mono font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-md">PIN: {{ teacher.pin }}</p>
+                        <div class="flex items-center gap-2">
+                          <div class="flex bg-slate-100 p-1 rounded-2xl border">
+                            <button (click)="toggleStatus(teacher.id, 'Present')" [class]="getStatus(teacher.id) === 'Present' ? 'px-4 py-2 bg-indigo-600 text-white rounded-xl shadow font-black text-[10px]' : 'px-4 py-2 text-slate-400 font-bold text-[10px]'">P</button>
+                            <button (click)="toggleStatus(teacher.id, 'Absent')" [class]="getStatus(teacher.id) === 'Absent' ? 'px-4 py-2 bg-red-500 text-white rounded-xl shadow font-black text-[10px]' : 'px-4 py-2 text-slate-400 font-bold text-[10px]'">A</button>
                           </div>
                         </div>
                       </div>
-                      <div class="flex items-center gap-2">
-                         <button (click)="sendMeetingReminder(teacher)"
-                                [disabled]="!isMeetingScheduled()"
-                                title="Send Meeting Reminder"
-                                class="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-purple-50 hover:text-purple-600 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                          <i class="fa-solid fa-paper-plane"></i>
-                        </button>
-                        <button (click)="openEditModal(teacher)" class="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors">
-                          <i class="fa-solid fa-pen-to-square"></i>
-                        </button>
-                        <button (click)="removeTeacher(teacher.id)" class="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors">
-                          <i class="fa-solid fa-trash-can"></i>
-                        </button>
-                      </div>
-                    </div>
+                    }
                   }
-                }
+                </div>
+                <div class="bg-white/80 backdrop-blur-md p-4 rounded-[2.5rem] border shadow-2xl flex sticky bottom-6 z-40">
+                  <button (click)="saveAttendance()" class="flex-1 py-5 bg-slate-900 text-white rounded-[1.75rem] font-black shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-check-double text-indigo-400"></i> Save Staff Attendance
+                  </button>
+                </div>
               </div>
-            </div>
-          }
-           @case ('meetings') {
-            <div class="bg-white p-8 rounded-[2.5rem] shadow-sm border space-y-6 animate-in fade-in">
-              <div>
-                  <h2 class="text-2xl font-black text-slate-800 tracking-tight">Schedule Staff Meeting</h2>
-                  <p class="text-slate-500 text-sm font-medium">Set a time and agenda, then send individual SMS reminders.</p>
+            }
+            @case ('teachers') {
+              <div class="space-y-6 animate-in fade-in">
+                <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-4">
+                  <h2 class="text-2xl font-black tracking-tight text-slate-800">Create Teacher Account</h2>
+                  <div class="flex gap-4">
+                    <div class="w-24 h-24 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer hover:bg-slate-100 relative" (click)="openPhotoSourceModal('new')">
+                      @if(newTeacherPhoto()) {
+                        <img [src]="newTeacherPhoto()" class="w-full h-full object-cover">
+                      } @else {
+                        <i class="fa-solid fa-camera text-slate-300 text-xl"></i>
+                      }
+                    </div>
+                    <div class="flex-1 grid grid-cols-2 gap-3">
+                      <input type="text" [ngModel]="newTeacherName()" (ngModelChange)="newTeacherName.set($event)" placeholder="Full Name" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                      <input type="email" [ngModel]="newTeacherEmail()" (ngModelChange)="newTeacherEmail.set($event)" placeholder="Email Address (for login)" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                      <input type="tel" [ngModel]="newTeacherMobile()" (ngModelChange)="newTeacherMobile.set($event)" placeholder="Contact Mobile" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                      <input type="text" [ngModel]="newTeacherClass()" (ngModelChange)="newTeacherClass.set($event)" placeholder="Class" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                      <input type="text" [ngModel]="newTeacherSection()" (ngModelChange)="newTeacherSection.set($event)" placeholder="Section" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                      <input type="password" maxlength="4" inputmode="numeric" pattern="[0-9]*" [ngModel]="newTeacherPin()" (ngModelChange)="newTeacherPin.set($event)" placeholder="4-Digit PIN" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                    </div>
+                  </div>
+                  <button (click)="addTeacher()" [disabled]="!newTeacherName() || !newTeacherMobile() || newTeacherPin().length < 4" class="w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50">
+                    <i class="fa-solid fa-user-plus mr-2"></i>Add Teacher Profile
+                  </button>
+                  <input type="file" #teacherPhotoInput accept="image/*" (change)="onPhotoSelected($event)" class="hidden">
+                </div>
+                <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-3">
+                  <h2 class="text-2xl font-black tracking-tight text-slate-800">Registered Teachers ({{ teachers().length - 1 }})</h2>
+                  @for (teacher of teachers(); track teacher.id) {
+                    @if(teacher.id !== coordinator()?.id) {
+                      <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border">
+                        <div class="flex items-center gap-3">
+                          <div class="w-12 h-12 rounded-lg bg-white overflow-hidden border shadow-sm">
+                            @if (teacher.photo) {
+                              <img [src]="teacher.photo" class="w-full h-full object-cover">
+                            } @else {
+                              <div class="w-full h-full flex items-center justify-center text-slate-300"><i class="fa-solid fa-user-tie"></i></div>
+                            }
+                          </div>
+                          <div>
+                            <p class="font-bold text-slate-700">{{ teacher.name }}</p>
+                            <div class="flex items-center gap-4">
+                              <p class="text-xs text-slate-500">{{ teacher.className }} - {{ teacher.section }}</p>
+                              <p class="text-xs font-mono font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-md">PIN: {{ teacher.pin }}</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <button (click)="sendMeetingReminder(teacher)"
+                                  [disabled]="!isMeetingScheduled()"
+                                  title="Send Meeting Reminder"
+                                  class="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-purple-50 hover:text-purple-600 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-paper-plane"></i>
+                          </button>
+                          <button (click)="openEditModal(teacher)" class="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                          </button>
+                          <button (click)="removeTeacher(teacher.id)" class="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors">
+                            <i class="fa-solid fa-trash-can"></i>
+                          </button>
+                        </div>
+                      </div>
+                    }
+                  }
+                </div>
               </div>
-
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            }
+            @case ('meetings') {
+              <div class="bg-white p-8 rounded-[2.5rem] shadow-sm border space-y-6 animate-in fade-in">
                 <div>
-                  <label class="text-xs font-black uppercase text-slate-400 tracking-widest ml-1 mb-1 block">Meeting Date</label>
-                  <input type="date" [ngModel]="meetingDate()" (ngModelChange)="meetingDate.set($event)" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium">
+                    <h2 class="text-2xl font-black text-slate-800 tracking-tight">Schedule Staff Meeting</h2>
+                    <p class="text-slate-500 text-sm font-medium">Set a time and agenda, then send individual SMS reminders.</p>
                 </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="text-xs font-black uppercase text-slate-400 tracking-widest ml-1 mb-1 block">Meeting Date</label>
+                    <input type="date" [ngModel]="meetingDate()" (ngModelChange)="meetingDate.set($event)" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium">
+                  </div>
+                  <div>
+                    <label class="text-xs font-black uppercase text-slate-400 tracking-widest ml-1 mb-1 block">Meeting Time</label>
+                    <input type="time" [ngModel]="meetingTime()" (ngModelChange)="meetingTime.set($event)" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium">
+                  </div>
+                </div>
+
                 <div>
-                  <label class="text-xs font-black uppercase text-slate-400 tracking-widest ml-1 mb-1 block">Meeting Time</label>
-                  <input type="time" [ngModel]="meetingTime()" (ngModelChange)="meetingTime.set($event)" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium">
+                  <label class="text-xs font-black uppercase text-slate-400 tracking-widest ml-1 mb-1 block">Meeting Agenda / Message</label>
+                  <textarea [ngModel]="meetingAgenda()" (ngModelChange)="meetingAgenda.set($event)" placeholder="e.g., Discussion on upcoming annual day..." class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium h-24 resize-none"></textarea>
+                </div>
+
+                <div class="text-center p-6 bg-purple-50 rounded-2xl border border-purple-200 space-y-2">
+                  <div class="w-12 h-12 bg-purple-200 text-purple-600 rounded-full flex items-center justify-center mx-auto">
+                    <i class="fa-solid fa-arrow-right"></i>
+                  </div>
+                  <h3 class="font-bold text-purple-800">Next Step: Send Reminders</h3>
+                  <p class="text-sm text-purple-600 mt-1">
+                    After setting the details, go to the 
+                    <button (click)="view.set('teachers')" class="font-bold underline hover:text-purple-800">Manage Teachers</button> 
+                    tab to send SMS alerts.
+                  </p>
                 </div>
               </div>
+            }
+            @case ('reports') {
+              <div class="space-y-6 animate-in fade-in">
+                <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-4">
+                  <h2 class="text-2xl font-black tracking-tight text-slate-800">Export Staff Reports</h2>
+                  
+                  <div class="p-2 bg-slate-100 rounded-2xl border border-slate-200">
+                    <div class="flex bg-white p-1 rounded-xl shadow-sm w-full">
+                      <button (click)="reportExportFormat.set('pdf')" [class]="reportExportFormat() === 'pdf' ? 'flex-1 py-2 bg-indigo-600 text-white rounded-lg shadow-md font-bold text-xs' : 'flex-1 py-2 text-slate-500 font-medium text-xs'">
+                        <i class="fa-solid fa-file-pdf mr-2"></i>PDF
+                      </button>
+                      <button (click)="reportExportFormat.set('csv')" [class]="reportExportFormat() === 'csv' ? 'flex-1 py-2 bg-emerald-600 text-white rounded-lg shadow-md font-bold text-xs' : 'flex-1 py-2 text-slate-500 font-medium text-xs'">
+                        <i class="fa-solid fa-file-csv mr-2"></i>CSV
+                      </button>
+                      <button (click)="reportExportFormat.set('doc')" [class]="reportExportFormat() === 'doc' ? 'flex-1 py-2 bg-blue-600 text-white rounded-lg shadow-md font-bold text-xs' : 'flex-1 py-2 text-slate-500 font-medium text-xs'">
+                        <i class="fa-solid fa-file-word mr-2"></i>Word
+                      </button>
+                    </div>
+                  </div>
 
-              <div>
-                <label class="text-xs font-black uppercase text-slate-400 tracking-widest ml-1 mb-1 block">Meeting Agenda / Message</label>
-                <textarea [ngModel]="meetingAgenda()" (ngModelChange)="meetingAgenda.set($event)" placeholder="e.g., Discussion on upcoming annual day..." class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium h-24 resize-none"></textarea>
-              </div>
+                  <div class="border-t pt-4">
+                    <h3 class="font-bold text-slate-700 text-sm mb-2">Daily Report</h3>
+                    <div class="flex gap-2">
+                      <input type="date" [ngModel]="selectedDate()" (ngModelChange)="selectedDate.set($event)" class="flex-1 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                      <button (click)="exportDailyReport()" class="px-6 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-700 text-sm">Export</button>
+                    </div>
+                  </div>
 
-              <div class="text-center p-6 bg-purple-50 rounded-2xl border border-purple-200 space-y-2">
-                <div class="w-12 h-12 bg-purple-200 text-purple-600 rounded-full flex items-center justify-center mx-auto">
-                  <i class="fa-solid fa-arrow-right"></i>
+                  <div class="border-t pt-4 mt-4">
+                    <h3 class="font-bold text-slate-700 text-sm mb-2">Monthly Report</h3>
+                    <div class="flex gap-2">
+                      <input type="month" [ngModel]="monthlyMonth()" (ngModelChange)="monthlyMonth.set($event)" class="flex-1 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                      <button (click)="exportMonthlyReport()" class="px-6 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 text-sm">Export</button>
+                    </div>
+                  </div>
                 </div>
-                <h3 class="font-bold text-purple-800">Next Step: Send Reminders</h3>
-                <p class="text-sm text-purple-600 mt-1">
-                  After setting the details, go to the 
-                  <button (click)="view.set('teachers')" class="font-bold underline hover:text-purple-800">Manage Teachers</button> 
-                  tab to send SMS alerts.
-                </p>
               </div>
-            </div>
+            }
           }
-          @case ('reports') {
-            <div class="space-y-6 animate-in fade-in">
-              <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-4">
-                <h2 class="text-2xl font-black tracking-tight text-slate-800">Export Staff Reports</h2>
-                
-                <div class="p-2 bg-slate-100 rounded-2xl border border-slate-200">
-                  <div class="flex bg-white p-1 rounded-xl shadow-sm w-full">
-                    <button (click)="reportExportFormat.set('pdf')" [class]="reportExportFormat() === 'pdf' ? 'flex-1 py-2 bg-indigo-600 text-white rounded-lg shadow-md font-bold text-xs' : 'flex-1 py-2 text-slate-500 font-medium text-xs'">
-                      <i class="fa-solid fa-file-pdf mr-2"></i>PDF
-                    </button>
-                    <button (click)="reportExportFormat.set('csv')" [class]="reportExportFormat() === 'csv' ? 'flex-1 py-2 bg-emerald-600 text-white rounded-lg shadow-md font-bold text-xs' : 'flex-1 py-2 text-slate-500 font-medium text-xs'">
-                      <i class="fa-solid fa-file-csv mr-2"></i>CSV
-                    </button>
-                    <button (click)="reportExportFormat.set('doc')" [class]="reportExportFormat() === 'doc' ? 'flex-1 py-2 bg-blue-600 text-white rounded-lg shadow-md font-bold text-xs' : 'flex-1 py-2 text-slate-500 font-medium text-xs'">
-                      <i class="fa-solid fa-file-word mr-2"></i>Word
-                    </button>
-                  </div>
-                </div>
-
-                <div class="border-t pt-4">
-                  <h3 class="font-bold text-slate-700 text-sm mb-2">Daily Report</h3>
-                  <div class="flex gap-2">
-                    <input type="date" [ngModel]="selectedDate()" (ngModelChange)="selectedDate.set($event)" class="flex-1 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                    <button (click)="exportDailyReport()" class="px-6 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-700 text-sm">Export</button>
-                  </div>
-                </div>
-
-                <div class="border-t pt-4 mt-4">
-                  <h3 class="font-bold text-slate-700 text-sm mb-2">Monthly Report</h3>
-                  <div class="flex gap-2">
-                    <input type="month" [ngModel]="monthlyMonth()" (ngModelChange)="monthlyMonth.set($event)" class="flex-1 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                    <button (click)="exportMonthlyReport()" class="px-6 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 text-sm">Export</button>
-                  </div>
-                </div>
-              </div>
+        } @else {
+          <div class="text-center py-20 bg-white rounded-[3rem] border border-dashed border-red-200 animate-in fade-in">
+            <div class="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <i class="fa-solid fa-wifi-slash text-4xl text-red-300"></i>
             </div>
-          }
+            <h2 class="text-3xl font-black text-red-800 tracking-tight">Connection Required</h2>
+            <p class="text-red-500 mt-2 max-w-md mx-auto">
+              The Coordinator Portal requires an active internet connection to manage staff and school data. Please connect to the internet and try again.
+            </p>
+          </div>
         }
         @if (showToast()) {
         <div class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-8 py-4 rounded-3xl shadow-2xl flex items-center gap-4 z-50 animate-in fade-in slide-in-from-bottom-4">
@@ -301,7 +308,7 @@ import { CameraComponent } from './camera.component';
             </div>
             <div class="flex gap-3 mt-6">
               <button (click)="showEditModal.set(false)" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold">Cancel</button>
-              <button (click)="saveTeacherChanges()" [disabled]="editTeacherPin().length < 4" class="flex-[2] py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50">Save Changes</button>
+              <button (click)="saveTeacherChanges()" [disabled]="!editTeacherName() || !editTeacherMobile() || editTeacherPin().length < 4" class="flex-[2] py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50">Save Changes</button>
             </div>
           </div>
         </div>
@@ -458,10 +465,13 @@ export class CoordinatorDashboardComponent {
   }
 
   async addTeacher() {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(this.newTeacherEmail())) {
-        alert('Please enter a valid email address for the new teacher.');
-        return;
+    const email = this.newTeacherEmail().trim();
+    if (email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            alert('The provided email address is not valid. Please correct it or leave it empty.');
+            return;
+        }
     }
 
     if (this.newTeacherPin().length !== 4) {
@@ -532,11 +542,24 @@ export class CoordinatorDashboardComponent {
   saveTeacherChanges() {
     const teacher = this.selectedTeacherForEdit();
     if (!teacher) return;
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(this.editTeacherEmail())) {
-        alert('Please enter a valid email address.');
+    
+    if (!this.editTeacherName().trim() || !this.editTeacherMobile().trim()) {
+        alert('Teacher name and mobile number are required.');
         return;
+    }
+
+    const email = this.editTeacherEmail().trim();
+    if (email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            alert('The provided email address is not valid. Please correct it or leave it empty.');
+            return;
+        }
+        const otherTeachers = this.attendanceService.getTeachers().filter(t => t.id !== teacher.id);
+        if (otherTeachers.some(t => t.email.toLowerCase() === email.toLowerCase())) {
+            alert('This email address is already in use by another teacher.');
+            return;
+        }
     }
 
     if (this.editTeacherPin().length !== 4) {
