@@ -1,7 +1,7 @@
 import { Component, inject, signal, effect, computed, ViewChild, ElementRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AttendanceService, Student } from '../services/attendance.service';
+import { AttendanceService, Student, Teacher } from '../services/attendance.service';
 import { ReportsComponent } from './reports.component';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 
@@ -111,7 +111,11 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
               <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h2 class="text-2xl font-black text-slate-800 tracking-tight">Daily Roll Call</h2>
-                  <p class="text-slate-500 text-sm font-medium">Marking presence for today's session</p>
+                   <button (click)="showClassSwitcher.set(true)" class="mt-2 text-sm font-bold text-indigo-600 bg-indigo-50 px-4 py-2 rounded-lg hover:bg-indigo-100 transition-colors inline-flex items-center gap-2">
+                    <i class="fa-solid fa-people-roof"></i>
+                    Class: {{ activeClass()?.className }} - {{ activeClass()?.section }}
+                    <i class="fa-solid fa-chevron-down text-xs ml-1 opacity-60"></i>
+                  </button>
                 </div>
                 <div class="flex items-center bg-slate-50 px-4 py-3 rounded-2xl border border-slate-200">
                   <i class="fa-solid fa-calendar text-indigo-500 mr-3"></i>
@@ -120,7 +124,7 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
               </div>
 
               <div class="space-y-3">
-                @for (student of students(); track student.id) {
+                @for (student of displayedStudents(); track student.id) {
                   <div class="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
                     <div class="flex items-center gap-4">
                       <div class="w-14 h-14 rounded-2xl bg-indigo-50 overflow-hidden border-2 border-white shadow-sm">
@@ -169,7 +173,9 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
                 <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div>
                     <h2 class="text-2xl font-black text-slate-800 tracking-tight">Student Directory</h2>
-                    <p class="text-slate-500 text-sm font-medium">Total: {{ students().length }} enrolled</p>
+                    <p class="text-slate-500 text-sm font-medium">
+                      Class {{ activeClass()?.className }} - {{ activeClass()?.section }} | Total: {{ displayedStudents().length }} enrolled
+                    </p>
                   </div>
                   <button (click)="openNewAdmissionModal()" class="flex items-center gap-2 px-6 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">
                     <i class="fa-solid fa-user-plus"></i>
@@ -258,7 +264,9 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
               <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div>
                   <h2 class="text-2xl font-black text-slate-800 tracking-tight">Fee Management</h2>
-                  <p class="text-slate-500 text-sm font-medium">Tracking student payments and dues</p>
+                  <p class="text-slate-500 text-sm font-medium">
+                    Class {{ activeClass()?.className }} - {{ activeClass()?.section }} | Tracking payments and dues
+                  </p>
                 </div>
                  <button (click)="sendBulkFeeReminders()" [disabled]="studentsWithDuesCount() === 0" class="flex items-center gap-2 px-6 py-4 bg-green-600 text-white rounded-2xl font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-200 disabled:opacity-50">
                     <i class="fa-solid fa-comment-dollar"></i>
@@ -420,6 +428,85 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
           </div>
         </div>
       }
+
+      <!-- Class Switcher Modal -->
+      @if (showClassSwitcher()) {
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center p-4" (click)="showClassSwitcher.set(false)">
+          <div class="bg-white max-w-md w-full rounded-[2rem] p-6 shadow-2xl border animate-in zoom-in-95" (click)="$event.stopPropagation()">
+            <h3 class="text-xl font-bold text-slate-800 mb-4 text-center">Switch Class</h3>
+            <div class="max-h-[60vh] overflow-y-auto space-y-2 pr-2">
+              <!-- Teacher's primary class -->
+              <button (click)="handleClassSelection(teacher()!.className, teacher()!.section)"
+                class="w-full text-left p-4 rounded-xl flex items-center justify-between transition-colors"
+                [class]="activeClass()?.className === teacher()?.className && activeClass()?.section === teacher()?.section ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-50 hover:bg-indigo-100'">
+                <div>
+                  <p class="font-bold">Class {{ teacher()?.className }} - {{ teacher()?.section }}</p>
+                  <p class="text-xs font-medium" [class]="activeClass()?.className === teacher()?.className && activeClass()?.section === teacher()?.section ? 'text-indigo-200' : 'text-slate-400'">Your primary class</p>
+                </div>
+                @if (activeClass()?.className === teacher()?.className && activeClass()?.section === teacher()?.section) {
+                  <i class="fa-solid fa-check-circle text-white"></i>
+                } @else {
+                  <i class="fa-solid fa-arrow-right text-slate-400"></i>
+                }
+              </button>
+              
+              <hr class="my-3"/>
+              
+              <p class="text-sm font-bold text-slate-500 px-2">Other Classes</p>
+              @for(cls of allSchoolClasses(); track cls.className + cls.section) {
+                @if(cls.className !== teacher()?.className || cls.section !== teacher()?.section) {
+                  <button (click)="handleClassSelection(cls.className, cls.section)"
+                    class="w-full text-left p-4 rounded-xl flex items-center justify-between transition-colors"
+                    [class]="activeClass()?.className === cls.className && activeClass()?.section === cls.section ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-50 hover:bg-indigo-100'">
+                    <div>
+                      <p class="font-bold">Class {{ cls.className }} - {{ cls.section }}</p>
+                    </div>
+                     @if (activeClass()?.className === cls.className && activeClass()?.section === cls.section) {
+                      <i class="fa-solid fa-check-circle text-white"></i>
+                    } @else {
+                      <i class="fa-solid fa-arrow-right text-slate-400"></i>
+                    }
+                  </button>
+                }
+              }
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- PIN Prompt for Class Switch -->
+      @if (showPinPrompt()) {
+        <div class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" (click)="showPinPrompt.set(false)">
+          <div class="bg-white max-w-sm w-full rounded-[2rem] p-6 shadow-2xl border animate-in zoom-in-95" (click)="$event.stopPropagation()">
+            <div class="text-center">
+                <h2 class="text-xl font-bold text-slate-800">Enter PIN for Class</h2>
+                <p class="text-slate-500 mb-4 font-semibold">{{ targetClassForSwitch()?.className }} - {{ targetClassForSwitch()?.section }}</p>
+
+                <div class="flex justify-center gap-3 mb-4">
+                  @for (i of [0, 1, 2, 3]; track i) {
+                    <div class="w-12 h-14 rounded-lg border-2 flex items-center justify-center text-3xl font-bold"
+                      [class]="pinForSwitch().length > i ? 'border-indigo-500 text-indigo-600 bg-indigo-50' : 'border-slate-300 bg-slate-100'">
+                      {{ pinForSwitch().length > i ? '•' : '' }}
+                    </div>
+                  }
+                </div>
+
+                @if(pinErrorMessage()) {
+                  <p class="text-red-600 bg-red-100 px-4 py-2 rounded-lg font-bold mb-4 animate-in fade-in">{{ pinErrorMessage() }}</p>
+                }
+                
+                <div class="grid grid-cols-3 gap-3">
+                  @for (num of [1, 2, 3, 4, 5, 6, 7, 8, 9]; track num) {
+                    <button (click)="appendPinForSwitch(num.toString())" class="h-14 rounded-xl bg-slate-100 font-bold text-xl text-slate-700 hover:bg-slate-200">{{ num }}</button>
+                  }
+                  <button (click)="clearPinForSwitch()" class="h-14 rounded-xl bg-slate-100 font-bold text-slate-500 text-sm">C</button>
+                  <button (click)="appendPinForSwitch('0')" class="h-14 rounded-xl bg-slate-100 font-bold text-xl text-slate-700 hover:bg-slate-200">0</button>
+                  <button (click)="backspacePinForSwitch()" class="h-14 rounded-xl bg-slate-100 font-bold text-slate-500"><i class="fa-solid fa-delete-left"></i></button>
+                </div>
+            </div>
+          </div>
+        </div>
+      }
     </div>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -430,8 +517,19 @@ export class DashboardComponent {
   
   view = signal<'attendance' | 'students' | 'fees' | 'reports' | 'profile'>('attendance');
   teacher = this.attendanceService.activeTeacher;
-  students = this.attendanceService.activeStudents;
   
+  // Class Switching State
+  showClassSwitcher = signal(false);
+  activeClass = signal<{ className: string; section: string } | null>(null);
+  allSchoolClasses = this.attendanceService.allSchoolClasses;
+  
+  // PIN Prompt State for Class Switch
+  showPinPrompt = signal(false);
+  targetClassForSwitch = signal<{ className: string, section: string } | null>(null);
+  targetTeacherForSwitch = signal<Teacher | null>(null);
+  pinForSwitch = signal('');
+  pinErrorMessage = signal('');
+
   // Search & Filter State
   searchQuery = signal('');
   sortKey = signal<'name' | 'roll'>('name');
@@ -452,9 +550,18 @@ export class DashboardComponent {
   paymentAmount = signal<number | null>(null);
 
   @ViewChild('studentPhotoInput') studentPhotoInput!: ElementRef<HTMLInputElement>;
+  
+  displayedStudents = computed(() => {
+    const ac = this.activeClass();
+    if (!ac) return [];
+    
+    return this.attendanceService.allSchoolStudents().filter(s => 
+      s.className === ac.className && s.section === ac.section
+    );
+  });
 
   studentsWithFeeStatus = computed(() => {
-    return this.students().map(s => {
+    return this.displayedStudents().map(s => {
         const feePaid = s.feeHistory.reduce((acc, p) => acc + p.amount, 0);
         const feeDue = s.totalFee - feePaid;
         let status: 'Paid' | 'Partial' | 'Unpaid' | 'Overpaid' = 'Unpaid';
@@ -506,17 +613,86 @@ export class DashboardComponent {
 
   constructor() {
     effect(() => {
+      const teacher = this.teacher();
+      if (teacher && !this.activeClass()) {
+        this.activeClass.set({ className: teacher.className, section: teacher.section });
+      }
+    });
+    
+    effect(() => {
       const date = this.selectedDate();
-      const existing = this.attendanceService.getAttendanceForDate(date);
+      const studentsForDate = this.displayedStudents();
+      const existingRecordsForDate = this.attendanceService.getAttendanceForDate(date);
       const newMap = new Map<string, 'Present' | 'Absent'>();
       
-      this.students().forEach(s => {
-        const record = existing.find(r => r.studentId === s.id);
+      studentsForDate.forEach(s => {
+        const record = existingRecordsForDate.find(r => r.studentId === s.id);
         newMap.set(s.id, record ? record.status : 'Present');
       });
       this.dailyRecords.set(newMap);
     });
   }
+
+  // --- Class Switching Logic ---
+  handleClassSelection(className: string, section: string) {
+    const loggedInTeacher = this.teacher();
+    if (loggedInTeacher?.className === className && loggedInTeacher?.section === section) {
+      this.performClassSwitch(className, section);
+      return;
+    }
+
+    const targetTeacher = this.attendanceService.getTeacherForClass(className, section);
+    if (targetTeacher) {
+      this.targetClassForSwitch.set({ className, section });
+      this.targetTeacherForSwitch.set(targetTeacher);
+      this.pinForSwitch.set('');
+      this.pinErrorMessage.set('');
+      this.showPinPrompt.set(true);
+    } else {
+      // If no teacher is assigned, allow switching without PIN
+      this.performClassSwitch(className, section);
+    }
+  }
+  
+  performClassSwitch(className: string, section: string) {
+    this.activeClass.set({ className, section });
+    this.showClassSwitcher.set(false);
+    this.showPinPrompt.set(false);
+    this.showToastWithMessage(`Switched to Class ${className} - ${section}`);
+  }
+
+  // --- PIN Prompt for Class Switch Methods ---
+  appendPinForSwitch(num: string) {
+    if (this.pinForSwitch().length < 4) {
+      this.pinForSwitch.update(p => p + num);
+      if (this.pinForSwitch().length === 4) {
+        this.submitPinForSwitch();
+      }
+    }
+  }
+
+  clearPinForSwitch() { this.pinForSwitch.set(''); }
+  backspacePinForSwitch() { this.pinForSwitch.update(p => p.slice(0, -1)); }
+
+  submitPinForSwitch() {
+    const targetTeacher = this.targetTeacherForSwitch();
+    const targetClass = this.targetClassForSwitch();
+    if (!targetTeacher || !targetClass) return;
+
+    const isValid = this.attendanceService.verifyPin(targetTeacher.id, this.pinForSwitch());
+
+    if (isValid) {
+      this.performClassSwitch(targetClass.className, targetClass.section);
+    } else {
+      this.pinErrorMessage.set('Incorrect PIN. Please try again.');
+      if (navigator.vibrate) navigator.vibrate(200);
+      setTimeout(() => {
+        this.pinForSwitch.set('');
+        this.pinErrorMessage.set('');
+      }, 1500);
+    }
+  }
+
 
   showToastWithMessage(message: string) {
     this.toastMessage.set(message);
@@ -549,7 +725,7 @@ export class DashboardComponent {
   // SMS Alert Logic for Absentees
   private buildSmsUrl(student: any): string {
     const dateStr = new Date(this.selectedDate()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    const message = `ABSENCE ALERT\n\nDear Parent,\nThis is to inform you that your child ${student.name} (Roll: ${student.rollNumber}) was ABSENT from class today (${dateStr}).\n\nRegards,\n${this.teacher()?.name}\n${this.teacher()?.className} Section ${this.teacher()?.section}`;
+    const message = `ABSENCE ALERT\n\nDear Parent,\nThis is to inform you that your child ${student.name} (Roll: ${student.rollNumber}) was ABSENT from class today (${dateStr}).\n\nRegards,\n${this.teacher()?.name}\n${this.teacher()?.schoolName}`;
     
     const cleanNumber = student.mobileNumber.replace(/\D/g, '');
     return `sms:${cleanNumber}?body=${encodeURIComponent(message)}`;
@@ -568,7 +744,7 @@ export class DashboardComponent {
     const absentees: any[] = [];
     this.dailyRecords().forEach((status, studentId) => {
       if (status === 'Absent') {
-        const student = this.students().find(s => s.id === studentId);
+        const student = this.displayedStudents().find(s => s.id === studentId);
         if (student) absentees.push(student);
       }
     });
@@ -613,7 +789,9 @@ export class DashboardComponent {
     this.studentForm.set({
       name: '', roll: '', mobile: '', photo: null,
       fatherName: '',
-      totalFee: null, className: this.teacher()?.className || '', section: this.teacher()?.section || ''
+      totalFee: null, 
+      className: this.activeClass()?.className || this.teacher()?.className || '',
+      section: this.activeClass()?.section || this.teacher()?.section || ''
     });
   }
 

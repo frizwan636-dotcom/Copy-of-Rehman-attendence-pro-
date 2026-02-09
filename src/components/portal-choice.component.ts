@@ -125,6 +125,39 @@ import { AttendanceService, Teacher } from '../services/attendance.service';
             </div>
          </div>
       }
+
+      @if (view() === 'coordinator_setup') {
+        <div class="w-full max-w-lg p-8 bg-white rounded-[2rem] shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
+          <button (click)="backToChoice()" class="absolute top-6 left-6 flex items-center gap-2 text-slate-500 font-bold hover:text-indigo-600">
+            <i class="fa-solid fa-arrow-left"></i> Back
+          </button>
+          <div class="text-center mb-6">
+            <h2 class="text-2xl font-black text-slate-800 tracking-tight">Coordinator Account Setup</h2>
+            <p class="text-slate-500 text-sm mt-1">Welcome! As the first user, let's set up your school and administrator account.</p>
+          </div>
+
+          <div class="space-y-4">
+            <input type="text" [ngModel]="setupSchoolName()" (ngModelChange)="setupSchoolName.set($event)" placeholder="School Name" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium focus:ring-2 focus:ring-green-400">
+            <input type="text" [ngModel]="setupCoordinatorName()" (ngModelChange)="setupCoordinatorName.set($event)" placeholder="Your Full Name" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium focus:ring-2 focus:ring-green-400">
+            <input type="tel" [ngModel]="setupMobile()" (ngModelChange)="setupMobile.set($event)" placeholder="Your Mobile Number" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium focus:ring-2 focus:ring-green-400">
+            <div class="grid grid-cols-2 gap-4">
+              <input type="text" [ngModel]="setupClassName()" (ngModelChange)="setupClassName.set($event)" placeholder="Your Assigned Class (e.g., 10)" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium focus:ring-2 focus:ring-green-400">
+              <input type="text" [ngModel]="setupSection()" (ngModelChange)="setupSection.set($event)" placeholder="Section (e.g., A)" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium focus:ring-2 focus:ring-green-400">
+            </div>
+             <input type="password" [ngModel]="setupPin()" (ngModelChange)="setupPin.set($event)" placeholder="Create 4-Digit Login PIN" maxlength="4" inputmode="numeric" pattern="[0-9]*" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium focus:ring-2 focus:ring-green-400">
+            
+             @if(errorMessage()) {
+              <p class="text-red-600 text-center font-bold text-sm">{{ errorMessage() }}</p>
+            }
+            
+            <button (click)="submitCoordinatorSetup()" [disabled]="!setupSchoolName() || !setupCoordinatorName() || !setupMobile() || setupPin().length !== 4 || !setupClassName() || !setupSection()"
+                    class="w-full py-5 bg-green-600 text-white rounded-xl font-black hover:bg-green-700 disabled:opacity-50 transition-all shadow-lg shadow-green-200 flex items-center justify-center gap-2">
+              <i class="fa-solid fa-rocket"></i>
+              Complete Setup
+            </button>
+          </div>
+        </div>
+      }
     </div>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -132,18 +165,26 @@ import { AttendanceService, Teacher } from '../services/attendance.service';
 export class PortalChoiceComponent {
   attendanceService = inject(AttendanceService);
   
-  view = signal<'choice' | 'pin' | 'teacher_select'>('choice');
+  view = signal<'choice' | 'pin' | 'teacher_select' | 'coordinator_setup'>('choice');
   selectedRole = signal<'teacher' | 'coordinator' | null>(null);
   selectedUser = signal<Teacher | null>(null);
 
   pin = signal('');
   errorMessage = signal('');
   
+  // Signals for the coordinator setup form
+  setupSchoolName = signal('');
+  setupCoordinatorName = signal('');
+  setupMobile = signal('');
+  setupPin = signal('');
+  setupClassName = signal('');
+  setupSection = signal('');
+  
   teachers = this.attendanceService.teachersOnly;
 
   onCoordinatorClick() {
     if (!this.attendanceService.isOnline()) {
-      alert('Coordinator portal requires an internet connection to log in.');
+      alert('Coordinator portal requires an internet connection.');
       return;
     }
     const coordinator = this.attendanceService.coordinator();
@@ -152,9 +193,8 @@ export class PortalChoiceComponent {
       this.selectedUser.set(coordinator);
       this.view.set('pin');
     } else {
-      // In a real app, this might navigate to a setup screen.
-      // For now, we assume a coordinator always exists if this button is shown.
-      alert("Coordinator account not found. Please set up the application first.");
+      // If no coordinator is found, switch to the setup view
+      this.view.set('coordinator_setup');
     }
   }
 
@@ -171,6 +211,7 @@ export class PortalChoiceComponent {
   backToChoice() {
     this.view.set('choice');
     this.resetPinEntry();
+    this.resetSetupForm();
   }
   
   resetPinEntry() {
@@ -178,6 +219,42 @@ export class PortalChoiceComponent {
       this.errorMessage.set('');
       this.selectedRole.set(null);
       this.selectedUser.set(null);
+  }
+
+  resetSetupForm() {
+    this.setupSchoolName.set('');
+    this.setupCoordinatorName.set('');
+    this.setupMobile.set('');
+    this.setupPin.set('');
+    this.setupClassName.set('');
+    this.setupSection.set('');
+    this.errorMessage.set('');
+  }
+
+  async submitCoordinatorSetup() {
+    if (!this.setupSchoolName().trim() || 
+        !this.setupCoordinatorName().trim() || 
+        !this.setupMobile().trim() || 
+        !this.setupClassName().trim() || 
+        !this.setupSection().trim() || 
+        this.setupPin().length !== 4) {
+      this.errorMessage.set('Please fill all fields. PIN must be 4 digits.');
+      return;
+    }
+    try {
+      this.errorMessage.set('');
+      await this.attendanceService.createInitialCoordinator({
+        schoolName: this.setupSchoolName().trim(),
+        name: this.setupCoordinatorName().trim(),
+        mobile: this.setupMobile().trim(),
+        pin: this.setupPin(),
+        className: this.setupClassName().trim(),
+        section: this.setupSection().trim()
+      });
+      // The service automatically logs in the new user, so the app's main view will switch.
+    } catch (e: any) {
+      this.errorMessage.set(e.message);
+    }
   }
 
   appendPin(num: string) {

@@ -90,6 +90,33 @@ export class AttendanceService {
     return this.students().filter(s => s.teacherId === teacherId);
   });
 
+  allSchoolStudents = computed(() => this.students());
+
+  allSchoolClasses = computed(() => {
+    const classSet = new Set<string>();
+    const classes: { className: string, section: string }[] = [];
+
+    const addClass = (className: string | undefined, section: string | undefined) => {
+        if (className && section) {
+            const key = `${className}|${section}`;
+            if (!classSet.has(key)) {
+                classSet.add(key);
+                classes.push({ className, section });
+            }
+        }
+    };
+
+    this.teachers().forEach(t => addClass(t.className, t.section));
+    this.students().forEach(s => addClass(s.className, s.section));
+
+    return classes.sort((a, b) => {
+        const classCompare = a.className.localeCompare(b.className);
+        if (classCompare !== 0) return classCompare;
+        return a.section.localeCompare(b.section);
+    });
+  });
+
+
   teacherClasses = computed(() => {
     const teacher = this.activeTeacher();
     if (!teacher) return [];
@@ -238,412 +265,237 @@ export class AttendanceService {
       rollNumber: s.roll, mobileNumber: s.mobile, photo: s.photo,
       totalFee: s.totalFee || 0,
       feeHistory: [],
-      className: s.className,
-      section: s.section
+      className: s.className || this.activeTeacher()?.className,
+      section: s.section || this.activeTeacher()?.section
     }));
     this.students.update(list => [...list, ...studentsToAdd]);
     this.persistState(this.currentUser()?.id || null);
   }
-  
+
   updateStudentDetails(studentId: string, details: Partial<Omit<Student, 'id' | 'teacherId' | 'feeHistory'>>) {
+    this.students.update(list => list.map(s => 
+      s.id === studentId ? { ...s, ...details } : s
+    ));
+    this.persistState(this.currentUser()?.id || null);
+  }
+
+  getAttendanceForDate(date: string): AttendanceRecord[] {
+    return this.attendance().filter(r => r.date === date);
+  }
+
+  saveAttendance(date: string, records: { studentId: string, status: 'Present' | 'Absent' }[]) {
+    const teacherId = this.activeTeacher()?.id;
+    if (!teacherId) return;
+
+    const lastUpdated = Date.now();
+    const updatedRecords = records.map(r => ({ ...r, date, teacherId, lastUpdated }));
+
+    this.attendance.update(existing => {
+      const studentIdsToUpdate = new Set(records.map(r => r.studentId));
+      const filtered = existing.filter(r => !(r.date === date && studentIdsToUpdate.has(r.studentId)));
+      return [...filtered, ...updatedRecords];
+    });
+
+    this.persistState(this.currentUser()?.id || null);
+  }
+
+  recordFeePayment(studentId: string, amount: number) {
     this.students.update(list => list.map(s => {
       if (s.id === studentId) {
-        return { ...s, ...details };
+        const newHistory: FeePayment = { amount, date: new Date().toISOString().split('T')[0] };
+        return { ...s, feeHistory: [...s.feeHistory, newHistory] };
       }
       return s;
     }));
     this.persistState(this.currentUser()?.id || null);
   }
-
-  recordFeePayment(studentId: string, amount: number) {
-    const payment: FeePayment = {
-        amount: amount,
-        date: new Date().toISOString().split('T')[0]
-    };
-    this.students.update(list => list.map(s => {
-        if (s.id === studentId) {
-            return {
-                ...s,
-                feeHistory: [...s.feeHistory, payment]
-            };
-        }
-        return s;
-    }));
-    this.persistState(this.currentUser()?.id || null);
-  }
-
-  saveAttendance(date: string, records: { studentId: string, status: 'Present' | 'Absent' }[]) {
-    const teacherId = this.activeTeacher()!.id;
-    this.attendance.update(list => list.filter(r => !(r.date === date && r.teacherId === teacherId)));
-    
-    const newRecords: AttendanceRecord[] = records.map(r => ({
-      date, teacherId, studentId: r.studentId, status: r.status, lastUpdated: Date.now()
-    }));
-    this.attendance.update(list => [...list, ...newRecords]);
-    this.persistState(this.currentUser()?.id || null);
-  }
-
-  getAttendanceForDate(date: string) {
-    const teacherId = this.activeTeacher()?.id;
-    return this.attendance().filter(r => r.date === date && r.teacherId === teacherId);
-  }
-
-  getAttendanceForRange(startDate: string, endDate: string, filters?: { className?: string, section?: string }) {
-    const teacher = this.activeTeacher();
-    if (!teacher) return [];
-
-    const studentIdsToInclude = new Set(
-      this.activeStudents()
-        .filter(s => {
-          if (!filters || (!filters.className && !filters.section)) return true;
-          const sClass = s.className || teacher.className;
-          const sSection = s.section || teacher.section;
-          const classMatch = !filters.className || sClass === filters.className;
-          const sectionMatch = !filters.section || sSection === filters.section;
-          return classMatch && sectionMatch;
-        })
-        .map(s => s.id)
-    );
-    
-    const start = new Date(startDate);
-    start.setUTCHours(0, 0, 0, 0);
-    const end = new Date(endDate);
-    end.setUTCHours(23, 59, 59, 999);
-
-    return this.attendance().filter(r => {
-      if (r.teacherId !== teacher.id) return false;
-      if (!studentIdsToInclude.has(r.studentId)) return false;
-      const recordDate = new Date(r.date);
-      return recordDate >= start && recordDate <= end;
-    });
-  }
-
-  async generateMonthlyAnalysis(monthName: string, reportData: any[]): Promise<string> {
-    if (!reportData || reportData.length === 0) {
-      return "No attendance data available for this month to analyze.";
-    }
-
-    const simplifiedData = reportData.map(d => ({ name: d.name, present: d.present, absent: d.absent, percentage: d.percentage }));
-    const overallPresent = simplifiedData.reduce((acc, d) => acc + d.present, 0);
-    const overallAbsent = simplifiedData.reduce((acc, d) => acc + d.absent, 0);
-    const totalRecords = overallPresent + overallAbsent;
-    const classPercentage = totalRecords > 0 ? ((overallPresent / totalRecords) * 100).toFixed(1) : "0.0";
-
-    const prompt = `
-      You are an assistant for a school teacher. Analyze the student attendance data for the month of ${monthName}.
-      The class's overall attendance percentage was ${classPercentage}%. The total number of absences recorded was ${overallAbsent}.
-      
-      Based on the data provided, write a short, professional summary (2-3 sentences) for the report.
-      Your summary MUST include:
-      1. A comment on the overall attendance.
-      2. The name of the student with the MOST absences (lowest percentage).
-      3. The name of the student with the FEWEST absences (highest percentage).
-      
-      Do not use any markdown formatting (like asterisks or hashtags).
-      
-      Example analysis: "Overall attendance for the month was strong. Attention may be required for Jane Smith, who had the most absences. John Doe demonstrated excellent attendance with the fewest absences."
-      
-      Here is the student data:
-      ${JSON.stringify(simplifiedData)}
-    `;
-
-    try {
-        const response = await this.ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-        });
-        return response.text.trim();
-    } catch (e) {
-        console.error("AI Analysis generation failed:", e);
-        return "Could not generate an AI-powered analysis for this period.";
-    }
-  }
   
-  getMonthlyBreakdownForRange(startDate: string, endDate: string, filters?: { className?: string, section?: string }) {
-    const teacher = this.activeTeacher();
-    if (!teacher) return [];
+  getDailyReportData(date: string) {
+    const students = this.activeStudents();
+    const records = this.getAttendanceForDate(date);
     
-    const allRecordsInRange = this.getAttendanceForRange(startDate, endDate, filters);
-    
-    let students = this.activeStudents();
-    if (filters && (filters.className || filters.section)) {
-        students = students.filter(s => {
-            const sClass = s.className || teacher.className;
-            const sSection = s.section || teacher.section;
-            const classMatch = !filters.className || sClass === filters.className;
-            const sectionMatch = !filters.section || sSection === filters.section;
-            return classMatch && sectionMatch;
-        });
-    }
-
-    const monthlyBreakdown: { month: string, monthName: string, records: any[] }[] = [];
-    
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    end.setUTCHours(23, 59, 59, 999);
-    
-    let current = new Date(start.getUTCFullYear(), start.getUTCMonth(), 1);
-    
-    while (current <= end) {
-        const year = current.getUTCFullYear();
-        const month = current.getUTCMonth();
-        
-        const yearMonth = `${year}-${(month + 1).toString().padStart(2, '0')}`;
-        const monthName = current.toLocaleString('default', { month: 'long', year: 'numeric' });
-        
-        const monthStart = new Date(Date.UTC(year, month, 1));
-        const monthEnd = new Date(Date.UTC(year, month + 1, 0));
-        monthEnd.setUTCHours(23, 59, 59, 999);
-
-        const monthRecords = allRecordsInRange.filter(r => {
-            const recordDate = new Date(r.date);
-            return recordDate >= monthStart && recordDate <= monthEnd;
-        });
-
-        if (monthRecords.length > 0 || students.length > 0) {
-            const studentStats = students.map(s => {
-                const studentRecords = monthRecords.filter(r => r.studentId === s.id);
-                const present = studentRecords.filter(r => r.status === 'Present').length;
-                const absent = studentRecords.filter(r => r.status === 'Absent').length;
-                const total = present + absent;
-                const percentage = total > 0 ? ((present / total) * 100).toFixed(1) : '0.0';
-                return { name: s.name, roll: s.rollNumber, fatherName: s.fatherName, mobile: s.mobileNumber, present, absent, percentage };
-            });
-            monthlyBreakdown.push({ month: yearMonth, monthName, records: studentStats });
-        }
-        
-        current.setUTCMonth(current.getUTCMonth() + 1);
-    }
-    
-    return monthlyBreakdown;
+    return students.map(s => {
+      const record = records.find(r => r.studentId === s.id);
+      const studentRecords = this.attendance().filter(r => r.studentId === s.id);
+      const presentCount = studentRecords.filter(r => r.status === 'Present').length;
+      const totalCount = studentRecords.length;
+      const percentage = totalCount > 0 ? ((presentCount / totalCount) * 100).toFixed(0) : '0';
+      
+      return {
+        roll: s.rollNumber,
+        name: s.name,
+        fatherName: s.fatherName,
+        mobile: s.mobileNumber,
+        status: record ? record.status : 'N/A',
+        percentage
+      };
+    }).sort((a,b) => a.roll.localeCompare(b.roll, undefined, { numeric: true }));
   }
 
-  getMonthlyReport(yearMonth: string) {
-    const [year, month] = yearMonth.split('-').map(Number);
-    const start = new Date(Date.UTC(year, month - 1, 1));
-    const end = new Date(Date.UTC(year, month, 0));
-    end.setUTCHours(23, 59, 59, 999);
-    
-    const records = this.attendance().filter(r => {
-        if (r.teacherId !== this.activeTeacher()?.id) return false;
-        const recordDate = new Date(r.date);
-        return recordDate >= start && recordDate <= end;
-    });
-
+  getMonthlyReport(month: string) { // month is 'YYYY-MM'
     const students = this.activeStudents();
+    const records = this.attendance().filter(r => r.date.startsWith(month));
+    
     return students.map(s => {
       const studentRecords = records.filter(r => r.studentId === s.id);
       const present = studentRecords.filter(r => r.status === 'Present').length;
       const absent = studentRecords.filter(r => r.status === 'Absent').length;
       const total = present + absent;
-      const percentage = total > 0 ? ((present / total) * 100).toFixed(1) : '0.0';
-      return { name: s.name, roll: s.rollNumber, fatherName: s.fatherName, mobile: s.mobileNumber, present, absent, percentage };
-    });
+      const percentage = total > 0 ? ((present / total) * 100).toFixed(0) : '0';
+      
+      return {
+        roll: s.rollNumber, name: s.name, fatherName: s.fatherName, present, absent, percentage
+      };
+    }).sort((a,b) => a.roll.localeCompare(b.roll, undefined, { numeric: true }));
   }
 
-  getDailyReportData(date: string) {
-    const students = this.activeStudents();
-    const recordsForDate = this.getAttendanceForDate(date);
+  getMonthlyBreakdownForRange(startDate: string, endDate: string, filters?: { className?: string, section?: string }) {
+    let studentsInRange = this.students();
+    if(filters?.className) {
+      studentsInRange = studentsInRange.filter(s => s.className === filters.className);
+    }
+    if(filters?.section) {
+      studentsInRange = studentsInRange.filter(s => s.section === filters.section);
+    }
     
-    const [year, monthStr] = date.split('-');
-    const monthStart = new Date(Date.UTC(parseInt(year), parseInt(monthStr) - 1, 1));
-    const reportDate = new Date(date);
-    reportDate.setUTCHours(23, 59, 59, 999);
-
-    const allRecordsThisMonth = this.attendance().filter(r => {
-        if (r.teacherId !== this.activeTeacher()?.id) return false;
-        const recordDate = new Date(r.date);
-        return recordDate >= monthStart && recordDate <= reportDate;
+    const records = this.attendance().filter(r => r.date >= startDate && r.date <= endDate);
+    const monthlyData = new Map<string, any[]>();
+    
+    records.forEach(r => {
+      const monthKey = r.date.slice(0, 7); // YYYY-MM
+      if(!monthlyData.has(monthKey)) {
+        monthlyData.set(monthKey, []);
+      }
     });
 
-    return students.map(s => {
-        const statusRecord = recordsForDate.find(r => r.studentId === s.id);
-        const status = statusRecord ? statusRecord.status : 'N/A';
-        
-        const studentTotalRecords = allRecordsThisMonth.filter(r => r.studentId === s.id);
-        const present = studentTotalRecords.filter(r => r.status === 'Present').length;
-        const total = studentTotalRecords.length;
-        const percentage = total > 0 ? ((present / total) * 100).toFixed(1) : '0.0';
-
-        return {
-            roll: s.rollNumber,
-            name: s.name,
-            fatherName: s.fatherName,
-            mobile: s.mobileNumber,
-            status: status,
-            percentage: percentage
-        };
+    const breakdown: { monthName: string, records: any[] }[] = [];
+    
+    monthlyData.forEach((_, monthKey) => {
+      const [year, month] = monthKey.split('-');
+      const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+      
+      const monthRecords = records.filter(r => r.date.startsWith(monthKey));
+      
+      const studentStats = studentsInRange.map(s => {
+        const studentMonthRecords = monthRecords.filter(rec => rec.studentId === s.id);
+        const present = studentMonthRecords.filter(r => r.status === 'Present').length;
+        const absent = studentMonthRecords.filter(r => r.status === 'Absent').length;
+        const total = present + absent;
+        const percentage = total > 0 ? ((present / total) * 100).toFixed(0) : '0';
+        return { roll: s.rollNumber, name: s.name, fatherName: s.fatherName, present, absent, percentage };
+      });
+      
+      breakdown.push({ monthName, records: studentStats });
     });
+    
+    return breakdown.sort((a,b) => a.monthName.localeCompare(b.monthName));
   }
 
-  // --- Coordinator Methods ---
+  async generateMonthlyAnalysis(month: string, data: any[]): Promise<string> {
+    const prompt = `Analyze this monthly student attendance data for ${month}. Provide a 2-3 sentence summary highlighting overall attendance percentage, identifying top performers (over 95%), and students needing attention (under 75%). The data is: ${JSON.stringify(data)}. Be encouraging and professional.`;
+    const response = await this.ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text;
+  }
 
-  getTeachers(): Teacher[] {
+  getTeachers() {
     return this.teachers();
+  }
+
+  getTeacherForClass(className: string, section: string): Teacher | undefined {
+    return this.teachers().find(t => t.role === 'teacher' && t.className === className && t.section === section);
+  }
+
+  async addTeacher(details: { name: string; email: string; pin: string; photo?: string; mobile: string; className: string; section: string; }) {
+    const existing = this.teachers().find(t => t.email.toLowerCase() === details.email.toLowerCase());
+    if (existing) {
+      throw new Error("A teacher with this email already exists.");
+    }
+    const id = 'teacher_' + Math.random().toString(36).substr(2, 5);
+    const teacher: Teacher = {
+      id,
+      name: details.name,
+      email: details.email,
+      pin: details.pin,
+      role: 'teacher',
+      photo: details.photo,
+      className: details.className,
+      section: details.section,
+      setupComplete: !!(details.className && details.section),
+      mobileNumber: details.mobile
+    };
+    this.teachers.update(list => [...list, teacher]);
+    await this.persistState(this.currentUser()?.id || null);
+  }
+
+  removeTeacher(teacherId: string) {
+    this.teachers.update(list => list.filter(t => t.id !== teacherId));
+    this.persistState(this.currentUser()?.id || null);
+  }
+
+  updateTeacherDetails(teacherId: string, details: Partial<Omit<Teacher, 'id' | 'role'>>) {
+    const email = details.email?.trim().toLowerCase();
+    if(email) {
+      const existing = this.teachers().find(t => t.email.toLowerCase() === email && t.id !== teacherId);
+      if(existing) {
+        throw new Error("This email is already used by another teacher.");
+      }
+    }
+    
+    this.teachers.update(list => list.map(t =>
+      t.id === teacherId ? { ...t, ...details } : t
+    ));
+    this.persistState(this.currentUser()?.id || null);
   }
 
   getTeacherAttendanceForDate(date: string): TeacherAttendanceRecord[] {
     return this.teacherAttendance().filter(r => r.date === date);
   }
 
-  getTeacherDailyReportData(date: string) {
-    const teachers = this.getTeachers().filter(t => t.role === 'teacher');
-    const recordsForDate = this.getTeacherAttendanceForDate(date);
-    
-    const [year, monthStr] = date.split('-');
-    const monthStart = new Date(Date.UTC(parseInt(year), parseInt(monthStr) - 1, 1));
-    const reportDate = new Date(date);
-    reportDate.setUTCHours(23, 59, 59, 999);
-
-    const allRecordsThisMonth = this.teacherAttendance().filter(r => {
-        const recordDate = new Date(r.date);
-        return recordDate >= monthStart && recordDate <= reportDate;
-    });
-
-    return teachers.map(t => {
-        const statusRecord = recordsForDate.find(r => r.teacherId === t.id);
-        const status = statusRecord ? statusRecord.status : 'N/A';
-        
-        const teacherTotalRecords = allRecordsThisMonth.filter(r => r.teacherId === t.id);
-        const present = teacherTotalRecords.filter(r => r.status === 'Present').length;
-        const total = teacherTotalRecords.length;
-        const percentage = total > 0 ? ((present / total) * 100).toFixed(1) : '0.0';
-
-        return {
-            ...t,
-            status,
-            percentage
-        };
-    });
-  }
-
-  async addTeacher(teacherData: { name: string, email: string, pin: string, photo?: string, mobile?: string, className?: string, section?: string }): Promise<void> {
-    if (teacherData.email && this.teachers().some(t => t.email.toLowerCase() === teacherData.email.toLowerCase())) {
-        throw new Error('Email already exists');
-    }
-    const id = teacherData.name.toLowerCase().replace(/\s/g, '_') + '_' + Math.random().toString(36).substr(2, 5);
-    const newTeacher: Teacher = {
-        id,
-        name: teacherData.name,
-        email: teacherData.email,
-        pin: teacherData.pin,
-        role: 'teacher',
-        schoolName: this.activeCoordinator()?.schoolName || '',
-        className: teacherData.className || '',
-        section: teacherData.section || '',
-        setupComplete: !!(teacherData.className && teacherData.section),
-        photo: teacherData.photo,
-        mobileNumber: teacherData.mobile
-    };
-    this.teachers.update(t => [...t, newTeacher]);
-    await this.persistState(this.currentUser()?.id || null);
-  }
-
-  removeTeacher(teacherId: string): void {
-    this.teachers.update(teachers => teachers.filter(t => t.id !== teacherId));
-    this.persistState(this.currentUser()?.id || null);
-  }
-
-  updateTeacherDetails(teacherId: string, details: Partial<Omit<Teacher, 'id' | 'role'>>) {
-    this.teachers.update(list => list.map(t => {
-        if (t.id === teacherId) {
-            return { ...t, ...details };
-        }
-        return t;
-    }));
-    this.persistState(this.currentUser()?.id || null);
-  }
-
-  updatePin(userId: string, newPin: string) {
-    this.teachers.update(list => list.map(t => {
-      if (t.id === userId) {
-        return { ...t, pin: newPin };
-      }
-      return t;
-    }));
-    this.persistState(this.currentUser()?.id || null);
-  }
-
   saveTeacherAttendance(date: string, records: { teacherId: string, status: 'Present' | 'Absent' }[]) {
-    this.teacherAttendance.update(list => list.filter(r => r.date !== date));
+    const lastUpdated = Date.now();
+    const updatedRecords = records.map(r => ({ ...r, date, lastUpdated }));
 
-    const newRecords: TeacherAttendanceRecord[] = records.map(r => ({
-        date,
-        teacherId: r.teacherId,
-        status: r.status,
-        lastUpdated: Date.now()
-    }));
-
-    this.teacherAttendance.update(list => [...list, ...newRecords]);
+    this.teacherAttendance.update(existing => {
+      const teacherIdsToUpdate = new Set(records.map(r => r.teacherId));
+      const filtered = existing.filter(r => !(r.date === date && teacherIdsToUpdate.has(r.teacherId)));
+      return [...filtered, ...updatedRecords];
+    });
     this.persistState(this.currentUser()?.id || null);
   }
 
-  getTeacherMonthlyReport(yearMonth: string) {
-    const [year, month] = yearMonth.split('-').map(Number);
-    const start = new Date(Date.UTC(year, month - 1, 1));
-    const end = new Date(Date.UTC(year, month, 0));
-    end.setUTCHours(23, 59, 59, 999);
-
-    const records = this.teacherAttendance().filter(r => {
-        const recordDate = new Date(r.date);
-        return recordDate >= start && recordDate <= end;
-    });
-
-    const teachers = this.getTeachers();
+  getTeacherDailyReportData(date: string) {
+    const teachers = this.teachersOnly();
+    const records = this.getTeacherAttendanceForDate(date);
+    
     return teachers.map(t => {
-        const teacherRecords = records.filter(r => r.teacherId === t.id);
-        const present = teacherRecords.filter(r => r.status === 'Present').length;
-        const absent = teacherRecords.filter(r => r.status === 'Absent').length;
-        const total = present + absent;
-        const percentage = total > 0 ? ((present / total) * 100).toFixed(1) : '0.0';
-        return { ...t, present, absent, percentage };
-    });
+      const record = records.find(r => r.teacherId === t.id);
+      const teacherRecords = this.teacherAttendance().filter(r => r.teacherId === t.id);
+      const presentCount = teacherRecords.filter(r => r.status === 'Present').length;
+      const totalCount = teacherRecords.length;
+      const percentage = totalCount > 0 ? ((presentCount / totalCount) * 100).toFixed(0) : '0';
+      
+      return { ...t, status: record ? record.status : 'N/A', percentage };
+    }).sort((a,b) => a.name.localeCompare(b.name));
   }
 
-  async generateTeacherMonthlyAnalysis(monthName: string, reportData: any[]): Promise<string> {
-    if (!reportData || reportData.length === 0) {
-        return "No staff attendance data available for this month to analyze.";
-    }
-
-    const simplifiedData = reportData
-        .filter(d => d.role === 'teacher')
-        .map(d => ({ name: d.name, present: d.present, absent: d.absent, percentage: d.percentage }));
-
-    if (simplifiedData.length === 0) {
-        return "No teacher attendance data available for analysis.";
-    }
-
-    const overallPresent = simplifiedData.reduce((acc, d) => acc + d.present, 0);
-    const overallAbsent = simplifiedData.reduce((acc, d) => acc + d.absent, 0);
-    const totalRecords = overallPresent + overallAbsent;
-    const staffPercentage = totalRecords > 0 ? ((overallPresent / totalRecords) * 100).toFixed(1) : "0.0";
-
-    const prompt = `
-      You are an assistant for a school coordinator. Analyze the staff attendance data for the month of ${monthName}.
-      The staff's overall attendance percentage was ${staffPercentage}%.
+  getTeacherMonthlyReport(month: string) {
+    const teachers = this.teachersOnly();
+    const records = this.teacherAttendance().filter(r => r.date.startsWith(month));
+    
+    return teachers.map(t => {
+      const teacherRecords = records.filter(r => r.teacherId === t.id);
+      const present = teacherRecords.filter(r => r.status === 'Present').length;
+      const absent = teacherRecords.filter(r => r.status === 'Absent').length;
+      const total = present + absent;
+      const percentage = total > 0 ? ((present / total) * 100).toFixed(0) : '0';
       
-      Based on the data provided, write a short, professional summary (2-3 sentences) for the report.
-      Your summary MUST include:
-      1. A comment on the overall staff attendance.
-      2. The name of the teacher with the MOST absences (lowest percentage).
-      
-      Do not use any markdown formatting (like asterisks or hashtags).
-      
-      Example analysis: "Overall staff attendance was excellent this month. Jane Doe had the most absences and may require a follow-up."
-      
-      Here is the staff data:
-      ${JSON.stringify(simplifiedData)}
-    `;
-
-    try {
-        const response = await this.ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-        });
-        return response.text.trim();
-    } catch (e) {
-        console.error("AI Teacher Analysis generation failed:", e);
-        return "Could not generate an AI-powered analysis for this period.";
-    }
+      return { ...t, present, absent, percentage };
+    }).sort((a,b) => a.name.localeCompare(b.name));
+  }
+  
+  async generateTeacherMonthlyAnalysis(month: string, data: any[]): Promise<string> {
+    const prompt = `Analyze this monthly teacher attendance data for ${month}. Provide a 2-3 sentence summary highlighting overall staff attendance, identifying any teachers with perfect attendance, and those with notable absences (e.g., more than 3 absences). Data: ${JSON.stringify(data)}. Keep the tone professional and data-focused.`;
+    const response = await this.ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text;
   }
 }
