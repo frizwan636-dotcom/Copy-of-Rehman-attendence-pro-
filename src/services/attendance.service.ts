@@ -1,3 +1,4 @@
+
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { GoogleGenAI, Type } from "@google/genai";
 import { BackendService, AppData } from './backend.service';
@@ -50,6 +51,18 @@ export interface TeacherAttendanceRecord {
   lastUpdated: number;
 }
 
+export interface DailySubmission {
+  date: string;
+  teacherId: string;
+  className: string;
+  section: string;
+  totalStudents: number;
+  presentStudents: number;
+  absentStudents: number;
+  submissionTimestamp: number;
+}
+
+
 type CurrentUser = { id: string, role: 'teacher' | 'coordinator' };
 
 @Injectable({ providedIn: 'root' })
@@ -66,6 +79,7 @@ export class AttendanceService {
   private students = signal<Student[]>([]);
   private attendance = signal<AttendanceRecord[]>([]);
   private teacherAttendance = signal<TeacherAttendanceRecord[]>([]);
+  private dailySubmissions = signal<DailySubmission[]>([]);
 
   activeUserRole = computed(() => this.currentUser()?.role);
   
@@ -144,6 +158,15 @@ export class AttendanceService {
         sections: Array.from(sections).sort()
     })).sort((a, b) => a.className.localeCompare(b.className));
   });
+  
+  teachersWithClasses = computed(() => {
+    return this.teachersOnly().map(t => ({
+      teacherId: t.id,
+      teacherName: t.name,
+      className: t.className,
+      section: t.section
+    }));
+  });
 
   constructor() {
     window.addEventListener('online', () => this.isOnline.set(true));
@@ -159,6 +182,7 @@ export class AttendanceService {
       this.students.set(data.students || []);
       this.attendance.set(data.attendance || []);
       this.teacherAttendance.set(data.teacherAttendance || []);
+      this.dailySubmissions.set(data.dailySubmissions || []);
     }
     
     // Restore session if available
@@ -177,11 +201,12 @@ export class AttendanceService {
 
     this.isSyncing.set(true);
     const data: AppData = {
-      version: 12,
+      version: 13,
       teachers: this.teachers(),
       students: this.students(),
       attendance: this.attendance(),
       teacherAttendance: this.teacherAttendance(),
+      dailySubmissions: this.dailySubmissions(),
       loggedInUserId: loggedInUserId,
     };
     await this.backendService.saveData(data);
@@ -251,7 +276,8 @@ export class AttendanceService {
                   name: { type: Type.STRING }, fatherName: { type: Type.STRING }, roll: { type: Type.STRING }, mobile: { type: Type.STRING }
                 }, required: ["name", "fatherName", "roll", "mobile"] } } }
       });
-      return JSON.parse(response.text.trim());
+      // FIX: Directly parse the text from the response without trimming. Trimming can corrupt JSON if there are spaces within the string values.
+      return JSON.parse(response.text);
     } catch (e) {
       console.error("AI OCR Failure:", e);
       throw new Error("Could not parse image. Please try better lighting or manual entry.");
@@ -296,7 +322,59 @@ export class AttendanceService {
       return [...filtered, ...updatedRecords];
     });
 
+    // Don't persist here, let the calling function do it.
+  }
+
+  submitAttendanceToCoordinator(
+    date: string,
+    activeClass: { className: string; section: string },
+    studentsInClass: Student[],
+    attendanceMap: Map<string, 'Present' | 'Absent'>
+  ) {
+    const teacher = this.activeTeacher();
+    if (!teacher) return;
+
+    const totalStudents = studentsInClass.length;
+    let presentStudents = 0;
+    studentsInClass.forEach(s => {
+      if (attendanceMap.get(s.id) === 'Present') {
+        presentStudents++;
+      }
+    });
+    const absentStudents = totalStudents - presentStudents;
+
+    const newSubmission: DailySubmission = {
+      date,
+      teacherId: teacher.id,
+      className: activeClass.className,
+      section: activeClass.section,
+      totalStudents,
+      presentStudents,
+      absentStudents,
+      submissionTimestamp: Date.now(),
+    };
+
+    this.dailySubmissions.update(list => {
+      const filtered = list.filter(s => 
+        !(s.date === date && s.className === activeClass.className && s.section === activeClass.section)
+      );
+      return [...filtered, newSubmission];
+    });
+
     this.persistState(this.currentUser()?.id || null);
+  }
+
+  getSubmissionForTeacher(teacherId: string, className: string, section: string, date: string): DailySubmission | undefined {
+    return this.dailySubmissions().find(s => 
+      s.date === date && 
+      s.teacherId === teacherId &&
+      s.className === className &&
+      s.section === section
+    );
+  }
+
+  getDailySubmissionsForDate(date: string): DailySubmission[] {
+    return this.dailySubmissions().filter(s => s.date === date);
   }
 
   recordFeePayment(studentId: string, amount: number) {

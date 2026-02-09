@@ -1,3 +1,4 @@
+
 import { Injectable } from '@angular/core';
 import type { AttendanceService } from './attendance.service';
 
@@ -277,5 +278,55 @@ export class PdfService {
     });
 
     doc.save(`Monthly_Teachers_${monthLabel.replace(' ', '_')}.pdf`);
+  }
+  
+  // FIX: Add missing method to export school-wide daily summary.
+  exportSchoolDailySummary(date: string, coordinatorName: string, records: any[], schoolStats: any) {
+    const doc = new jspdf.jsPDF();
+    
+    doc.setFontSize(20);
+    doc.text('Rehman Attendance - School-Wide Daily Summary', 105, 15, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.text(`Coordinator: ${coordinatorName}`, 14, 25);
+    doc.text(`Date: ${date}`, 14, 32);
+
+    const summaryText = `Total Students: ${schoolStats.total} | Present: ${schoolStats.present} | Absent: ${schoolStats.absent}`;
+    doc.text(summaryText, 196, 25, { align: 'right' });
+    doc.text(`Overall Attendance: ${schoolStats.percentage}%`, 196, 32, { align: 'right' });
+
+    const head = [['Class', 'Teacher', 'Total', 'Present', 'Absent', 'Attendance %', 'Status']];
+    const body = records.map(r => [
+        r.classNameAndSection,
+        r.teacherName,
+        r.total ?? 'N/A',
+        r.present ?? 'N/A',
+        r.absent ?? 'N/A',
+        r.percentage != null ? `${r.percentage}%` : 'N/A',
+        r.status
+    ]);
+    const statusColumnIndex = 6;
+
+    doc.autoTable({
+      head: head,
+      body: body,
+      startY: 40,
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 2, valign: 'middle' },
+      headStyles: { fontSize: 10, fillColor: [79, 70, 229] },
+      didParseCell: (data: any) => {
+        if (data.cell.section === 'body' && data.column.index === statusColumnIndex) {
+          const status = data.cell.raw;
+          if (status === 'Submitted') {
+            data.cell.styles.textColor = [39, 174, 96]; // Green
+            data.cell.styles.fontStyle = 'bold';
+          } else if (status === 'Pending') {
+            data.cell.styles.textColor = [243, 156, 18]; // Orange
+          }
+        }
+      },
+    });
+
+    doc.save(`School_Daily_Summary_${date}.pdf`);
   }
 }

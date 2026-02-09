@@ -1,7 +1,7 @@
 import { Component, inject, signal, effect, computed, ViewChild, ElementRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AttendanceService, Student, Teacher } from '../services/attendance.service';
+import { AttendanceService, Student, Teacher, DailySubmission } from '../services/attendance.service';
 import { ReportsComponent } from './reports.component';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 
@@ -108,19 +108,28 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
           @case ('attendance') {
             <!-- Attendance View -->
             <div class="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-              <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h2 class="text-2xl font-black text-slate-800 tracking-tight">Daily Roll Call</h2>
-                   <button (click)="showClassSwitcher.set(true)" class="mt-2 text-sm font-bold text-indigo-600 bg-indigo-50 px-4 py-2 rounded-lg hover:bg-indigo-100 transition-colors inline-flex items-center gap-2">
-                    <i class="fa-solid fa-people-roof"></i>
-                    Class: {{ activeClass()?.className }} - {{ activeClass()?.section }}
-                    <i class="fa-solid fa-chevron-down text-xs ml-1 opacity-60"></i>
-                  </button>
+              <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 class="text-2xl font-black text-slate-800 tracking-tight">Daily Roll Call</h2>
+                     <button (click)="showClassSwitcher.set(true)" class="mt-2 text-sm font-bold text-indigo-600 bg-indigo-50 px-4 py-2 rounded-lg hover:bg-indigo-100 transition-colors inline-flex items-center gap-2">
+                      <i class="fa-solid fa-people-roof"></i>
+                      Class: {{ activeClass()?.className }} - {{ activeClass()?.section }}
+                      <i class="fa-solid fa-chevron-down text-xs ml-1 opacity-60"></i>
+                    </button>
+                  </div>
+                  <div class="flex items-center bg-slate-50 px-4 py-3 rounded-2xl border border-slate-200">
+                    <i class="fa-solid fa-calendar text-indigo-500 mr-3"></i>
+                    <input type="date" [ngModel]="selectedDate()" (ngModelChange)="selectedDate.set($event)" class="bg-transparent font-bold text-slate-700 outline-none text-sm">
+                  </div>
                 </div>
-                <div class="flex items-center bg-slate-50 px-4 py-3 rounded-2xl border border-slate-200">
-                  <i class="fa-solid fa-calendar text-indigo-500 mr-3"></i>
-                  <input type="date" [ngModel]="selectedDate()" (ngModelChange)="selectedDate.set($event)" class="bg-transparent font-bold text-slate-700 outline-none text-sm">
-                </div>
+
+                @if (submissionStatus()) {
+                   <div class="p-4 bg-emerald-50 text-emerald-700 rounded-2xl text-center text-sm font-semibold border border-emerald-200">
+                    <i class="fa-solid fa-check-circle mr-2"></i>
+                    Attendance for this date was submitted to the coordinator at {{ submissionStatus()?.submissionTimestamp | date: 'shortTime' }}.
+                   </div>
+                }
               </div>
 
               <div class="space-y-3">
@@ -156,9 +165,15 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
               </div>
 
               <div class="bg-white/80 backdrop-blur-md p-4 rounded-[2.5rem] border border-white/20 shadow-2xl flex gap-3 sticky bottom-6 z-40">
-                <button (click)="saveAttendance()" class="flex-1 py-5 bg-slate-900 text-white rounded-[1.75rem] font-black shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3">
-                  <i class="fa-solid fa-check-double text-indigo-400"></i> Submit Records
-                </button>
+                @if (submissionStatus()) {
+                   <div class="flex-1 py-5 bg-emerald-600 text-white rounded-[1.75rem] font-black shadow-xl flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-check-circle"></i> Submitted
+                  </div>
+                } @else {
+                   <button (click)="saveAndSubmit()" class="flex-1 py-5 bg-slate-900 text-white rounded-[1.75rem] font-black shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-paper-plane text-indigo-400"></i> Save & Submit to Coordinator
+                  </button>
+                }
                 <button (click)="sendSmsAlertsToAbsentees()" [disabled]="absentCount() === 0" class="flex-1 py-5 bg-sky-600 text-white rounded-[1.75rem] font-black shadow-xl hover:bg-sky-700 transition-all flex items-center justify-center gap-3 disabled:opacity-50">
                   <i class="fa-solid fa-comment-sms"></i> SMS Absentees
                 </button>
@@ -605,6 +620,13 @@ export class DashboardComponent {
   showToast = signal(false);
   toastMessage = signal('');
 
+  submissionStatus = computed<DailySubmission | null>(() => {
+    const teacher = this.teacher();
+    const ac = this.activeClass();
+    if (!teacher || !ac) return null;
+    return this.attendanceService.getSubmissionForTeacher(teacher.id, ac.className, ac.section, this.selectedDate()) || null;
+  });
+
   absentCount = computed(() => {
     let count = 0;
     this.dailyRecords().forEach(val => { if (val === 'Absent') count++; });
@@ -701,6 +723,7 @@ export class DashboardComponent {
   }
 
   toggleStatus(studentId: string, status: 'Present' | 'Absent') {
+    if (this.submissionStatus()) return; // Don't allow changes after submission
     this.dailyRecords.update(map => {
       const newMap = new Map(map);
       newMap.set(studentId, status);
@@ -712,14 +735,24 @@ export class DashboardComponent {
     return this.dailyRecords().get(studentId);
   }
 
-  saveAttendance() {
+  saveAndSubmit() {
     const records: { studentId: string, status: 'Present' | 'Absent' }[] = [];
     this.dailyRecords().forEach((status, studentId) => {
       records.push({ studentId, status });
     });
 
+    // 1. Save locally
     this.attendanceService.saveAttendance(this.selectedDate(), records);
-    this.showToastWithMessage('Attendance Saved Successfully');
+
+    // 2. Submit summary to coordinator
+    this.attendanceService.submitAttendanceToCoordinator(
+      this.selectedDate(),
+      this.activeClass()!,
+      this.displayedStudents(),
+      this.dailyRecords()
+    );
+
+    this.showToastWithMessage('Attendance Saved & Submitted');
   }
 
   // SMS Alert Logic for Absentees

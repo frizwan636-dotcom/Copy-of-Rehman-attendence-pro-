@@ -1,3 +1,4 @@
+
 import { Injectable } from '@angular/core';
 import type { AttendanceService } from './attendance.service';
 
@@ -181,5 +182,27 @@ export class DocService {
     html += `</tbody></table>` + this.getHtmlFooter();
     
     this.downloadDoc(html, `Monthly_Teachers_${monthLabel.replace(/\s/g, '_')}.doc`);
+  }
+
+  // FIX: Add missing method to export school-wide daily summary.
+  exportSchoolDailySummary(date: string, coordinatorName: string, records: any[], schoolStats: any) {
+    const title = `School-Wide Daily Summary - ${date}`;
+    
+    let html = this.getHtmlHeader(title);
+    html += `<h1>${title}</h1>`;
+    html += `<div class="summary">
+      <p><strong>Coordinator:</strong> ${coordinatorName}</p>
+      <p><strong>Total Students:</strong> ${schoolStats.total}</p>
+      <p><strong>Total Present:</strong> ${schoolStats.present}</p>
+      <p><strong>Total Absent:</strong> ${schoolStats.absent}</p>
+      <p><strong>Overall Attendance:</strong> ${schoolStats.percentage}%</p>
+    </div>`;
+    html += `<table><thead><tr><th>Class</th><th>Teacher</th><th>Total</th><th>Present</th><th>Absent</th><th>Attendance %</th><th>Status</th></tr></thead><tbody>`;
+    records.forEach(r => {
+      html += `<tr><td>${r.classNameAndSection}</td><td>${r.teacherName}</td><td>${r.total ?? 'N/A'}</td><td>${r.present ?? 'N/A'}</td><td>${r.absent ?? 'N/A'}</td><td>${r.percentage != null ? r.percentage + '%' : 'N/A'}</td><td>${r.status}</td></tr>`;
+    });
+    html += `</tbody></table>` + this.getHtmlFooter();
+
+    this.downloadDoc(html, `School_Daily_Summary_${date}.doc`);
   }
 }

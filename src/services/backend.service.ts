@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
-import type { Teacher, Student, AttendanceRecord, TeacherAttendanceRecord } from './attendance.service';
+import type { Teacher, Student, AttendanceRecord, TeacherAttendanceRecord, DailySubmission } from './attendance.service';
 
 const APP_DATA_KEY = 'rehman_attendance_app_data';
-const DATA_VERSION = 12;
+const DATA_VERSION = 13;
 
 // This interface must be kept in sync with the structure in attendance.service.ts
 export interface AppData {
@@ -11,6 +11,7 @@ export interface AppData {
   students: Student[];
   attendance: AttendanceRecord[];
   teacherAttendance: TeacherAttendanceRecord[];
+  dailySubmissions: DailySubmission[];
   loggedInUserId: string | null;
 }
 
@@ -183,6 +184,11 @@ export class BackendService {
         currentVersion = 12;
     }
 
+    if (currentVersion < 13) {
+      console.log(`Upgrading data from v${currentVersion} to v13...`);
+      data.dailySubmissions = [];
+      currentVersion = 13;
+    }
 
     const finalData: AppData = {
       version: DATA_VERSION,
@@ -190,6 +196,7 @@ export class BackendService {
       students: data.students || [],
       attendance: data.attendance || [],
       teacherAttendance: data.teacherAttendance || [],
+      dailySubmissions: data.dailySubmissions || [],
       loggedInUserId: data.loggedInUserId !== undefined ? data.loggedInUserId : null,
     };
 

@@ -1,5 +1,6 @@
+
 import { Component, inject, signal, effect, ViewChild, ElementRef, ChangeDetectionStrategy, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AttendanceService, Teacher } from '../services/attendance.service';
 import { PdfService } from '../services/pdf.service';
@@ -10,7 +11,7 @@ import { CameraComponent } from './camera.component';
 
 @Component({
   selector: 'app-coordinator-dashboard',
-  imports: [CommonModule, FormsModule, CameraComponent],
+  imports: [CommonModule, FormsModule, CameraComponent, DatePipe],
   template: `
     <div class="min-h-screen pb-24 bg-slate-50/50">
       <nav class="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 py-4 shadow-sm">
@@ -51,7 +52,7 @@ import { CameraComponent } from './camera.component';
 
       <main class="max-w-4xl mx-auto p-4 md:p-8">
         @if (attendanceService.isOnline()) {
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
             <button (click)="view.set('attendance')" 
               class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3"
               [class]="view() === 'attendance' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200' : 'bg-white text-slate-600 hover:bg-indigo-50 border'">
@@ -63,6 +64,12 @@ import { CameraComponent } from './camera.component';
               [class]="view() === 'teachers' ? 'bg-blue-600 text-white shadow-xl shadow-blue-200' : 'bg-white text-slate-600 hover:bg-blue-50 border'">
               <i class="fa-solid fa-users-gear text-xl" [class]="view() === 'teachers' ? 'text-white' : 'text-blue-500'"></i>
               <span class="text-xs font-black uppercase tracking-widest">Manage Teachers</span>
+            </button>
+             <button (click)="view.set('summary')" 
+              class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3"
+              [class]="view() === 'summary' ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-200' : 'bg-white text-slate-600 hover:bg-emerald-50 border'">
+              <i class="fa-solid fa-chart-line text-xl" [class]="view() === 'summary' ? 'text-white' : 'text-emerald-500'"></i>
+              <span class="text-xs font-black uppercase tracking-widest">Daily Summary</span>
             </button>
             <button (click)="view.set('meetings')" 
               class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3"
@@ -185,6 +192,81 @@ import { CameraComponent } from './camera.component';
                         </div>
                       </div>
                     }
+                  }
+                </div>
+              </div>
+            }
+            @case('summary') {
+              <div class="space-y-6 animate-in fade-in">
+                <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-4">
+                  <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div>
+                      <h2 class="text-2xl font-black text-slate-800 tracking-tight">School-Wide Daily Summary</h2>
+                      <p class="text-slate-500 text-sm font-medium">Live attendance status from all classes</p>
+                    </div>
+                    <input type="date" [ngModel]="summaryDate()" (ngModelChange)="summaryDate.set($event)" class="bg-slate-50 px-4 py-3 rounded-2xl border font-bold text-slate-700 outline-none text-sm">
+                  </div>
+                  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
+                      <div class="p-4 bg-blue-50 rounded-2xl text-center">
+                        <p class="text-xs font-black uppercase text-blue-400">Total Students</p>
+                        <p class="text-3xl font-black text-blue-800">{{ dailySummary().schoolTotalStudents }}</p>
+                      </div>
+                      <div class="p-4 bg-green-50 rounded-2xl text-center">
+                        <p class="text-xs font-black uppercase text-green-400">Total Present</p>
+                        <p class="text-3xl font-black text-green-800">{{ dailySummary().schoolTotalPresent }}</p>
+                      </div>
+                      <div class="p-4 bg-red-50 rounded-2xl text-center">
+                        <p class="text-xs font-black uppercase text-red-400">Total Absent</p>
+                        <p class="text-3xl font-black text-red-800">{{ dailySummary().schoolTotalAbsent }}</p>
+                      </div>
+                      <div class="p-4 bg-indigo-50 rounded-2xl text-center">
+                        <p class="text-xs font-black uppercase text-indigo-400">Present %</p>
+                        <p class="text-3xl font-black text-indigo-800">{{ dailySummary().schoolPresentPercentage }}%</p>
+                      </div>
+                  </div>
+                   <button (click)="exportDailySummary()" [disabled]="dailySummary().submissions.length === 0" class="w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+                      <i class="fa-solid fa-download"></i> Export Daily School Report
+                   </button>
+                </div>
+
+                <div class="space-y-3">
+                  @for(summary of dailySummary().summaryList; track summary.teacherId) {
+                    <div class="p-4 rounded-3xl border" [class]="summary.status === 'Submitted' ? 'bg-green-50 border-green-200' : 'bg-slate-100 border-slate-200'">
+                      <div class="flex items-center justify-between">
+                        <div>
+                          <p class="font-black text-lg" [class]="summary.status === 'Submitted' ? 'text-green-900' : 'text-slate-800'">
+                            Class {{ summary.className }} - {{ summary.section }}
+                          </p>
+                          <p class="text-xs font-bold" [class]="summary.status === 'Submitted' ? 'text-green-600' : 'text-slate-500'">
+                            Teacher: {{ summary.teacherName }}
+                          </p>
+                        </div>
+                        @if(summary.status === 'Submitted') {
+                          <div class="grid grid-cols-4 gap-2 text-center text-xs w-1/2">
+                              <div>
+                                <p class="font-bold text-slate-500">Total</p>
+                                <p class="font-black text-lg text-slate-800">{{ summary.total }}</p>
+                              </div>
+                              <div>
+                                <p class="font-bold text-green-500">Present</p>
+                                <p class="font-black text-lg text-green-800">{{ summary.present }}</p>
+                              </div>
+                              <div>
+                                <p class="font-bold text-red-500">Absent</p>
+                                <p class="font-black text-lg text-red-800">{{ summary.absent }}</p>
+                              </div>
+                              <div>
+                                <p class="font-bold text-indigo-500">Percent</p>
+                                <p class="font-black text-lg text-indigo-800">{{ summary.percentage }}%</p>
+                              </div>
+                          </div>
+                        } @else {
+                           <div class="px-4 py-2 bg-slate-200 text-slate-600 rounded-full text-xs font-bold">
+                             <i class="fa-solid fa-clock mr-2"></i>Pending Submission
+                           </div>
+                        }
+                      </div>
+                    </div>
                   }
                 </div>
               </div>
@@ -353,7 +435,7 @@ export class CoordinatorDashboardComponent {
   docService = inject(DocService);
   sanitizer: DomSanitizer = inject(DomSanitizer);
 
-  view = signal<'attendance' | 'teachers' | 'reports' | 'meetings'>('attendance');
+  view = signal<'attendance' | 'teachers' | 'reports' | 'meetings' | 'summary'>('attendance');
   coordinator = this.attendanceService.activeCoordinator;
   teachers = signal<Teacher[]>([]);
   
@@ -391,6 +473,45 @@ export class CoordinatorDashboardComponent {
   // Reports State
   monthlyMonth = signal(new Date().toISOString().slice(0, 7));
   reportExportFormat = signal<'pdf' | 'csv' | 'doc'>('pdf');
+
+  // Summary State
+  summaryDate = signal(new Date().toISOString().split('T')[0]);
+  dailySummary = computed(() => {
+    const date = this.summaryDate();
+    const submissions = this.attendanceService.getDailySubmissionsForDate(date);
+    const teachersAndClasses = this.attendanceService.teachersWithClasses();
+    // FIX: Correctly create a Map from an array of submissions.
+    // The previous implementation used the comma operator incorrectly, which caused a crash.
+    const submissionMap = new Map(submissions.map(s => [`${s.className}|${s.section}`, s]));
+
+    const summaryList = teachersAndClasses.map(tc => {
+      const key = `${tc.className}|${tc.section}`;
+      const submission = submissionMap.get(key);
+      if (submission) {
+        return {
+          ...tc,
+          status: 'Submitted' as const,
+          total: submission.totalStudents,
+          present: submission.presentStudents,
+          absent: submission.absentStudents,
+          percentage: submission.totalStudents > 0 ? ((submission.presentStudents / submission.totalStudents) * 100).toFixed(0) : '0',
+          timestamp: submission.submissionTimestamp
+        };
+      } else {
+        return {
+          ...tc,
+          status: 'Pending' as const,
+        };
+      }
+    });
+
+    const schoolTotalStudents = submissions.reduce((sum, s) => sum + s.totalStudents, 0);
+    const schoolTotalPresent = submissions.reduce((sum, s) => sum + s.presentStudents, 0);
+    const schoolTotalAbsent = submissions.reduce((sum, s) => sum + s.absentStudents, 0);
+    const schoolPresentPercentage = schoolTotalStudents > 0 ? ((schoolTotalPresent / schoolTotalStudents) * 100).toFixed(0) : '0';
+    
+    return { summaryList, submissions, schoolTotalStudents, schoolTotalPresent, schoolTotalAbsent, schoolPresentPercentage };
+  });
 
   // General UI State
   showToast = signal(false);
@@ -654,6 +775,35 @@ export class CoordinatorDashboardComponent {
         break;
       case 'doc':
         await this.docService.exportTeacherMonthlyReport(monthName, this.coordinator()!.name, data, this.attendanceService);
+        break;
+    }
+  }
+
+  exportDailySummary() {
+    const summary = this.dailySummary();
+    const dataForExport = summary.summaryList.map(s => ({
+      ...s,
+      classNameAndSection: `Class ${s.className} - ${s.section}`
+    }));
+    const schoolStats = {
+      total: summary.schoolTotalStudents,
+      present: summary.schoolTotalPresent,
+      absent: summary.schoolTotalAbsent,
+      percentage: summary.schoolPresentPercentage
+    };
+
+    switch (this.reportExportFormat()) {
+      case 'pdf':
+        // FIX: Call the newly added exportSchoolDailySummary method
+        this.pdfService.exportSchoolDailySummary(this.summaryDate(), this.coordinator()!.name, dataForExport, schoolStats);
+        break;
+      case 'csv':
+        // FIX: Call the newly added exportSchoolDailySummary method
+         this.csvService.exportSchoolDailySummary(this.summaryDate(), this.coordinator()!.name, dataForExport, schoolStats);
+        break;
+      case 'doc':
+        // FIX: Call the newly added exportSchoolDailySummary method
+        this.docService.exportSchoolDailySummary(this.summaryDate(), this.coordinator()!.name, dataForExport, schoolStats);
         break;
     }
   }

@@ -1,3 +1,4 @@
+
 import { Injectable } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })
@@ -108,5 +109,21 @@ export class CsvService {
       d.percentage
     ]);
     this.downloadCsv([headers, ...dataRows], filename);
+  }
+
+  // FIX: Add missing method to export school-wide daily summary.
+  exportSchoolDailySummary(date: string, coordinatorName: string, records: any[], schoolStats: any) {
+    const filename = `School_Daily_Summary_${date}.csv`;
+    const headers = ['Class', 'Teacher', 'Total', 'Present', 'Absent', 'Attendance %', 'Status'];
+    const data = records.map(r => [
+      r.classNameAndSection,
+      r.teacherName,
+      r.total ?? 'N/A',
+      r.present ?? 'N/A',
+      r.absent ?? 'N/A',
+      r.percentage ?? 'N/A',
+      r.status
+    ]);
+    this.downloadCsv([headers, ...data], filename);
   }
 }
