@@ -36,30 +36,28 @@ import { SplashScreenComponent } from './components/splash-screen.component';
           }
         }
       }
-
-      <!-- Footer Branding -->
-      @if (!showSplash()) {
-        <footer class="fixed bottom-0 w-full p-4 text-center text-slate-400 text-xs pointer-events-none">
-          This app is created by Rizwan Hanif
-        </footer>
-      }
     </div>
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppComponent implements OnInit {
   attendanceService = inject(AttendanceService);
-  showSplash = signal(true);
 
-  async ngOnInit() {
-    // Create two promises: one for the minimum splash screen duration, and one for the app's initialization process.
-    const minSplashTime = new Promise(resolve => setTimeout(resolve, 7000)); // 7 seconds
-    const appInitialization = this.attendanceService.initialize();
+  showSplash = signal(true);
+  private readonly MIN_SPLASH_DURATION = 15000; // 15 seconds
+
+  ngOnInit() {
+    const startTime = Date.now();
     
-    // Wait for both the minimum time to pass AND the app to finish loading.
-    await Promise.all([minSplashTime, appInitialization]);
-    
-    // Once both are complete, hide the splash screen.
-    this.showSplash.set(false);
+    // Asynchronously initialize the core service
+    this.attendanceService.initialize().then(() => {
+      const elapsedTime = Date.now() - startTime;
+      const remainingTime = this.MIN_SPLASH_DURATION - elapsedTime;
+      
+      // Ensure splash screen is shown for a minimum duration
+      setTimeout(() => {
+        this.showSplash.set(false);
+      }, Math.max(0, remainingTime));
+    });
   }
 }
