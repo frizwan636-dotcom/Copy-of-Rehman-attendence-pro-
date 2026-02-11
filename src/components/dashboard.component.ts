@@ -136,12 +136,8 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
                 @for (student of displayedStudents(); track student.id) {
                   <div class="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
                     <div class="flex items-center gap-4">
-                      <div class="w-14 h-14 rounded-2xl bg-indigo-50 overflow-hidden border-2 border-white shadow-sm">
-                        @if (student.photo) {
-                          <img [src]="student.photo" class="w-full h-full object-cover">
-                        } @else {
-                          <div class="w-full h-full flex items-center justify-center text-[8px] text-indigo-300 font-black text-center px-1">NO PHOTO</div>
-                        }
+                      <div class="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center border-2 border-white shadow-sm text-indigo-400">
+                        <i class="fa-solid fa-user text-2xl"></i>
                       </div>
                       <div>
                         <h4 class="font-bold text-slate-800 leading-none mb-1">{{ student.name }}</h4>
@@ -227,14 +223,8 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   @for (student of filteredStudents(); track student.id) {
                     <div class="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm flex items-start gap-4 hover:border-blue-200 transition-all group">
-                      <div class="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 overflow-hidden flex-shrink-0">
-                        @if (student.photo) {
-                          <img [src]="student.photo" class="w-full h-full object-cover">
-                        } @else {
-                          <div class="w-full h-full flex items-center justify-center text-slate-200">
-                            <i class="fa-solid fa-user text-xl"></i>
-                          </div>
-                        }
+                      <div class="w-16 h-16 rounded-2xl bg-slate-100 border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center text-slate-400">
+                        <i class="fa-solid fa-user-graduate text-2xl"></i>
                       </div>
                       <div class="flex-1">
                         <div class="flex justify-between items-start">
@@ -293,12 +283,8 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
                 @for (student of filteredStudents(); track student.id) {
                   <div class="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm grid grid-cols-3 items-center gap-4">
                     <div class="flex items-center gap-4 col-span-1">
-                       <div class="w-14 h-14 rounded-2xl bg-green-50 overflow-hidden border-2 border-white shadow-sm flex-shrink-0">
-                        @if (student.photo) {
-                          <img [src]="student.photo" class="w-full h-full object-cover">
-                        } @else {
-                          <div class="w-full h-full flex items-center justify-center text-[8px] text-green-300 font-black text-center px-1">NO PHOTO</div>
-                        }
+                       <div class="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center border-2 border-white shadow-sm flex-shrink-0 text-green-500">
+                        <i class="fa-solid fa-user text-2xl"></i>
                       </div>
                       <div>
                         <h4 class="font-bold text-slate-800 leading-none mb-1">{{ student.name }}</h4>
@@ -381,38 +367,26 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
               <h3 class="text-xl font-bold text-slate-800">{{ isEditMode() ? 'Edit Student Profile' : 'New Student Admission' }}</h3>
               <button (click)="showStudentModal.set(false)" class="text-slate-400 hover:text-slate-600">&times;</button>
             </div>
-
-            <div class="flex gap-4 mb-4">
-              <div class="w-24 h-24 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer hover:bg-slate-100 transition-colors relative" (click)="triggerPhotoUpload()">
-                @if (studentForm().photo) {
-                  <img [src]="studentForm().photo" class="w-full h-full object-cover">
-                  <div class="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity">
-                    <i class="fa-solid fa-camera text-white text-lg"></i>
-                  </div>
-                } @else {
-                  <i class="fa-solid fa-camera text-slate-300 text-2xl"></i>
-                }
+            
+            <div class="space-y-3 mb-4">
+              <input type="text" [ngModel]="studentForm().name" (ngModelChange)="updateStudentFormField('name', $event)" placeholder="Full Name" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
+              <input type="text" [ngModel]="studentForm().fatherName" (ngModelChange)="updateStudentFormField('fatherName', $event)" placeholder="Father's Name" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
+              <div class="grid grid-cols-2 gap-3">
+                <input type="text" [ngModel]="studentForm().roll" (ngModelChange)="updateStudentFormField('roll', $event)" placeholder="Roll #" class="p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
+                <input type="tel" [ngModel]="studentForm().mobile" (ngModelChange)="updateStudentFormField('mobile', $event)" placeholder="Contact Mobile" class="p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
               </div>
-              <div class="flex-1 grid grid-cols-1 gap-3">
-                <input type="text" [ngModel]="studentForm().name" (ngModelChange)="updateStudentFormField('name', $event)" placeholder="Full Name" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
-                <input type="text" [ngModel]="studentForm().fatherName" (ngModelChange)="updateStudentFormField('fatherName', $event)" placeholder="Father's Name" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
-                <div class="grid grid-cols-2 gap-3">
-                  <input type="text" [ngModel]="studentForm().roll" (ngModelChange)="updateStudentFormField('roll', $event)" placeholder="Roll #" class="p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
-                  <input type="tel" [ngModel]="studentForm().mobile" (ngModelChange)="updateStudentFormField('mobile', $event)" placeholder="Contact Mobile" class="p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
-                </div>
-                 <input type="number" [ngModel]="studentForm().totalFee" (ngModelChange)="updateStudentFormField('totalFee', $event)" placeholder="Total Fee" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
-              </div>
-            </div>
-             <div class="grid grid-cols-2 gap-3 mb-4">
+              <input type="number" [ngModel]="studentForm().totalFee" (ngModelChange)="updateStudentFormField('totalFee', $event)" placeholder="Total Fee" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
+              <div class="grid grid-cols-2 gap-3">
                 <input type="text" [ngModel]="studentForm().className" (ngModelChange)="updateStudentFormField('className', $event)" placeholder="Class" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
                 <input type="text" [ngModel]="studentForm().section" (ngModelChange)="updateStudentFormField('section', $event)" placeholder="Section" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
+              </div>
             </div>
+
             <button (click)="saveStudent()" [disabled]="!studentForm().name || !studentForm().roll || !studentForm().mobile" class="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
               <i class="fa-solid fa-check-circle"></i> {{ isEditMode() ? 'Save Changes' : 'Enroll Student' }}
             </button>
           </div>
         </div>
-        <input type="file" #studentPhotoInput accept="image/*" (change)="onPhotoSelected($event)" class="hidden">
       }
 
        <!-- Record Payment Modal -->
@@ -554,7 +528,7 @@ export class DashboardComponent {
   isEditMode = signal(false);
   editingStudentId = signal<string | null>(null);
   studentForm = signal({
-    name: '', roll: '', mobile: '', photo: null as string | null,
+    name: '', roll: '', mobile: '',
     fatherName: '',
     totalFee: null as number | null, className: '', section: ''
   });
@@ -563,8 +537,6 @@ export class DashboardComponent {
   showPaymentModal = signal(false);
   selectedStudentForPayment = signal<StudentWithFeeStatus | null>(null);
   paymentAmount = signal<number | null>(null);
-
-  @ViewChild('studentPhotoInput') studentPhotoInput!: ElementRef<HTMLInputElement>;
   
   displayedStudents = computed(() => {
     const ac = this.activeClass();
@@ -820,7 +792,7 @@ export class DashboardComponent {
   // Student Modal Logic (New and Edit)
   resetStudentForm() {
     this.studentForm.set({
-      name: '', roll: '', mobile: '', photo: null,
+      name: '', roll: '', mobile: '',
       fatherName: '',
       totalFee: null, 
       className: this.activeClass()?.className || this.teacher()?.className || '',
@@ -842,7 +814,6 @@ export class DashboardComponent {
         name: student.name,
         roll: student.rollNumber,
         mobile: student.mobileNumber,
-        photo: student.photo || null,
         fatherName: student.fatherName || '',
         totalFee: student.totalFee,
         className: student.className || this.teacher()?.className || '',
@@ -855,25 +826,9 @@ export class DashboardComponent {
     this.studentForm.update(form => ({...form, [field]: value }));
   }
 
-  triggerPhotoUpload() {
-    this.studentPhotoInput.nativeElement.click();
-  }
-
-  onPhotoSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files[0]) {
-      const file = input.files[0];
-      const reader = new FileReader();
-      reader.onload = (e: any) => {
-        this.updateStudentFormField('photo', e.target.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  }
-
   saveStudent() {
     const form = this.studentForm();
-    const { name, fatherName, roll, mobile, photo, totalFee, className, section } = form;
+    const { name, fatherName, roll, mobile, totalFee, className, section } = form;
 
     if (!name.trim() || !roll.trim() || !mobile.trim()) {
       alert('Please fill in the student name, roll number, and contact mobile.');
@@ -892,7 +847,6 @@ export class DashboardComponent {
         fatherName: fatherName?.trim(),
         rollNumber: roll.trim(),
         mobileNumber: mobile.trim(),
-        photo: photo || undefined,
         totalFee: totalFee || 0,
         className: className?.trim(),
         section: section?.trim()
@@ -905,7 +859,6 @@ export class DashboardComponent {
         fatherName: fatherName?.trim(),
         roll: roll.trim(),
         mobile: mobile.trim(),
-        photo: photo || undefined,
         totalFee: totalFee || 0,
         className: className?.trim(),
         section: section?.trim()

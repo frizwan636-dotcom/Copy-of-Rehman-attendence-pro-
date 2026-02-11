@@ -1,4 +1,3 @@
-
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { GoogleGenAI, Type } from "@google/genai";
 import { BackendService, AppData } from './backend.service';
@@ -29,7 +28,6 @@ export interface Student {
   fatherName?: string;
   rollNumber: string;
   mobileNumber: string;
-  photo?: string;
   totalFee: number;
   feeHistory: FeePayment[];
   className?: string;
@@ -284,11 +282,11 @@ export class AttendanceService {
     }
   }
 
-  addStudents(newStudents: { name: string, fatherName?: string, roll: string, mobile: string, photo?: string, totalFee?: number, className?: string, section?: string }[]) {
+  addStudents(newStudents: { name: string, fatherName?: string, roll: string, mobile: string, totalFee?: number, className?: string, section?: string }[]) {
     const teacherId = this.activeTeacher()!.id;
     const studentsToAdd: Student[] = newStudents.map(s => ({
       id: Math.random().toString(36).substr(2, 9), teacherId, name: s.name, fatherName: s.fatherName,
-      rollNumber: s.roll, mobileNumber: s.mobile, photo: s.photo,
+      rollNumber: s.roll, mobileNumber: s.mobile,
       totalFee: s.totalFee || 0,
       feeHistory: [],
       className: s.className || this.activeTeacher()?.className,
