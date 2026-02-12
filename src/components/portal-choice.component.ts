@@ -1,76 +1,148 @@
-import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AttendanceService, Teacher } from '../services/attendance.service';
+
+type ViewState = 'initial_choice' | 'login' | 'signup' | 'user_select' | 'pin';
 
 @Component({
   selector: 'app-portal-choice',
   imports: [CommonModule, FormsModule],
   template: `
     <div class="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-slate-50 to-indigo-100">
-      @if (view() === 'choice') {
-        <div class="text-center mb-12 animate-in fade-in zoom-in-95">
-          <div class="flex items-center justify-center gap-4 mb-4">
-            <div class="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
-                <i class="fa-solid fa-clipboard-user text-3xl"></i>
-            </div>
-            <div>
-              <h1 class="text-5xl font-black text-slate-800 tracking-tight">
-                <span class="font-medium text-slate-600">Rehman</span>
-                <span class="text-indigo-600">Attendance</span>
-              </h1>
-              <p class="text-right font-bold text-sm text-slate-400 tracking-widest -mt-2">PRO</p>
-            </div>
+      
+      @if (view() === 'initial_choice') {
+        <div class="w-full max-w-2xl text-center animate-in fade-in zoom-in-95">
+          <div class="mb-10">
+            <h1 class="text-5xl font-black text-slate-800 tracking-tighter">Rehman Attendance Pro</h1>
+            <p class="text-slate-500 mt-2 text-lg">Please select your role to continue</p>
           </div>
-          <p class="text-indigo-500/80 mt-2 text-lg font-medium">
-            Select your portal to continue
-          </p>
-        </div>
-
-        <div class="max-w-4xl w-full grid md:grid-cols-2 gap-8 animate-in fade-in zoom-in-95">
-          <!-- Coordinator Portal Card -->
-          <button (click)="onCoordinatorClick()" 
-                  class="group p-8 rounded-[2rem] bg-white border border-slate-200/80 shadow-lg text-left hover:border-green-400 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300">
-            <div class="flex items-center gap-6">
-              <div class="w-16 h-16 bg-green-100 text-green-600 rounded-2xl flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <button (click)="selectPortal('coordinator')" class="p-8 bg-white rounded-[2rem] shadow-xl border border-slate-200 flex flex-col items-center gap-4 hover:-translate-y-2 transition-transform duration-300">
+              <div class="w-20 h-20 bg-green-100 text-green-500 rounded-3xl flex items-center justify-center text-4xl">
                 <i class="fa-solid fa-sitemap"></i>
               </div>
-              <div>
-                <h2 class="text-2xl font-black text-slate-800 tracking-tight">Coordinator Portal</h2>
-                <p class="text-slate-500 mt-1">Administrator access for staff management and school-wide reporting.</p>
+              <h2 class="text-2xl font-bold text-slate-800">Coordinator Portal</h2>
+              <p class="text-sm text-slate-500">Manage teachers, view school-wide summaries, and handle administrative tasks.</p>
+            </button>
+            <button (click)="selectPortal('teacher')" class="p-8 bg-white rounded-[2rem] shadow-xl border border-slate-200 flex flex-col items-center gap-4 hover:-translate-y-2 transition-transform duration-300">
+              <div class="w-20 h-20 bg-indigo-100 text-indigo-500 rounded-3xl flex items-center justify-center text-4xl">
+                <i class="fa-solid fa-user-tie"></i>
               </div>
-            </div>
-          </button>
-
-          <!-- Teacher Portal Card -->
-          <button (click)="onTeacherClick()" 
-                  class="group p-8 rounded-[2rem] bg-white border border-slate-200/80 shadow-lg text-left hover:border-indigo-400 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300">
-            <div class="flex items-center gap-6">
-              <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
-                <i class="fa-solid fa-graduation-cap"></i>
-              </div>
-              <div>
-                <h2 class="text-2xl font-black text-slate-800 tracking-tight">Teacher Portal</h2>
-                <p class="text-slate-500 mt-1">Classroom access for daily student attendance and record management.</p>
-              </div>
-            </div>
-          </button>
+              <h2 class="text-2xl font-bold text-slate-800">Teacher Portal</h2>
+              <p class="text-sm text-slate-500">Mark student attendance, manage your class, and generate reports.</p>
+            </button>
+          </div>
         </div>
+      }
+
+      @if (view() === 'login' || view() === 'signup') {
+        <div class="w-full max-w-md p-8 bg-white rounded-[2rem] shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 relative">
+          <button (click)="view.set('initial_choice')" class="absolute top-6 left-6 flex items-center gap-2 text-slate-400 font-bold hover:text-indigo-600 text-sm transition-colors">
+            <i class="fa-solid fa-arrow-left"></i> Back
+          </button>
+          <div class="text-center mb-8">
+            <h1 class="text-3xl font-black text-slate-800 tracking-tight">
+              @if (portalMode() === 'coordinator') {
+                {{ view() === 'login' ? 'Coordinator Login' : 'Coordinator Setup' }}
+              } @else {
+                School Authentication
+              }
+            </h1>
+            <p class="text-slate-500 text-sm mt-1">
+               @if (portalMode() === 'coordinator') {
+                {{ view() === 'login' ? 'Access your school dashboard' : 'Create your school administrator account' }}
+              } @else {
+                Enter your coordinator's details to access the teacher portal.
+              }
+            </p>
+          </div>
+
+          <div class="space-y-3">
+             @if (view() === 'signup') {
+                <input type="text" [(ngModel)]="signupForm.schoolName" placeholder="School Name" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 text-sm">
+                <input type="text" [(ngModel)]="signupForm.name" placeholder="Your Full Name" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 text-sm">
+             }
+            <input type="email" [(ngModel)]="authForm.email" placeholder="Email Address" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 text-sm">
+            <input type="password" [(ngModel)]="authForm.password" placeholder="Password" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 text-sm">
+             @if (view() === 'signup') {
+                <input type="tel" [(ngModel)]="signupForm.mobile" placeholder="Your Mobile Number" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 text-sm">
+                 <div class="grid grid-cols-2 gap-3">
+                    <input type="text" [(ngModel)]="signupForm.className" placeholder="Your Class" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 text-sm">
+                    <input type="text" [(ngModel)]="signupForm.section" placeholder="Your Section" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 text-sm">
+                 </div>
+                <input type="password" [(ngModel)]="signupForm.pin" placeholder="Create 4-Digit Login PIN" maxlength="4" inputmode="numeric" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 text-sm">
+             }
+          </div>
+
+          @if(errorMessage()) {
+            <p class="text-red-600 bg-red-50 text-center font-bold text-sm mt-4 p-3 rounded-lg">{{ errorMessage() }}</p>
+          }
+
+          <button (click)="handleAuthAction()" [disabled]="isLoading()" class="w-full py-4 mt-6 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center">
+            @if(isLoading()) {
+              <i class="fa-solid fa-spinner animate-spin mr-2"></i>
+              <span>Processing...</span>
+            } @else {
+              <span>{{ view() === 'login' ? 'Login Securely' : 'Create Account' }}</span>
+            }
+          </button>
+          
+          @if (portalMode() === 'coordinator') {
+            <div class="text-center mt-6">
+              <button (click)="toggleView()" class="text-sm font-bold text-indigo-600 hover:underline">
+                 {{ view() === 'login' ? 'Don\\'t have an account? Sign Up' : 'Already have an account? Login' }}
+              </button>
+            </div>
+          } @else {
+             <div class="mt-6 text-center text-xs text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-200">
+              <p class="font-bold text-slate-600"><i class="fa-solid fa-circle-info mr-2 text-indigo-400"></i>Why is this needed?</p>
+              <p class="mt-1">To protect school data, the system must be unlocked with the coordinator account. After this, you can select your profile and log in with your personal PIN.</p>
+            </div>
+          }
+        </div>
+      }
+
+      @if (view() === 'user_select') {
+         <div class="w-full max-w-3xl text-center animate-in fade-in zoom-in-95">
+            <h2 class="text-3xl font-bold text-slate-800 mb-2">Select Your Profile</h2>
+            <p class="text-slate-500 mb-8">Choose your profile to enter your PIN and access the dashboard.</p>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              @for(user of allUsers(); track user.id) {
+                <button (click)="selectUser(user)" class="p-4 bg-white rounded-2xl shadow-lg border border-slate-200 flex flex-col items-center gap-3 hover:-translate-y-1 transition-transform">
+                   <div class="w-20 h-20 rounded-full bg-slate-100 border-4 border-white overflow-hidden flex items-center justify-center"
+                     [class]="user.role === 'coordinator' ? 'border-green-300' : 'border-indigo-300'">
+                      @if(user.photo) {
+                        <img [src]="user.photo" class="w-full h-full object-cover">
+                      } @else {
+                        <i class="fa-solid text-4xl" 
+                          [class]="user.role === 'coordinator' ? 'fa-sitemap text-green-300' : 'fa-user-tie text-indigo-300'"></i>
+                      }
+                   </div>
+                   <span class="font-bold text-slate-700">{{ user.name }}</span>
+                </button>
+              }
+            </div>
+             <button (click)="attendanceService.logout()" class="mt-8 text-slate-500 font-semibold hover:text-red-600 transition-colors">
+              <i class="fa-solid fa-right-from-bracket mr-2"></i>Logout & Switch Portal
+            </button>
+         </div>
       }
 
       @if (view() === 'pin') {
         <div class="w-full max-w-sm text-center animate-in fade-in zoom-in-95">
-          <button (click)="backToChoice()" class="absolute top-6 left-6 flex items-center gap-2 text-slate-500 font-bold hover:text-indigo-600">
+          <button (click)="backToUserSelect()" class="absolute top-6 left-6 flex items-center gap-2 text-slate-500 font-bold hover:text-indigo-600">
             <i class="fa-solid fa-arrow-left"></i> Back
           </button>
           
           <div class="w-24 h-24 bg-white rounded-full mx-auto mb-4 overflow-hidden border-4 shadow-md flex items-center justify-center"
-            [class]="selectedRole() === 'coordinator' ? 'border-green-300' : 'border-indigo-300'">
+            [class]="selectedUser()?.role === 'coordinator' ? 'border-green-300' : 'border-indigo-300'">
             @if(selectedUser()?.photo) {
               <img [src]="selectedUser()?.photo" class="w-full h-full object-cover">
             } @else {
               <i class="fa-solid text-5xl" 
-                [class]="selectedRole() === 'coordinator' ? 'fa-sitemap text-green-300' : 'fa-user-tie text-indigo-300'"></i>
+                [class]="selectedUser()?.role === 'coordinator' ? 'fa-sitemap text-green-300' : 'fa-user-tie text-indigo-300'"></i>
             }
           </div>
 
@@ -100,64 +172,6 @@ import { AttendanceService, Teacher } from '../services/attendance.service';
           </div>
         </div>
       }
-
-      @if (view() === 'teacher_select') {
-         <div class="w-full max-w-2xl text-center animate-in fade-in zoom-in-95">
-            <button (click)="backToChoice()" class="absolute top-6 left-6 flex items-center gap-2 text-slate-500 font-bold hover:text-indigo-600">
-              <i class="fa-solid fa-arrow-left"></i> Back
-            </button>
-            <h2 class="text-3xl font-bold text-slate-800 mb-2">Select Teacher Profile</h2>
-            <p class="text-slate-500 mb-8">Choose your profile to proceed with PIN entry.</p>
-
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              @for(teacher of teachers(); track teacher.id) {
-                <button (click)="selectUser(teacher)" class="p-4 bg-white rounded-2xl shadow-lg border border-slate-200 flex flex-col items-center gap-3 hover:-translate-y-1 transition-transform">
-                   <div class="w-20 h-20 rounded-full bg-slate-100 border-4 border-white overflow-hidden flex items-center justify-center">
-                      @if(teacher.photo) {
-                        <img [src]="teacher.photo" class="w-full h-full object-cover">
-                      } @else {
-                        <i class="fa-solid fa-user-tie text-4xl text-slate-300"></i>
-                      }
-                   </div>
-                   <span class="font-bold text-slate-700">{{ teacher.name }}</span>
-                </button>
-              }
-            </div>
-         </div>
-      }
-
-      @if (view() === 'coordinator_setup') {
-        <div class="w-full max-w-lg p-8 bg-white rounded-[2rem] shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
-          <button (click)="backToChoice()" class="absolute top-6 left-6 flex items-center gap-2 text-slate-500 font-bold hover:text-indigo-600">
-            <i class="fa-solid fa-arrow-left"></i> Back
-          </button>
-          <div class="text-center mb-6">
-            <h2 class="text-2xl font-black text-slate-800 tracking-tight">Coordinator Account Setup</h2>
-            <p class="text-slate-500 text-sm mt-1">Welcome! As the first user, let's set up your school and administrator account.</p>
-          </div>
-
-          <div class="space-y-4">
-            <input type="text" [ngModel]="setupSchoolName()" (ngModelChange)="setupSchoolName.set($event)" placeholder="School Name" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium focus:ring-2 focus:ring-green-400">
-            <input type="text" [ngModel]="setupCoordinatorName()" (ngModelChange)="setupCoordinatorName.set($event)" placeholder="Your Full Name" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium focus:ring-2 focus:ring-green-400">
-            <input type="tel" [ngModel]="setupMobile()" (ngModelChange)="setupMobile.set($event)" placeholder="Your Mobile Number" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium focus:ring-2 focus:ring-green-400">
-            <div class="grid grid-cols-2 gap-4">
-              <input type="text" [ngModel]="setupClassName()" (ngModelChange)="setupClassName.set($event)" placeholder="Your Assigned Class (e.g., 10)" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium focus:ring-2 focus:ring-green-400">
-              <input type="text" [ngModel]="setupSection()" (ngModelChange)="setupSection.set($event)" placeholder="Section (e.g., A)" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium focus:ring-2 focus:ring-green-400">
-            </div>
-             <input type="password" [ngModel]="setupPin()" (ngModelChange)="setupPin.set($event)" placeholder="Create 4-Digit Login PIN" maxlength="4" inputmode="numeric" pattern="[0-9]*" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium focus:ring-2 focus:ring-green-400">
-            
-             @if(errorMessage()) {
-              <p class="text-red-600 text-center font-bold text-sm">{{ errorMessage() }}</p>
-            }
-            
-            <button (click)="submitCoordinatorSetup()" [disabled]="!setupSchoolName() || !setupCoordinatorName() || !setupMobile() || setupPin().length !== 4 || !setupClassName() || !setupSection()"
-                    class="w-full py-5 bg-green-600 text-white rounded-xl font-black hover:bg-green-700 disabled:opacity-50 transition-all shadow-lg shadow-green-200 flex items-center justify-center gap-2">
-              <i class="fa-solid fa-rocket"></i>
-              Complete Setup
-            </button>
-          </div>
-        </div>
-      }
     </div>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -165,96 +179,83 @@ import { AttendanceService, Teacher } from '../services/attendance.service';
 export class PortalChoiceComponent {
   attendanceService = inject(AttendanceService);
   
-  view = signal<'choice' | 'pin' | 'teacher_select' | 'coordinator_setup'>('choice');
-  selectedRole = signal<'teacher' | 'coordinator' | null>(null);
+  view = signal<ViewState>('initial_choice');
+  portalMode = signal<'coordinator' | 'teacher'>('coordinator');
+  
+  // Auth State
+  authForm = { email: '', password: '' };
+  signupForm = { schoolName: '', name: '', mobile: '', pin: '', className: '', section: '' };
+  
+  // User & PIN State
   selectedUser = signal<Teacher | null>(null);
-
   pin = signal('');
+  
+  // UI State
+  isLoading = signal(false);
   errorMessage = signal('');
-  
-  // Signals for the coordinator setup form
-  setupSchoolName = signal('');
-  setupCoordinatorName = signal('');
-  setupMobile = signal('');
-  setupPin = signal('');
-  setupClassName = signal('');
-  setupSection = signal('');
-  
-  teachers = this.attendanceService.teachersOnly;
 
-  onCoordinatorClick() {
-    if (!this.attendanceService.isOnline()) {
-      alert('Coordinator portal requires an internet connection.');
-      return;
+  allUsers = this.attendanceService.getTeachers;
+
+  constructor() {
+    // This handles the case where the user is already authenticated on app load.
+    if (this.attendanceService.isSupabaseAuthenticated()) {
+      this.view.set('user_select');
     }
-    const coordinator = this.attendanceService.coordinator();
-    if (coordinator) {
-      this.selectedRole.set('coordinator');
-      this.selectedUser.set(coordinator);
-      this.view.set('pin');
-    } else {
-      // If no coordinator is found, switch to the setup view
-      this.view.set('coordinator_setup');
+    
+    // This effect handles the transition after a successful login action.
+    effect(() => {
+      if (this.attendanceService.isSupabaseAuthenticated() && (this.view() === 'login' || this.view() === 'signup')) {
+        this.view.set('user_select');
+      }
+    });
+  }
+
+  selectPortal(role: 'coordinator' | 'teacher') {
+    this.portalMode.set(role);
+    this.view.set('login');
+  }
+
+  toggleView() {
+    if (this.portalMode() === 'coordinator') {
+      this.errorMessage.set('');
+      this.view.set(this.view() === 'login' ? 'signup' : 'login');
     }
   }
 
-  onTeacherClick() {
-    this.selectedRole.set('teacher');
-    this.view.set('teacher_select');
+  async handleAuthAction() {
+    this.isLoading.set(true);
+    this.errorMessage.set('');
+    try {
+      if (this.view() === 'login') {
+        await this.attendanceService.login(this.authForm.email, this.authForm.password);
+      } else {
+        // This can only be reached in coordinator mode
+        await this.attendanceService.signUpCoordinator({
+          email: this.authForm.email,
+          password: this.authForm.password,
+          ...this.signupForm
+        });
+      }
+      // On success, the effect in the constructor will switch the view.
+    } catch (e: any) {
+      this.errorMessage.set(e.message);
+    } finally {
+      this.isLoading.set(false);
+    }
   }
   
   selectUser(user: Teacher) {
     this.selectedUser.set(user);
+    this.pin.set('');
+    this.errorMessage.set('');
     this.view.set('pin');
   }
 
-  backToChoice() {
-    this.view.set('choice');
-    this.resetPinEntry();
-    this.resetSetupForm();
-  }
-  
-  resetPinEntry() {
-      this.pin.set('');
-      this.errorMessage.set('');
-      this.selectedRole.set(null);
-      this.selectedUser.set(null);
-  }
-
-  resetSetupForm() {
-    this.setupSchoolName.set('');
-    this.setupCoordinatorName.set('');
-    this.setupMobile.set('');
-    this.setupPin.set('');
-    this.setupClassName.set('');
-    this.setupSection.set('');
+  backToUserSelect() {
+    this.view.set('user_select');
+    this.selectedUser.set(null);
+    this.pin.set('');
     this.errorMessage.set('');
-  }
-
-  async submitCoordinatorSetup() {
-    if (!this.setupSchoolName().trim() || 
-        !this.setupCoordinatorName().trim() || 
-        !this.setupMobile().trim() || 
-        !this.setupClassName().trim() || 
-        !this.setupSection().trim() || 
-        this.setupPin().length !== 4) {
-      this.errorMessage.set('Please fill all fields. PIN must be 4 digits.');
-      return;
-    }
-    try {
-      this.errorMessage.set('');
-      await this.attendanceService.createInitialCoordinator({
-        schoolName: this.setupSchoolName().trim(),
-        name: this.setupCoordinatorName().trim(),
-        mobile: this.setupMobile().trim(),
-        pin: this.setupPin(),
-        className: this.setupClassName().trim(),
-        section: this.setupSection().trim()
-      });
-      // The service automatically logs in the new user, so the app's main view will switch.
-    } catch (e: any) {
-      this.errorMessage.set(e.message);
-    }
   }
 
   appendPin(num: string) {
@@ -272,17 +273,12 @@ export class PortalChoiceComponent {
   async submitPin() {
     const user = this.selectedUser();
     if (!user) return;
-
-    if (user.role === 'coordinator' && !this.attendanceService.isOnline()) {
-        this.errorMessage.set('Connection lost. Coordinator requires internet.');
-        setTimeout(() => this.pin.set(''), 1000);
-        return;
-    }
-
+    
     const isValid = this.attendanceService.verifyPin(user.id, this.pin());
     if (isValid) {
       this.errorMessage.set('');
       await this.attendanceService.setActiveUser(user.id);
+      // Main app component will detect the activeUserRole change and switch views
     } else {
       this.errorMessage.set('Incorrect PIN. Please try again.');
       if (navigator.vibrate) navigator.vibrate(200);

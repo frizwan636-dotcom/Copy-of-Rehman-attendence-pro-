@@ -16,6 +16,7 @@
     "@angular/core": "^21.1.0",
     "@angular/platform-browser": "^21.1.0",
     "@google/genai": "^1.37.0",
+    "@supabase/supabase-js": "^2.95.3",
     "@angular/build": "^21.1.0",
     "@angular/cli": "^21.1.0",
     "@angular/compiler-cli": "^21.1.0",

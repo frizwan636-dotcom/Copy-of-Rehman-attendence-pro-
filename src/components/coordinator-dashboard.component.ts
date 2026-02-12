@@ -43,8 +43,8 @@ import { CameraComponent } from './camera.component';
               }
             </div>
 
-            <button (click)="attendanceService.logout()" class="p-2.5 text-slate-400 hover:text-red-500 rounded-xl hover:bg-red-50 transition-colors">
-              <i class="fa-solid fa-power-off"></i>
+            <button (click)="attendanceService.pinLogout()" title="Switch User" class="p-2.5 text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition-colors">
+              <i class="fa-solid fa-users"></i>
             </button>
           </div>
         </div>

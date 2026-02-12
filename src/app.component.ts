@@ -21,11 +21,11 @@ import { SplashScreenComponent } from './components/splash-screen.component';
                 <i class="fa-solid fa-clipboard-user text-5xl text-white"></i>
               </div>
               <h1 class="text-4xl font-black text-white tracking-tight">Rehman Attendance Pro</h1>
-              <p class="text-indigo-200/60 mt-2">Loading your classroom data...</p>
+              <p class="text-indigo-200/60 mt-2">Connecting to your database...</p>
             </div>
           </div>
         } @else {
-          @if (attendanceService.activeUserRole()) {
+          @if (isPinLoggedIn()) {
             @if (attendanceService.activeUserRole() === 'coordinator') {
               <app-coordinator-dashboard />
             } @else {
@@ -46,15 +46,15 @@ export class AppComponent implements OnInit {
   showSplash = signal(true);
   private readonly MIN_SPLASH_DURATION = 15000; // 15 seconds
 
+  isPinLoggedIn = computed(() => !!this.attendanceService.activeUserRole());
+
   ngOnInit() {
     const startTime = Date.now();
     
-    // Asynchronously initialize the core service
     this.attendanceService.initialize().then(() => {
       const elapsedTime = Date.now() - startTime;
       const remainingTime = this.MIN_SPLASH_DURATION - elapsedTime;
       
-      // Ensure splash screen is shown for a minimum duration
       setTimeout(() => {
         this.showSplash.set(false);
       }, Math.max(0, remainingTime));
