@@ -1,5 +1,5 @@
 import { Component, inject, signal, effect, computed, ViewChild, ElementRef, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AttendanceService, Student, Teacher, DailySubmission } from '../services/attendance.service';
 import { ReportsComponent } from './reports.component';
@@ -9,7 +9,7 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
 
 @Component({
   selector: 'app-dashboard',
-  imports: [CommonModule, FormsModule, ReportsComponent],
+  imports: [CommonModule, FormsModule, ReportsComponent, DatePipe],
   template: `
     <div class="min-h-screen pb-24 bg-slate-50/50">
       <!-- Top Navigation -->

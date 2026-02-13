@@ -131,6 +131,17 @@ import { CameraComponent } from './camera.component';
             }
             @case ('teachers') {
               <div class="space-y-6 animate-in fade-in">
+                 <div class="bg-indigo-50 p-6 rounded-[2.5rem] shadow-sm border border-indigo-200 space-y-2">
+                  <h3 class="text-lg font-bold text-indigo-800">Teacher Login Information</h3>
+                  <p class="text-sm text-indigo-600">Share the following School ID with your teachers. They will need it to log in for the first time.</p>
+                  <div class="flex items-center gap-3 pt-2">
+                    <input type="text" [value]="coordinator()?.id" readonly class="flex-1 p-3 bg-white rounded-xl border border-indigo-300 font-mono text-indigo-900 text-sm outline-none">
+                    <button (click)="copySchoolId(coordinator()?.id)" class="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700">
+                      <i class="fa-solid fa-copy mr-2"></i>Copy ID
+                    </button>
+                  </div>
+                </div>
+
                 <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-4">
                   <h2 class="text-2xl font-black tracking-tight text-slate-800">Create Teacher Account</h2>
                   <div class="flex gap-4">
@@ -143,7 +154,7 @@ import { CameraComponent } from './camera.component';
                     </div>
                     <div class="flex-1 grid grid-cols-2 gap-3">
                       <input type="text" [ngModel]="newTeacherName()" (ngModelChange)="newTeacherName.set($event)" placeholder="Full Name" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                      <input type="email" [ngModel]="newTeacherEmail()" (ngModelChange)="newTeacherEmail.set($event)" placeholder="Email Address (for login)" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                      <input type="email" [ngModel]="newTeacherEmail()" (ngModelChange)="newTeacherEmail.set($event)" placeholder="Email Address (Optional)" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
                       <input type="tel" [ngModel]="newTeacherMobile()" (ngModelChange)="newTeacherMobile.set($event)" placeholder="Contact Mobile" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
                       <input type="text" [ngModel]="newTeacherClass()" (ngModelChange)="newTeacherClass.set($event)" placeholder="Class" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
                       <input type="text" [ngModel]="newTeacherSection()" (ngModelChange)="newTeacherSection.set($event)" placeholder="Section" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
@@ -480,8 +491,6 @@ export class CoordinatorDashboardComponent {
     const date = this.summaryDate();
     const submissions = this.attendanceService.getDailySubmissionsForDate(date);
     const teachersAndClasses = this.attendanceService.teachersWithClasses();
-    // FIX: Correctly create a Map from an array of submissions.
-    // The previous implementation used the comma operator incorrectly, which caused a crash.
     const submissionMap = new Map(submissions.map(s => [`${s.className}|${s.section}`, s]));
 
     const summaryList = teachersAndClasses.map(tc => {
@@ -546,6 +555,16 @@ export class CoordinatorDashboardComponent {
     });
   }
   
+  copySchoolId(id: string | undefined) {
+    if (!id) return;
+    navigator.clipboard.writeText(id).then(() => {
+      this.showToastMessage('School ID copied to clipboard!');
+    }).catch(err => {
+      console.error('Failed to copy ID: ', err);
+      alert('Failed to copy ID.');
+    });
+  }
+
   // --- Teacher Photo Management ---
   openPhotoSourceModal(context: 'new' | 'edit') {
     this.photoContext.set(context);
@@ -603,7 +622,7 @@ export class CoordinatorDashboardComponent {
     try {
       await this.attendanceService.addTeacher({
         name: this.newTeacherName(),
-        email: this.newTeacherEmail(),
+        email: email,
         pin: this.newTeacherPin(),
         photo: this.newTeacherPhoto() || undefined,
         mobile: this.newTeacherMobile(),
@@ -676,11 +695,6 @@ export class CoordinatorDashboardComponent {
             alert('The provided email address is not valid. Please correct it or leave it empty.');
             return;
         }
-        const otherTeachers = this.attendanceService.getTeachers().filter(t => t.id !== teacher.id);
-        if (otherTeachers.some(t => t.email.toLowerCase() === email.toLowerCase())) {
-            alert('This email address is already in use by another teacher.');
-            return;
-        }
     }
 
     if (this.editTeacherPin().length !== 4) {
@@ -691,7 +705,7 @@ export class CoordinatorDashboardComponent {
     try {
       this.attendanceService.updateTeacherDetails(teacher.id, {
         name: this.editTeacherName(),
-        email: this.editTeacherEmail(),
+        email: email,
         pin: this.editTeacherPin(),
         mobileNumber: this.editTeacherMobile(),
         className: this.editTeacherClass(),
@@ -794,15 +808,12 @@ export class CoordinatorDashboardComponent {
 
     switch (this.reportExportFormat()) {
       case 'pdf':
-        // FIX: Call the newly added exportSchoolDailySummary method
         this.pdfService.exportSchoolDailySummary(this.summaryDate(), this.coordinator()!.name, dataForExport, schoolStats);
         break;
       case 'csv':
-        // FIX: Call the newly added exportSchoolDailySummary method
          this.csvService.exportSchoolDailySummary(this.summaryDate(), this.coordinator()!.name, dataForExport, schoolStats);
         break;
       case 'doc':
-        // FIX: Call the newly added exportSchoolDailySummary method
         this.docService.exportSchoolDailySummary(this.summaryDate(), this.coordinator()!.name, dataForExport, schoolStats);
         break;
     }

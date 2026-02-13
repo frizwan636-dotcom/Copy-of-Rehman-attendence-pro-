@@ -172,11 +172,14 @@ export class AttendanceService {
     const user = session?.user || null;
     this.supabaseUser.set(user);
 
-    if (event === 'INITIAL_SESSION') {
+    if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
       if (user) {
         const data = await this.supabaseService.loadData(user);
         if (data) this.loadStateFromData(data);
       }
+    }
+    
+    if (event === 'INITIAL_SESSION') {
       this.isInitialized.set(true);
       if (this.initializationResolver) {
         this.initializationResolver();
@@ -255,15 +258,12 @@ export class AttendanceService {
     const user = authData.user;
     this.supabaseUser.set(user);
     
-    // After login, fetch their data
     const data = await this.supabaseService.loadData(user);
     if (data) {
         this.loadStateFromData(data);
     } else {
-        // This case might happen for a user who signed up but data wasn't saved.
-        // We should create a default state for them based on their metadata.
         const coordinator: Teacher = {
-            id: user.id, name: user.user_metadata.name, email: user.email!, pin: '1234', // default pin
+            id: user.id, name: user.user_metadata.name, email: user.email!, pin: '1234',
             role: 'coordinator', schoolName: user.user_metadata.schoolName,
             className: 'N/A', section: 'A',
             setupComplete: true, mobileNumber: 'N/A',
@@ -277,16 +277,37 @@ export class AttendanceService {
     }
   }
 
+  async loadSchoolById(schoolId: string): Promise<Teacher[]> {
+    const result = await this.supabaseService.loadDataById(schoolId);
+    if (!result) {
+        throw new Error("School not found. Please check the School ID and try again.");
+    }
+    
+    // The supabaseUser is not authenticated as a teacher. We set a dummy user
+    // object with the coordinator's ID (the school ID) to make other service
+    // methods like syncToSupabase work correctly, as they rely on this ID.
+    // This does NOT grant any special permissions.
+    const coordinatorUser = { id: schoolId } as User;
+    this.supabaseUser.set(coordinatorUser);
+    this.loadStateFromData(result.data);
+    
+    const coordinator = this.teachers().find(t => t.role === 'coordinator');
+    if (!coordinator || coordinator.id !== schoolId) {
+      await this.logout(); // Clear inconsistent state
+      throw new Error("School data is corrupted. Coordinator ID mismatch.");
+    }
+
+    return this.teachers();
+  }
+
   pinLogout() {
     this.currentPinUser.set(null);
   }
 
   async logout() { 
     await this.supabaseService.signOut();
-    // The onAuthStateChange listener will clear the state, but we do it here
-    // for a faster UI response.
-    this.supabaseUser.set(null);
     this.clearLocalState();
+    this.supabaseUser.set(null);
   }
 
   verifyPin(userId: string, pin: string): boolean {
@@ -479,12 +500,23 @@ export class AttendanceService {
   }
 
   async addTeacher(details: { name: string; email: string; pin: string; photo?: string; mobile: string; className: string; section: string; }) {
-    if (this.teachers().some(t => t.email.toLowerCase() === details.email.toLowerCase())) {
+    const trimmedEmail = (details.email || '').trim();
+    if (trimmedEmail && this.teachers().some(t => t.email?.toLowerCase() === trimmedEmail.toLowerCase())) {
       throw new Error("A teacher with this email already exists.");
     }
     const id = 'teacher_' + Math.random().toString(36).substr(2, 5);
-    const teacher: Teacher = { id, name: details.name, email: details.email, pin: details.pin, role: 'teacher', photo: details.photo,
-      className: details.className, section: details.section, setupComplete: !!(details.className && details.section), mobileNumber: details.mobile };
+    const teacher: Teacher = { 
+      id, 
+      name: details.name, 
+      email: trimmedEmail, 
+      pin: details.pin, 
+      role: 'teacher', 
+      photo: details.photo,
+      className: details.className, 
+      section: details.section, 
+      setupComplete: !!(details.className && details.section), 
+      mobileNumber: details.mobile 
+    };
     this.teachers.update(list => [...list, teacher]);
     await this.syncToSupabase();
   }
@@ -495,8 +527,12 @@ export class AttendanceService {
   }
 
   updateTeacherDetails(teacherId: string, details: Partial<Omit<Teacher, 'id' | 'role'>>) {
-    const email = details.email?.trim().toLowerCase();
-    if(email && this.teachers().some(t => t.email.toLowerCase() === email && t.id !== teacherId)) {
+    if (typeof details.email === 'string') {
+        details.email = details.email.trim();
+    }
+    const email = details.email?.toLowerCase();
+
+    if(email && this.teachers().some(t => t.email?.toLowerCase() === email && t.id !== teacherId)) {
         throw new Error("This email is already used by another teacher.");
     }
     this.teachers.update(list => list.map(t => t.id === teacherId ? { ...t, ...details } : t));

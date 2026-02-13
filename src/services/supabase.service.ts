@@ -16,7 +16,7 @@ export class SupabaseService {
 
   // IMPORTANT: Paste your ANON KEY from your Supabase project's API settings below.
   private readonly SUPABASE_URL = process.env.SUPABASE_URL || 'https://lucpmecyfkgdcwpditzs.supabase.co';
-  private readonly SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1Y3BtZWN5ZmtnZGN3cGRpdHpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4ODQxOTUsImV4cCI6MjA4NjQ2MDE5NX0.TuQYOT2sQoo5U6gLIJfHRx5IHz0oS69uGp6CdesMyv0';
+  private readonly SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1Y3BtZWN5ZmtnZGN3cGRpdHpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4ODQxOTUsImV4cCI6MjA4NjQ2MDE5NX0.TuQYOT9sQoo5U6gLIJfHRx5IHz0oS69uGp6CdesMyv0';
   
   constructor() {
     if (this.SUPABASE_URL === 'YOUR_SUPABASE_URL' || this.SUPABASE_KEY === 'YOUR_SUPABASE_ANON_KEY') {
@@ -100,5 +100,34 @@ export class SupabaseService {
     if (error) {
       console.error("Error saving data to Supabase:", error);
     }
+  }
+  
+  async loadDataById(id: string): Promise<{ data: AppData } | null> {
+    // Note: This function requires the 'profiles' table to be readable by an
+    // anonymous user for a specific row identified by 'id'.
+    // If Row Level Security (RLS) is enabled, a policy is needed to allow this.
+    // e.g., CREATE POLICY "Enable public read access to profiles" ON public.profiles FOR SELECT USING (true);
+    // Be aware of security implications. A more secure approach involves a Supabase Edge Function.
+    
+    if (!id || typeof id !== 'string') {
+        console.error("Invalid ID provided to loadDataById");
+        return null;
+    }
+
+    const { data, error } = await this.supabase
+      .from('profiles')
+      .select('app_data')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      // PGRST116: "object not found" is a valid outcome, not an error.
+      if (error.code !== 'PGRST116') {
+          console.error(`Error loading data from Supabase for ID ${id}:`, error);
+      }
+      return null;
+    }
+    
+    return data ? { data: data.app_data as AppData } : null;
   }
 }

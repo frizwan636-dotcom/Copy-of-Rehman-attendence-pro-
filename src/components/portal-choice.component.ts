@@ -1,9 +1,9 @@
-import { Component, inject, signal, ChangeDetectionStrategy, computed, effect } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy, computed, effect, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AttendanceService, Teacher } from '../services/attendance.service';
 
-type ViewState = 'initial_choice' | 'login' | 'signup' | 'user_select' | 'pin';
+type ViewState = 'initial_choice' | 'coordinator_login' | 'coordinator_signup' | 'teacher_school_lookup' | 'user_select' | 'pin';
 
 @Component({
   selector: 'app-portal-choice',
@@ -18,14 +18,14 @@ type ViewState = 'initial_choice' | 'login' | 'signup' | 'user_select' | 'pin';
             <p class="text-slate-500 mt-2 text-lg">Please select your role to continue</p>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <button (click)="selectPortal('coordinator')" class="p-8 bg-white rounded-[2rem] shadow-xl border border-slate-200 flex flex-col items-center gap-4 hover:-translate-y-2 transition-transform duration-300">
+            <button (click)="view.set('coordinator_login')" class="p-8 bg-white rounded-[2rem] shadow-xl border border-slate-200 flex flex-col items-center gap-4 hover:-translate-y-2 transition-transform duration-300">
               <div class="w-20 h-20 bg-green-100 text-green-500 rounded-3xl flex items-center justify-center text-4xl">
                 <i class="fa-solid fa-sitemap"></i>
               </div>
               <h2 class="text-2xl font-bold text-slate-800">Coordinator Portal</h2>
               <p class="text-sm text-slate-500">Manage teachers, view school-wide summaries, and handle administrative tasks.</p>
             </button>
-            <button (click)="selectPortal('teacher')" class="p-8 bg-white rounded-[2rem] shadow-xl border border-slate-200 flex flex-col items-center gap-4 hover:-translate-y-2 transition-transform duration-300">
+            <button (click)="handleTeacherPortalClick()" class="p-8 bg-white rounded-[2rem] shadow-xl border border-slate-200 flex flex-col items-center gap-4 hover:-translate-y-2 transition-transform duration-300">
               <div class="w-20 h-20 bg-indigo-100 text-indigo-500 rounded-3xl flex items-center justify-center text-4xl">
                 <i class="fa-solid fa-user-tie"></i>
               </div>
@@ -36,36 +36,28 @@ type ViewState = 'initial_choice' | 'login' | 'signup' | 'user_select' | 'pin';
         </div>
       }
 
-      @if (view() === 'login' || view() === 'signup') {
+      @if (view() === 'coordinator_login' || view() === 'coordinator_signup') {
         <div class="w-full max-w-md p-8 bg-white rounded-[2rem] shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 relative">
           <button (click)="view.set('initial_choice')" class="absolute top-6 left-6 flex items-center gap-2 text-slate-400 font-bold hover:text-indigo-600 text-sm transition-colors">
             <i class="fa-solid fa-arrow-left"></i> Back
           </button>
           <div class="text-center mb-8">
             <h1 class="text-3xl font-black text-slate-800 tracking-tight">
-              @if (portalMode() === 'coordinator') {
-                {{ view() === 'login' ? 'Coordinator Login' : 'Coordinator Setup' }}
-              } @else {
-                School Authentication
-              }
+              {{ view() === 'coordinator_login' ? 'Coordinator Login' : 'Coordinator Setup' }}
             </h1>
             <p class="text-slate-500 text-sm mt-1">
-               @if (portalMode() === 'coordinator') {
-                {{ view() === 'login' ? 'Access your school dashboard' : 'Create your school administrator account' }}
-              } @else {
-                Enter your coordinator's details to access the teacher portal.
-              }
+              {{ view() === 'coordinator_login' ? 'Access your school dashboard' : 'Create your school administrator account' }}
             </p>
           </div>
 
           <div class="space-y-3">
-             @if (view() === 'signup') {
+             @if (view() === 'coordinator_signup') {
                 <input type="text" [(ngModel)]="signupForm.schoolName" placeholder="School Name" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 text-sm">
                 <input type="text" [(ngModel)]="signupForm.name" placeholder="Your Full Name" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 text-sm">
              }
             <input type="email" [(ngModel)]="authForm.email" placeholder="Email Address" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 text-sm">
             <input type="password" [(ngModel)]="authForm.password" placeholder="Password" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 text-sm">
-             @if (view() === 'signup') {
+             @if (view() === 'coordinator_signup') {
                 <input type="tel" [(ngModel)]="signupForm.mobile" placeholder="Your Mobile Number" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 text-sm">
                  <div class="grid grid-cols-2 gap-3">
                     <input type="text" [(ngModel)]="signupForm.className" placeholder="Your Class" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 text-sm">
@@ -79,28 +71,47 @@ type ViewState = 'initial_choice' | 'login' | 'signup' | 'user_select' | 'pin';
             <p class="text-red-600 bg-red-50 text-center font-bold text-sm mt-4 p-3 rounded-lg">{{ errorMessage() }}</p>
           }
 
-          <button (click)="handleAuthAction()" [disabled]="isLoading()" class="w-full py-4 mt-6 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center">
+          <button (click)="handleCoordinatorAuthAction()" [disabled]="isLoading()" class="w-full py-4 mt-6 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center">
             @if(isLoading()) {
               <i class="fa-solid fa-spinner animate-spin mr-2"></i>
               <span>Processing...</span>
             } @else {
-              <span>{{ view() === 'login' ? 'Login Securely' : 'Create Account' }}</span>
+              <span>{{ view() === 'coordinator_login' ? 'Login Securely' : 'Create Account' }}</span>
             }
           </button>
           
-          @if (portalMode() === 'coordinator') {
-            <div class="text-center mt-6">
-              <button (click)="toggleView()" class="text-sm font-bold text-indigo-600 hover:underline">
-                 {{ view() === 'login' ? 'Don\\'t have an account? Sign Up' : 'Already have an account? Login' }}
-              </button>
-            </div>
-          } @else {
-             <div class="mt-6 text-center text-xs text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-200">
-              <p class="font-bold text-slate-600"><i class="fa-solid fa-circle-info mr-2 text-indigo-400"></i>Why is this needed?</p>
-              <p class="mt-1">To protect school data, the system must be unlocked with the coordinator account. After this, you can select your profile and log in with your personal PIN.</p>
-            </div>
-          }
+          <div class="text-center mt-6">
+            <button (click)="toggleCoordinatorView()" class="text-sm font-bold text-indigo-600 hover:underline">
+               {{ view() === 'coordinator_login' ? 'Don\\'t have an account? Sign Up' : 'Already have an account? Login' }}
+            </button>
+          </div>
         </div>
+      }
+
+      @if (view() === 'teacher_school_lookup') {
+         <div class="w-full max-w-md p-8 bg-white rounded-[2rem] shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 relative">
+          <button (click)="view.set('initial_choice')" class="absolute top-6 left-6 flex items-center gap-2 text-slate-400 font-bold hover:text-indigo-600 text-sm transition-colors">
+            <i class="fa-solid fa-arrow-left"></i> Back
+          </button>
+          <div class="text-center mb-8">
+            <h1 class="text-3xl font-black text-slate-800 tracking-tight">Find Your School</h1>
+            <p class="text-slate-500 text-sm mt-1">Enter the School ID provided by your coordinator.</p>
+          </div>
+           <div class="space-y-3">
+              <input type="text" [(ngModel)]="schoolId" (keyup.enter)="handleSchoolLookup()" placeholder="Enter School ID" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 text-sm font-mono">
+           </div>
+            @if(errorMessage()) {
+              <p class="text-red-600 bg-red-50 text-center font-bold text-sm mt-4 p-3 rounded-lg">{{ errorMessage() }}</p>
+            }
+           <button (click)="handleSchoolLookup()" [disabled]="isLoading() || !schoolId" class="w-full py-4 mt-6 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center">
+             @if(isLoading()) {
+              <i class="fa-solid fa-spinner animate-spin mr-2"></i>
+              <span>Verifying...</span>
+            } @else {
+              <span>Find My School</span>
+            }
+          </button>
+         </div>
       }
 
       @if (view() === 'user_select') {
@@ -109,29 +120,32 @@ type ViewState = 'initial_choice' | 'login' | 'signup' | 'user_select' | 'pin';
             <p class="text-slate-500 mb-8">Choose your profile to enter your PIN and access the dashboard.</p>
 
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              @for(user of allUsers(); track user.id) {
+              @for(user of usersForSelection(); track user.id) {
                 <button (click)="selectUser(user)" class="p-4 bg-white rounded-2xl shadow-lg border border-slate-200 flex flex-col items-center gap-3 hover:-translate-y-1 transition-transform">
                    <div class="w-20 h-20 rounded-full bg-slate-100 border-4 border-white overflow-hidden flex items-center justify-center"
                      [class]="user.role === 'coordinator' ? 'border-green-300' : 'border-indigo-300'">
                       @if(user.photo) {
                         <img [src]="user.photo" class="w-full h-full object-cover">
                       } @else {
-                        <i class="fa-solid text-4xl" 
-                          [class]="user.role === 'coordinator' ? 'fa-sitemap text-green-300' : 'fa-user-tie text-indigo-300'"></i>
+                         @if(user.role === 'coordinator') {
+                           <i class="fa-solid fa-sitemap text-4xl text-green-300"></i>
+                         } @else {
+                           <i class="fa-solid fa-user-tie text-4xl text-indigo-300"></i>
+                         }
                       }
                    </div>
                    <span class="font-bold text-slate-700">{{ user.name }}</span>
                 </button>
               }
             </div>
-             <button (click)="attendanceService.logout()" class="mt-8 text-slate-500 font-semibold hover:text-red-600 transition-colors">
-              <i class="fa-solid fa-right-from-bracket mr-2"></i>Logout & Switch Portal
+             <button (click)="handleFullLogout()" class="mt-8 text-slate-500 font-semibold hover:text-red-600 transition-colors">
+              <i class="fa-solid fa-right-from-bracket mr-2"></i>Logout & Switch School
             </button>
          </div>
       }
 
       @if (view() === 'pin') {
-        <div class="w-full max-w-sm text-center animate-in fade-in zoom-in-95">
+        <div class="w-full max-w-sm text-center animate-in fade-in zoom-in-95 relative">
           <button (click)="backToUserSelect()" class="absolute top-6 left-6 flex items-center gap-2 text-slate-500 font-bold hover:text-indigo-600">
             <i class="fa-solid fa-arrow-left"></i> Back
           </button>
@@ -176,17 +190,21 @@ type ViewState = 'initial_choice' | 'login' | 'signup' | 'user_select' | 'pin';
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class PortalChoiceComponent {
+export class PortalChoiceComponent implements OnInit {
   attendanceService = inject(AttendanceService);
   
   view = signal<ViewState>('initial_choice');
-  portalMode = signal<'coordinator' | 'teacher'>('coordinator');
   
-  // Auth State
+  // Coordinator Auth State
   authForm = { email: '', password: '' };
   signupForm = { schoolName: '', name: '', mobile: '', pin: '', className: '', section: '' };
   
+  // Teacher Auth State
+  schoolId = signal('');
+
   // User & PIN State
+  allUsers = this.attendanceService.getTeachers;
+  usersForSelection = computed(() => this.allUsers());
   selectedUser = signal<Teacher | null>(null);
   pin = signal('');
   
@@ -194,51 +212,82 @@ export class PortalChoiceComponent {
   isLoading = signal(false);
   errorMessage = signal('');
 
-  allUsers = this.attendanceService.getTeachers;
-
   constructor() {
-    // This handles the case where the user is already authenticated on app load.
-    if (this.attendanceService.isSupabaseAuthenticated()) {
-      this.view.set('user_select');
-    }
-    
-    // This effect handles the transition after a successful login action.
     effect(() => {
-      if (this.attendanceService.isSupabaseAuthenticated() && (this.view() === 'login' || this.view() === 'signup')) {
-        this.view.set('user_select');
-      }
+        const isAuth = this.attendanceService.isSupabaseAuthenticated();
+        const activeRole = this.attendanceService.activeUserRole();
+
+        if (isAuth && !activeRole) {
+            // Logged into a school, but no PIN entered yet. Show profile selection.
+            this.view.set('user_select');
+        } else if (!isAuth && !activeRole) {
+            const currentView = this.view();
+            const nonAuthViews = ['initial_choice', 'coordinator_login', 'coordinator_signup', 'teacher_school_lookup'];
+            if (!nonAuthViews.includes(currentView)) {
+              this.view.set('initial_choice');
+            }
+        }
     });
   }
 
-  selectPortal(role: 'coordinator' | 'teacher') {
-    this.portalMode.set(role);
-    this.view.set('login');
+  ngOnInit() {
+    this.tryAutoLoadSchool();
   }
 
-  toggleView() {
-    if (this.portalMode() === 'coordinator') {
-      this.errorMessage.set('');
-      this.view.set(this.view() === 'login' ? 'signup' : 'login');
+  async tryAutoLoadSchool() {
+    const savedSchoolId = localStorage.getItem('lastSchoolId');
+    if (savedSchoolId) {
+      this.schoolId.set(savedSchoolId);
+      await this.handleSchoolLookup();
     }
   }
 
-  async handleAuthAction() {
+  handleTeacherPortalClick() {
+    if (localStorage.getItem('lastSchoolId')) {
+        this.tryAutoLoadSchool();
+    } else {
+        this.view.set('teacher_school_lookup');
+    }
+  }
+
+  toggleCoordinatorView() {
+    this.errorMessage.set('');
+    this.view.set(this.view() === 'coordinator_login' ? 'coordinator_signup' : 'coordinator_login');
+  }
+
+  async handleCoordinatorAuthAction() {
     this.isLoading.set(true);
     this.errorMessage.set('');
     try {
-      if (this.view() === 'login') {
+      if (this.view() === 'coordinator_login') {
         await this.attendanceService.login(this.authForm.email, this.authForm.password);
       } else {
-        // This can only be reached in coordinator mode
         await this.attendanceService.signUpCoordinator({
           email: this.authForm.email,
           password: this.authForm.password,
           ...this.signupForm
         });
       }
-      // On success, the effect in the constructor will switch the view.
     } catch (e: any) {
       this.errorMessage.set(e.message);
+    } finally {
+      this.isLoading.set(false);
+    }
+  }
+
+  async handleSchoolLookup() {
+    this.isLoading.set(true);
+    this.errorMessage.set('');
+    try {
+      await this.attendanceService.loadSchoolById(this.schoolId());
+      localStorage.setItem('lastSchoolId', this.schoolId());
+      this.view.set('user_select');
+    } catch (e: any) {
+      this.errorMessage.set(e.message);
+      if (localStorage.getItem('lastSchoolId')) {
+        localStorage.removeItem('lastSchoolId');
+        this.view.set('teacher_school_lookup');
+      }
     } finally {
       this.isLoading.set(false);
     }
@@ -252,10 +301,21 @@ export class PortalChoiceComponent {
   }
 
   backToUserSelect() {
-    this.view.set('user_select');
+    if (this.schoolId() || localStorage.getItem('lastSchoolId')) {
+      this.view.set('user_select');
+    } else {
+      this.view.set('initial_choice');
+    }
     this.selectedUser.set(null);
     this.pin.set('');
     this.errorMessage.set('');
+  }
+  
+  async handleFullLogout() {
+    localStorage.removeItem('lastSchoolId');
+    this.schoolId.set('');
+    await this.attendanceService.logout();
+    this.view.set('initial_choice');
   }
 
   appendPin(num: string) {
@@ -278,7 +338,6 @@ export class PortalChoiceComponent {
     if (isValid) {
       this.errorMessage.set('');
       await this.attendanceService.setActiveUser(user.id);
-      // Main app component will detect the activeUserRole change and switch views
     } else {
       this.errorMessage.set('Incorrect PIN. Please try again.');
       if (navigator.vibrate) navigator.vibrate(200);
