@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, OnInit } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, OnInit, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -36,6 +36,8 @@ import { CommonModule } from '@angular/common';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SplashScreenComponent implements OnInit {
+  animationFinished = output<void>();
+
   fullTitle = "Welcome to Rehman Attendance Pro";
   fullParagraph = "This application is the result of the tireless hard work and dedication of Rizwan Hanif. Enjoy a seamless and efficient attendance management experience.";
   private readonly highlightWords = new Set(['Rizwan', 'Hanif']);
@@ -79,6 +81,10 @@ export class SplashScreenComponent implements OnInit {
       } else {
         clearInterval(interval);
         this.isParagraphComplete.set(true);
+        // Wait a moment after completion before notifying parent to hide splash
+        setTimeout(() => {
+          this.animationFinished.emit();
+        }, 1000); // 1 second pause after text is complete
       }
     }, 200); // Slower speed for the paragraph
   }

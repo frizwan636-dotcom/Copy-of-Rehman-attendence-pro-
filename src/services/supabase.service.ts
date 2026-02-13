@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { createClient, SupabaseClient, User, AuthChangeEvent, Session } from '@supabase/supabase-js';
+import { createClient, SupabaseClient, User, AuthChangeEvent, Session, AuthError } from '@supabase/supabase-js';
 import type { Teacher, Student, AttendanceRecord, TeacherAttendanceRecord, DailySubmission } from './attendance.service';
 
 export interface AppData {
@@ -16,7 +16,7 @@ export class SupabaseService {
 
   // IMPORTANT: Paste your ANON KEY from your Supabase project's API settings below.
   private readonly SUPABASE_URL = process.env.SUPABASE_URL || 'https://lucpmecyfkgdcwpditzs.supabase.co';
-  private readonly SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1Y3BtZWN5ZmtnZGN3cGRpdHpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4ODQxOTUsImV4cCI6MjA4NjQ2MDE5NX0.TuQYOT9sQoo5U6gLIJfHRx5IHz0oS69uGp6CdesMyv0';
+  private readonly SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1Y3BtZWN5ZmtnZGN3cGRpdHpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4ODQxOTUsImV4cCI6MjA4NjQ2MDE5NX0.TuQYOT2sQoo5U6gLIJfHRx5IHz0oS69uGp6CdesMyv0';
   
   constructor() {
     if (this.SUPABASE_URL === 'YOUR_SUPABASE_URL' || this.SUPABASE_KEY === 'YOUR_SUPABASE_ANON_KEY') {
@@ -26,6 +26,24 @@ export class SupabaseService {
     } else {
         this.supabase = createClient(this.SUPABASE_URL, this.SUPABASE_KEY);
     }
+  }
+  
+  private processError(error: AuthError | null): AuthError | null {
+    if (!error) return null;
+
+    const lowerCaseMessage = error.message.toLowerCase();
+
+    // FIX: The original code attempted to return a new object literal, which is not compatible
+    // with the AuthError class due to its protected properties. The fix is to modify the
+    // message property on the *existing* error object and return it, preserving its type.
+    if (lowerCaseMessage.includes('invalid api key') || error.status === 401) {
+      error.message = "Authentication failed due to an invalid Supabase API Key. Please contact the administrator.";
+    } else if (lowerCaseMessage.includes('failed to fetch')) {
+      error.message = "Network error: Could not connect to the database. Please check your internet connection and Supabase URL.";
+    } else if (lowerCaseMessage.includes('invalid login credentials')) {
+      error.message = "Invalid email or password. Please check your credentials and try again.";
+    }
+    return error;
   }
 
   onAuthStateChange(callback: (event: AuthChangeEvent, session: Session | null) => void) {
@@ -40,7 +58,7 @@ export class SupabaseService {
         data: metadata // Use 'data' for user_metadata
       }
     });
-    return { data, error };
+    return { data, error: this.processError(error) };
   }
 
   async signIn(email: string, password: string) {
@@ -48,7 +66,7 @@ export class SupabaseService {
       email,
       password,
     });
-    return { data, error };
+    return { data, error: this.processError(error) };
   }
 
   async signOut() {

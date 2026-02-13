@@ -1,8 +1,9 @@
 
+
 import { Component, inject, signal, effect, ViewChild, ElementRef, ChangeDetectionStrategy, computed } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AttendanceService, Teacher } from '../services/attendance.service';
+import { AttendanceService, Teacher, DailySubmission } from '../services/attendance.service';
 import { PdfService } from '../services/pdf.service';
 import { CsvService } from '../services/csv.service';
 import { DocService } from '../services/doc.service';
@@ -132,12 +133,14 @@ import { CameraComponent } from './camera.component';
             @case ('teachers') {
               <div class="space-y-6 animate-in fade-in">
                  <div class="bg-indigo-50 p-6 rounded-[2.5rem] shadow-sm border border-indigo-200 space-y-2">
-                  <h3 class="text-lg font-bold text-indigo-800">Teacher Login Information</h3>
-                  <p class="text-sm text-indigo-600">Share the following School ID with your teachers. They will need it to log in for the first time.</p>
+                  <h3 class="text-lg font-bold text-indigo-800">Teacher Invitation Link</h3>
+                  <p class="text-sm text-indigo-600">Share this one-time link with your teachers. When they click it, their device will be connected to your school.</p>
                   <div class="flex items-center gap-3 pt-2">
-                    <input type="text" [value]="coordinator()?.id" readonly class="flex-1 p-3 bg-white rounded-xl border border-indigo-300 font-mono text-indigo-900 text-sm outline-none">
-                    <button (click)="copySchoolId(coordinator()?.id)" class="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700">
-                      <i class="fa-solid fa-copy mr-2"></i>Copy ID
+                    <div class="flex-1 p-3 bg-white rounded-xl border border-indigo-300 font-mono text-indigo-900 text-sm outline-none truncate">
+                      <i class="fa-solid fa-link mr-2 text-slate-400"></i>School Invitation Link
+                    </div>
+                    <button (click)="shareInvitationLink(coordinator()?.id)" class="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 flex items-center gap-2">
+                      <i class="fa-solid fa-share-nodes"></i>Share Link
                     </button>
                   </div>
                 </div>
@@ -497,14 +500,17 @@ export class CoordinatorDashboardComponent {
       const key = `${tc.className}|${tc.section}`;
       const submission = submissionMap.get(key);
       if (submission) {
+        // FIX: Explicitly cast submission to DailySubmission to address a likely
+        // type inference issue where 'submission' is incorrectly typed as 'unknown'.
+        const sub = submission as DailySubmission;
         return {
           ...tc,
           status: 'Submitted' as const,
-          total: submission.totalStudents,
-          present: submission.presentStudents,
-          absent: submission.absentStudents,
-          percentage: submission.totalStudents > 0 ? ((submission.presentStudents / submission.totalStudents) * 100).toFixed(0) : '0',
-          timestamp: submission.submissionTimestamp
+          total: sub.totalStudents,
+          present: sub.presentStudents,
+          absent: sub.absentStudents,
+          percentage: sub.totalStudents > 0 ? ((sub.presentStudents / sub.totalStudents) * 100).toFixed(0) : '0',
+          timestamp: sub.submissionTimestamp
         };
       } else {
         return {
@@ -555,14 +561,32 @@ export class CoordinatorDashboardComponent {
     });
   }
   
-  copySchoolId(id: string | undefined) {
+  shareInvitationLink(id: string | undefined) {
     if (!id) return;
-    navigator.clipboard.writeText(id).then(() => {
-      this.showToastMessage('School ID copied to clipboard!');
-    }).catch(err => {
-      console.error('Failed to copy ID: ', err);
-      alert('Failed to copy ID.');
-    });
+    const baseUrl = window.location.origin + window.location.pathname;
+    const link = `${baseUrl}#/join?schoolId=${id}`;
+    
+    if (navigator.share) {
+      navigator.share({
+        title: 'Rehman Attendance School Invitation',
+        text: 'Click this link to join our school on the Rehman Attendance app.',
+        url: link,
+      }).then(() => {
+        this.showToastMessage('Invitation link shared!');
+      }).catch(err => {
+        if (err.name !== 'AbortError') {
+           console.error('Share failed:', err);
+           navigator.clipboard.writeText(link).then(() => this.showToastMessage('Link copied to clipboard!'));
+        }
+      });
+    } else {
+      navigator.clipboard.writeText(link).then(() => {
+        this.showToastMessage('Invitation link copied to clipboard!');
+      }).catch(err => {
+        console.error('Failed to copy link: ', err);
+        alert('Failed to copy link.');
+      });
+    }
   }
 
   // --- Teacher Photo Management ---
