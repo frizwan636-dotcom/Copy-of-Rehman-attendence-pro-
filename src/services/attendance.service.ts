@@ -1,15 +1,17 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { GoogleGenAI, Type } from "@google/genai";
-import { SupabaseService, AppData } from './supabase.service';
+import { SupabaseService, School, SchoolData } from './supabase.service';
 import { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 
+// Add school_id to interfaces to enforce relational integrity
 export interface Teacher {
-  id: string; // Will be Supabase Auth User ID for coordinator, or generated ID for teachers
+  id: string; 
+  school_id: string;
   name: string;
   email: string;
   pin: string;
   role: 'teacher' | 'coordinator';
-  schoolName?: string;
+  schoolName?: string; // This can be derived from the school now
   className: string;
   section: string;
   setupComplete: boolean;
@@ -18,12 +20,15 @@ export interface Teacher {
 }
 
 export interface FeePayment {
+  id?: number;
+  student_id: string;
   amount: number;
   date: string;
 }
 
 export interface Student {
   id: string;
+  school_id: string;
   teacherId: string;
   name: string;
   fatherName?: string;
@@ -36,6 +41,7 @@ export interface Student {
 }
 
 export interface AttendanceRecord {
+  school_id: string;
   date: string;
   teacherId: string;
   studentId: string;
@@ -44,6 +50,7 @@ export interface AttendanceRecord {
 }
 
 export interface TeacherAttendanceRecord {
+  school_id: string;
   date: string;
   teacherId: string;
   status: 'Present' | 'Absent';
@@ -51,6 +58,7 @@ export interface TeacherAttendanceRecord {
 }
 
 export interface DailySubmission {
+  school_id: string;
   date: string;
   teacherId: string;
   className: string;
@@ -67,23 +75,13 @@ type CurrentPinUser = { id: string, role: 'teacher' | 'coordinator' };
 export class AttendanceService {
   private _ai: GoogleGenAI | null = null;
   private get ai(): GoogleGenAI | null {
-    // Safely check for process and API_KEY to prevent ReferenceError in browser environments.
     const apiKey = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : undefined;
-
-    if (!apiKey) {
-      // API key is not configured; AI features will be unavailable.
-      return null;
-    }
-
+    if (!apiKey) return null;
     if (!this._ai) {
       try {
-        // Initialize the AI client only when it's first needed.
         this._ai = new GoogleGenAI({ apiKey });
       } catch (e) {
-        console.error(
-          "Google GenAI SDK Initialization Error. This likely means the API key is present but invalid. AI features will be disabled.", e
-        );
-        // Set to null to prevent re-initialization attempts and allow the app to function without AI features.
+        console.error("Google GenAI SDK Initialization Error.", e);
         this._ai = null; 
       }
     }
@@ -100,10 +98,9 @@ export class AttendanceService {
     this.initializationResolver = resolve;
   });
 
-  // Supabase auth state
   supabaseUser = signal<User | null>(null);
   
-  // App-level state
+  private school = signal<School | null>(null);
   private currentPinUser = signal<CurrentPinUser | null>(null);
   private teachers = signal<Teacher[]>([]);
   private students = signal<Student[]>([]);
@@ -111,9 +108,9 @@ export class AttendanceService {
   private teacherAttendance = signal<TeacherAttendanceRecord[]>([]);
   private dailySubmissions = signal<DailySubmission[]>([]);
 
-  // Computed signals for UI
-  isSupabaseAuthenticated = computed(() => !!this.supabaseUser());
+  isSupabaseAuthenticated = computed(() => !!this.supabaseUser() && !!this.supabaseUser()?.email);
   activeUserRole = computed(() => this.currentPinUser()?.role);
+  activeSchoolPin = computed(() => this.school()?.pin);
   
   coordinator = computed(() => this.teachers().find(t => t.role === 'coordinator'));
   teachersOnly = computed(() => this.teachers().filter(t => t.role === 'teacher'));
@@ -127,7 +124,10 @@ export class AttendanceService {
   activeCoordinator = computed(() => {
     const user = this.currentPinUser();
     if (user?.role !== 'coordinator') return null;
-    return this.teachers().find(t => t.id === user.id) || null;
+    // For coordinator, add school name from school signal
+    const coord = this.teachers().find(t => t.id === user.id);
+    if(coord) return {...coord, schoolName: this.school()?.name};
+    return null;
   });
 
   activeStudents = computed(() => {
@@ -179,7 +179,8 @@ export class AttendanceService {
       teacherId: t.id,
       teacherName: t.name,
       className: t.className,
-      section: t.section
+      section: t.section,
+      schoolName: this.school()?.name
     }));
   });
 
@@ -197,17 +198,14 @@ export class AttendanceService {
 
     if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
       if (user) {
-        const data = await this.supabaseService.loadData(user);
+        const data = await this.supabaseService.getSchoolDataForCoordinator(user.id);
         if (data) this.loadStateFromData(data);
       }
     }
     
     if (event === 'INITIAL_SESSION') {
       this.isInitialized.set(true);
-      if (this.initializationResolver) {
-        this.initializationResolver();
-        this.initializationResolver = null;
-      }
+      if (this.initializationResolver) this.initializationResolver();
     } else if (event === 'SIGNED_OUT') {
       this.clearLocalState();
     }
@@ -218,6 +216,7 @@ export class AttendanceService {
   }
   
   private clearLocalState() {
+    this.school.set(null);
     this.currentPinUser.set(null);
     this.teachers.set([]);
     this.students.set([]);
@@ -226,111 +225,53 @@ export class AttendanceService {
     this.dailySubmissions.set([]);
   }
 
-  private loadStateFromData(data: AppData) {
-    this.teachers.set(data.teachers || []);
-    this.students.set(data.students || []);
-    this.attendance.set(data.attendance || []);
-    this.teacherAttendance.set(data.teacherAttendance || []);
-    this.dailySubmissions.set(data.dailySubmissions || []);
-  }
-
-  private async syncToSupabase() {
-    if (!this.isInitialized() || !this.isSupabaseAuthenticated()) return;
-    this.isSyncing.set(true);
-    const data: AppData = {
-      teachers: this.teachers(),
-      students: this.students(),
-      attendance: this.attendance(),
-      teacherAttendance: this.teacherAttendance(),
-      dailySubmissions: this.dailySubmissions(),
-    };
-    await this.supabaseService.saveData(data, this.supabaseUser());
-    this.isSyncing.set(false);
+  private loadStateFromData(data: SchoolData) {
+    this.school.set(data.school);
+    const schoolName = data.school.name;
+    this.teachers.set(data.teachers.map(t => ({...t, schoolName})));
+    this.students.set(data.students);
+    this.attendance.set(data.studentAttendance);
+    this.teacherAttendance.set(data.teacherAttendance);
+    this.dailySubmissions.set(data.dailySubmissions);
   }
 
   async signUpCoordinator(details: { email: string; password: string; schoolName: string; name: string; className: string; section: string; mobile: string; pin: string; }) {
-    const { data: authData, error } = await this.supabaseService.signUp(details.email, details.password, {
-      name: details.name, schoolName: details.schoolName
-    });
-    if (error) throw new Error(error.message);
-    if (!authData?.user) throw new Error("Signup failed, user not created.");
-    
-    const user = authData.user;
-    this.supabaseUser.set(user);
-
-    const coordinator: Teacher = {
-        id: user.id, name: details.name, email: user.email!, pin: details.pin,
-        role: 'coordinator', schoolName: details.schoolName,
-        className: details.className, section: details.section,
-        setupComplete: true, mobileNumber: details.mobile,
-    };
-    this.teachers.set([coordinator]);
-    this.students.set([]);
-    this.attendance.set([]);
-    this.teacherAttendance.set([]);
-    this.dailySubmissions.set([]);
-    
-    await this.syncToSupabase();
+    await this.supabaseService.signUpAndCreateSchool(details);
   }
 
   async login(email: string, password: string) {
-    const { data: authData, error } = await this.supabaseService.signIn(email, password);
-    if (error) throw new Error(error.message);
-    if (!authData?.user) throw new Error("Login failed.");
-
-    const user = authData.user;
-    this.supabaseUser.set(user);
-    
-    const data = await this.supabaseService.loadData(user);
-    if (data) {
-        this.loadStateFromData(data);
-    } else {
-        const coordinator: Teacher = {
-            id: user.id, name: user.user_metadata.name, email: user.email!, pin: '1234',
-            role: 'coordinator', schoolName: user.user_metadata.schoolName,
-            className: 'N/A', section: 'A',
-            setupComplete: true, mobileNumber: 'N/A',
-        };
-        this.teachers.set([coordinator]);
-        this.students.set([]);
-        this.attendance.set([]);
-        this.teacherAttendance.set([]);
-        this.dailySubmissions.set([]);
-        await this.syncToSupabase();
+    const { data } = await this.supabaseService.signIn(email, password);
+    if (!data.user) throw new Error("Login failed.");
+    const schoolData = await this.supabaseService.getSchoolDataForCoordinator(data.user.id);
+    if (schoolData) {
+        this.loadStateFromData(schoolData);
     }
   }
-
-  async loadSchoolById(schoolId: string): Promise<Teacher[]> {
-    const result = await this.supabaseService.loadDataById(schoolId);
-    if (!result) {
-        throw new Error("School not found. Please check the School ID and try again.");
+  
+  async loadSchoolByPin(pin: string): Promise<string> {
+    const school = await this.supabaseService.getSchoolByPin(pin);
+    if (!school) {
+      throw new Error("School not found. Please check the School PIN and try again.");
     }
-    
-    // The supabaseUser is not authenticated as a teacher. We set a dummy user
-    // object with the coordinator's ID (the school ID) to make other service
-    // methods like syncToSupabase work correctly, as they rely on this ID.
-    // This does NOT grant any special permissions.
-    const coordinatorUser = { id: schoolId } as User;
-    this.supabaseUser.set(coordinatorUser);
-    this.loadStateFromData(result.data);
-    
-    const coordinator = this.teachers().find(t => t.role === 'coordinator');
-    if (!coordinator || coordinator.id !== schoolId) {
-      await this.logout(); // Clear inconsistent state
-      throw new Error("School data is corrupted. Coordinator ID mismatch.");
-    }
-
-    return this.teachers();
+    const schoolData = await this.supabaseService.getAllDataForSchool(school.id);
+    this.loadStateFromData(schoolData);
+    // Set a non-authed user so the app knows we are in teacher mode
+    this.supabaseUser.set({ id: school.id } as User);
+    return school.id;
   }
 
   pinLogout() {
-    this.currentPinUser.set(null);
+    const schoolId = this.school()?.id;
+    this.clearLocalState();
+    // For teachers, logging out of PIN should not log out of school
+    if (schoolId) {
+      this.loadSchoolByPin(localStorage.getItem('lastSchoolPin')!);
+    }
   }
 
   async logout() { 
     await this.supabaseService.signOut();
     this.clearLocalState();
-    this.supabaseUser.set(null);
   }
 
   verifyPin(userId: string, pin: string): boolean {
@@ -346,66 +287,82 @@ export class AttendanceService {
         throw new Error('User not found');
     }
   }
-  
-  isRollNumberTaken(rollNumber: string, studentIdToExclude?: string): boolean {
-    return this.activeStudents().some(s => 
-      s.rollNumber.toLowerCase() === rollNumber.toLowerCase() && s.id !== studentIdToExclude
-    );
+
+  // --- Data Modification Methods ---
+
+  async addTeacher(details: { name: string; email: string; pin: string; photo?: string; mobile: string; className: string; section: string; }) {
+    const schoolId = this.school()!.id;
+    const trimmedEmail = (details.email || '').trim();
+    if (trimmedEmail && this.teachers().some(t => t.email?.toLowerCase() === trimmedEmail.toLowerCase())) {
+      throw new Error("A teacher with this email already exists.");
+    }
+    
+    const teacherData: Omit<Teacher, 'id' | 'schoolName'> = { 
+      school_id: schoolId, name: details.name, email: trimmedEmail, pin: details.pin, 
+      role: 'teacher', photo: details.photo, className: details.className, section: details.section, 
+      setupComplete: !!(details.className && details.section), mobileNumber: details.mobile 
+    };
+
+    const newTeacher = await this.supabaseService.addTeacher(teacherData as any);
+    this.teachers.update(list => [...list, {...newTeacher, schoolName: this.school()?.name}]);
   }
 
-  async parseStudentListFromImage(base64Image: string): Promise<{ name: string, fatherName: string, roll: string, mobile: string }[]> {
-    const ai = this.ai;
-    if (!ai) {
-      throw new Error("Cannot parse image: Gemini API key is not configured.");
-    }
-    try {
-      const data = base64Image.split(',')[1];
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash', contents: [{ parts: [
-              { text: "Extract student information from this image of a list or roster. Return an array of objects with keys: name, fatherName, roll, mobile. If a field is missing, use an empty string. Ensure 'roll' and 'mobile' are strings. Focus on accuracy." },
-              { inlineData: { mimeType: 'image/jpeg', data } } ] }],
-        config: { responseMimeType: "application/json", responseSchema: { type: Type.ARRAY, items: {
-                type: Type.OBJECT, properties: {
-                  name: { type: Type.STRING }, fatherName: { type: Type.STRING }, roll: { type: Type.STRING }, mobile: { type: Type.STRING }
-                }, required: ["name", "fatherName", "roll", "mobile"] } } }
-      });
-      return JSON.parse(response.text);
-    } catch (e) {
-      console.error("AI OCR Failure:", e);
-      throw new Error("Could not parse image. Please try better lighting or manual entry.");
-    }
+  async removeTeacher(teacherId: string) {
+    await this.supabaseService.removeTeacher(teacherId);
+    this.teachers.update(list => list.filter(t => t.id !== teacherId));
   }
 
-  addStudents(newStudents: { name: string, fatherName?: string, roll: string, mobile: string, totalFee?: number, className?: string, section?: string }[]) {
+  async updateTeacherDetails(teacherId: string, details: Partial<Omit<Teacher, 'id' | 'role'>>) {
+    const email = details.email?.toLowerCase();
+    if(email && this.teachers().some(t => t.email?.toLowerCase() === email && t.id !== teacherId)) {
+        throw new Error("This email is already used by another teacher.");
+    }
+    const updatedTeacher = await this.supabaseService.updateTeacher(teacherId, details);
+    this.teachers.update(list => list.map(t => t.id === teacherId ? { ...updatedTeacher, schoolName: this.school()?.name } : t));
+  }
+
+  async addStudents(newStudents: { name: string, fatherName?: string, roll: string, mobile: string, totalFee?: number, className?: string, section?: string }[]) {
     const teacherId = this.activeTeacher()!.id;
-    const studentsToAdd: Student[] = newStudents.map(s => ({
-      id: Math.random().toString(36).substr(2, 9), teacherId, name: s.name, fatherName: s.fatherName,
-      rollNumber: s.roll, mobileNumber: s.mobile,
-      totalFee: s.totalFee || 0,
-      feeHistory: [],
+    const schoolId = this.school()!.id;
+    
+    const studentsToAdd = newStudents.map(s => ({
+      school_id: schoolId, teacherId, name: s.name, fatherName: s.fatherName,
+      rollNumber: s.roll, mobileNumber: s.mobile, totalFee: s.totalFee || 0,
       className: s.className || this.activeTeacher()?.className,
       section: s.section || this.activeTeacher()?.section
     }));
-    this.students.update(list => [...list, ...studentsToAdd]);
-    this.syncToSupabase();
+    
+    const addedStudents = await this.supabaseService.addStudents(studentsToAdd as any);
+    this.students.update(list => [...list, ...addedStudents]);
   }
 
-  updateStudentDetails(studentId: string, details: Partial<Omit<Student, 'id' | 'teacherId' | 'feeHistory'>>) {
-    this.students.update(list => list.map(s => 
-      s.id === studentId ? { ...s, ...details } : s
-    ));
-    this.syncToSupabase();
+  async updateStudentDetails(studentId: string, details: Partial<Omit<Student, 'id' | 'teacherId' | 'feeHistory'>>) {
+    const updatedStudent = await this.supabaseService.updateStudent(studentId, details);
+    this.students.update(list => list.map(s => {
+      if (s.id === studentId) return { ...s, ...updatedStudent };
+      return s;
+    }));
   }
 
-  getAttendanceForDate(date: string): AttendanceRecord[] {
-    return this.attendance().filter(r => r.date === date);
+  async recordFeePayment(studentId: string, amount: number) {
+    const date = new Date().toISOString().split('T')[0];
+    const newPayment = await this.supabaseService.recordFeePayment(studentId, amount, date);
+    this.students.update(list => list.map(s => {
+      if (s.id === studentId) {
+        return { ...s, feeHistory: [...s.feeHistory, newPayment] };
+      }
+      return s;
+    }));
   }
 
-  saveAttendance(date: string, records: { studentId: string, status: 'Present' | 'Absent' }[]) {
-    const teacherId = this.activeTeacher()?.id;
-    if (!teacherId) return;
+  async saveAttendance(date: string, records: { studentId: string, status: 'Present' | 'Absent' }[]) {
+    const schoolId = this.school()!.id;
+    const teacherId = this.activeTeacher()!.id;
     const lastUpdated = Date.now();
-    const updatedRecords = records.map(r => ({ ...r, date, teacherId, lastUpdated }));
+    const updatedRecords: AttendanceRecord[] = records.map(r => ({ ...r, school_id: schoolId, date, teacherId, lastUpdated }));
+
+    await this.supabaseService.saveStudentAttendance(updatedRecords);
+
     this.attendance.update(existing => {
       const studentIdsToUpdate = new Set(records.map(r => r.studentId));
       const filtered = existing.filter(r => !(r.date === date && studentIdsToUpdate.has(r.studentId)));
@@ -413,21 +370,22 @@ export class AttendanceService {
     });
   }
 
-  submitAttendanceToCoordinator( date: string, activeClass: { className: string; section: string }, studentsInClass: Student[], attendanceMap: Map<string, 'Present' | 'Absent'>) {
-    const teacher = this.activeTeacher();
-    if (!teacher) return;
-
+  async submitAttendanceToCoordinator( date: string, activeClass: { className: string; section: string }, studentsInClass: Student[], attendanceMap: Map<string, 'Present' | 'Absent'>) {
+    const schoolId = this.school()!.id;
+    const teacherId = this.activeTeacher()!.id;
+    
     const totalStudents = studentsInClass.length;
     let presentStudents = 0;
     studentsInClass.forEach(s => {
       if (attendanceMap.get(s.id) === 'Present') presentStudents++;
     });
-    const absentStudents = totalStudents - presentStudents;
 
     const newSubmission: DailySubmission = {
-      date, teacherId: teacher.id, className: activeClass.className, section: activeClass.section,
-      totalStudents, presentStudents, absentStudents, submissionTimestamp: Date.now(),
+      school_id: schoolId, date, teacherId, className: activeClass.className, section: activeClass.section,
+      totalStudents, presentStudents, absentStudents: totalStudents - presentStudents, submissionTimestamp: Date.now(),
     };
+
+    await this.supabaseService.submitDailySummary(newSubmission);
 
     this.dailySubmissions.update(list => {
       const filtered = list.filter(s => 
@@ -435,7 +393,41 @@ export class AttendanceService {
       );
       return [...filtered, newSubmission];
     });
-    this.syncToSupabase();
+  }
+
+  async saveTeacherAttendance(date: string, records: { teacherId: string, status: 'Present' | 'Absent' }[]) {
+    const schoolId = this.school()!.id;
+    const lastUpdated = Date.now();
+    const updatedRecords: TeacherAttendanceRecord[] = records.map(r => ({ ...r, school_id: schoolId, date, lastUpdated }));
+
+    await this.supabaseService.saveTeacherAttendance(updatedRecords);
+
+    this.teacherAttendance.update(existing => {
+      const teacherIdsToUpdate = new Set(records.map(r => r.teacherId));
+      const filtered = existing.filter(r => !(r.date === date && teacherIdsToUpdate.has(r.teacherId)));
+      return [...filtered, ...updatedRecords];
+    });
+  }
+
+  async setSchoolPin(pin: string) {
+    const schoolId = this.school()!.id;
+    await this.supabaseService.updateSchoolPin(schoolId, pin);
+    this.school.update(s => s ? { ...s, pin } : null);
+  }
+
+  // --- Data Getter Methods (mostly unchanged) ---
+  isRollNumberTaken(rollNumber: string, studentIdToExclude?: string): boolean {
+    return this.activeStudents().some(s => 
+      s.rollNumber.toLowerCase() === rollNumber.toLowerCase() && s.id !== studentIdToExclude
+    );
+  }
+
+  getAttendanceForDate(date: string): AttendanceRecord[] {
+    return this.attendance().filter(r => r.date === date);
+  }
+  
+  getAttendanceForStudent(studentId: string): AttendanceRecord[] {
+    return this.attendance().filter(r => r.studentId === studentId);
   }
 
   getSubmissionForTeacher(teacherId: string, className: string, section: string, date: string): DailySubmission | undefined {
@@ -448,17 +440,6 @@ export class AttendanceService {
     return this.dailySubmissions().filter(s => s.date === date);
   }
 
-  recordFeePayment(studentId: string, amount: number) {
-    this.students.update(list => list.map(s => {
-      if (s.id === studentId) {
-        const newHistory: FeePayment = { amount, date: new Date().toISOString().split('T')[0] };
-        return { ...s, feeHistory: [...s.feeHistory, newHistory] };
-      }
-      return s;
-    }));
-    this.syncToSupabase();
-  }
-  
   getDailyReportData(date: string) {
     const students = this.activeStudents();
     const records = this.getAttendanceForDate(date);
@@ -514,77 +495,16 @@ export class AttendanceService {
     return breakdown.sort((a,b) => a.monthName.localeCompare(b.monthName));
   }
 
-  async generateMonthlyAnalysis(month: string, data: any[]): Promise<string> {
-    const ai = this.ai;
-    if (!ai) {
-      return "AI analysis is unavailable because the Gemini API key has not been configured.";
-    }
-    const prompt = `Analyze this monthly student attendance data for ${month}. Provide a 2-3 sentence summary highlighting overall attendance percentage, identifying top performers (over 95%), and students needing attention (under 75%). The data is: ${JSON.stringify(data)}. Be encouraging and professional.`;
-    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-    return response.text;
-  }
-
   getTeachers = () => this.teachers();
   
   getTeacherForClass(className: string, section: string): Teacher | undefined {
     return this.teachers().find(t => t.role === 'teacher' && t.className === className && t.section === section);
   }
 
-  async addTeacher(details: { name: string; email: string; pin: string; photo?: string; mobile: string; className: string; section: string; }) {
-    const trimmedEmail = (details.email || '').trim();
-    if (trimmedEmail && this.teachers().some(t => t.email?.toLowerCase() === trimmedEmail.toLowerCase())) {
-      throw new Error("A teacher with this email already exists.");
-    }
-    const id = 'teacher_' + Math.random().toString(36).substr(2, 5);
-    const teacher: Teacher = { 
-      id, 
-      name: details.name, 
-      email: trimmedEmail, 
-      pin: details.pin, 
-      role: 'teacher', 
-      photo: details.photo,
-      className: details.className, 
-      section: details.section, 
-      setupComplete: !!(details.className && details.section), 
-      mobileNumber: details.mobile 
-    };
-    this.teachers.update(list => [...list, teacher]);
-    await this.syncToSupabase();
-  }
-
-  removeTeacher(teacherId: string) {
-    this.teachers.update(list => list.filter(t => t.id !== teacherId));
-    this.syncToSupabase();
-  }
-
-  updateTeacherDetails(teacherId: string, details: Partial<Omit<Teacher, 'id' | 'role'>>) {
-    if (typeof details.email === 'string') {
-        details.email = details.email.trim();
-    }
-    const email = details.email?.toLowerCase();
-
-    if(email && this.teachers().some(t => t.email?.toLowerCase() === email && t.id !== teacherId)) {
-        throw new Error("This email is already used by another teacher.");
-    }
-    this.teachers.update(list => list.map(t => t.id === teacherId ? { ...t, ...details } : t));
-    this.syncToSupabase();
-  }
-
   getTeacherAttendanceForDate(date: string): TeacherAttendanceRecord[] {
     return this.teacherAttendance().filter(r => r.date === date);
   }
-
-  saveTeacherAttendance(date: string, records: { teacherId: string, status: 'Present' | 'Absent' }[]) {
-    const lastUpdated = Date.now();
-    const updatedRecords = records.map(r => ({ ...r, date, lastUpdated }));
-    this.teacherAttendance.update(existing => {
-      const teacherIdsToUpdate = new Set(records.map(r => r.teacherId));
-      const filtered = existing.filter(r => !(r.date === date && teacherIdsToUpdate.has(r.teacherId)));
-      return [...filtered, ...updatedRecords];
-    });
-    this.syncToSupabase();
-  }
-
+  
   getTeacherDailyReportData(date: string) {
     const teachers = this.teachersOnly();
     const records = this.getTeacherAttendanceForDate(date);
@@ -610,12 +530,42 @@ export class AttendanceService {
       return { ...t, present, absent, percentage };
     }).sort((a,b) => a.name.localeCompare(b.name));
   }
+
+  // --- AI Methods (unchanged) ---
+  async parseStudentListFromImage(base64Image: string): Promise<{ name: string, fatherName: string, roll: string, mobile: string }[]> {
+    const ai = this.ai;
+    if (!ai) {
+      throw new Error("Cannot parse image: Gemini API key is not configured.");
+    }
+    try {
+      const data = base64Image.split(',')[1];
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash', contents: [{ parts: [
+              { text: "Extract student information from this image of a list or roster. Return an array of objects with keys: name, fatherName, roll, mobile. If a field is missing, use an empty string. Ensure 'roll' and 'mobile' are strings. Focus on accuracy." },
+              { inlineData: { mimeType: 'image/jpeg', data } } ] }],
+        config: { responseMimeType: "application/json", responseSchema: { type: Type.ARRAY, items: {
+                type: Type.OBJECT, properties: {
+                  name: { type: Type.STRING }, fatherName: { type: Type.STRING }, roll: { type: Type.STRING }, mobile: { type: Type.STRING }
+                }, required: ["name", "fatherName", "roll", "mobile"] } } }
+      });
+      return JSON.parse(response.text);
+    } catch (e) {
+      console.error("AI OCR Failure:", e);
+      throw new Error("Could not parse image. Please try better lighting or manual entry.");
+    }
+  }
+
+  async generateMonthlyAnalysis(month: string, data: any[]): Promise<string> {
+    const ai = this.ai;
+    if (!ai) return "AI analysis is unavailable because the Gemini API key has not been configured.";
+    const prompt = `Analyze this monthly student attendance data for ${month}. Provide a 2-3 sentence summary highlighting overall attendance percentage, identifying top performers (over 95%), and students needing attention (under 75%). The data is: ${JSON.stringify(data)}. Be encouraging and professional.`;
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    return response.text;
+  }
   
   async generateTeacherMonthlyAnalysis(month: string, data: any[]): Promise<string> {
     const ai = this.ai;
-    if (!ai) {
-      return "AI analysis is unavailable because the Gemini API key has not been configured.";
-    }
+    if (!ai) return "AI analysis is unavailable because the Gemini API key has not been configured.";
     const prompt = `Analyze this monthly teacher attendance data for ${month}. Provide a 2-3 sentence summary highlighting overall staff attendance, identifying any teachers with perfect attendance, and those with notable absences (e.g., more than 3 absences). Data: ${JSON.stringify(data)}. Keep the tone professional and data-focused.`;
     const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
     return response.text;

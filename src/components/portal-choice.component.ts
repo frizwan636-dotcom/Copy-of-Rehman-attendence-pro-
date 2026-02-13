@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AttendanceService, Teacher } from '../services/attendance.service';
 
-type ViewState = 'initial_choice' | 'coordinator_login' | 'coordinator_signup' | 'teacher_instructions' | 'user_select' | 'pin';
+type ViewState = 'initial_choice' | 'coordinator_login' | 'coordinator_signup' | 'teacher_school_pin' | 'user_select' | 'pin';
 
 @Component({
   selector: 'app-portal-choice',
@@ -88,20 +88,33 @@ type ViewState = 'initial_choice' | 'coordinator_login' | 'coordinator_signup' |
         </div>
       }
 
-      @if (view() === 'teacher_instructions') {
-         <div class="w-full max-w-md p-8 bg-white rounded-[2rem] shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 relative text-center">
-          <button (click)="view.set('initial_choice')" class="absolute top-6 left-6 flex items-center gap-2 text-slate-400 font-bold hover:text-indigo-600 text-sm transition-colors">
-            <i class="fa-solid fa-arrow-left"></i> Back
-          </button>
-          <div class="w-24 h-24 bg-indigo-50 text-indigo-400 rounded-full flex items-center justify-center text-5xl mx-auto mb-6">
-            <i class="fa-solid fa-link"></i>
-          </div>
-          <h1 class="text-3xl font-black text-slate-800 tracking-tight">Login Instructions</h1>
-          <p class="text-slate-500 text-sm mt-2 max-w-sm mx-auto">
-            To connect to your school, please ask your coordinator for a **one-time invitation link** and open it on this device.
-          </p>
-          <p class="text-xs text-center text-slate-400 mt-6">Your device will be remembered automatically after you click the link.</p>
-         </div>
+      @if(view() === 'teacher_school_pin') {
+        <div class="w-full max-w-md p-8 bg-white rounded-[2rem] shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 relative text-center">
+            <button (click)="view.set('initial_choice')" class="absolute top-6 left-6 flex items-center gap-2 text-slate-400 font-bold hover:text-indigo-600 text-sm transition-colors">
+              <i class="fa-solid fa-arrow-left"></i> Back
+            </button>
+            <div class="w-24 h-24 bg-indigo-50 text-indigo-400 rounded-full flex items-center justify-center text-5xl mx-auto mb-6">
+              <i class="fa-solid fa-school"></i>
+            </div>
+            <h1 class="text-3xl font-black text-slate-800 tracking-tight">Connect to Your School</h1>
+            <p class="text-slate-500 text-sm mt-2 max-w-sm mx-auto">
+              Please enter the School PIN provided by your coordinator.
+            </p>
+            <div class="mt-6">
+              <input type="text" [(ngModel)]="schoolPinInput" (keyup.enter)="connectToSchool()" placeholder="Enter School PIN" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 text-sm text-center font-bold tracking-wider">
+               @if(errorMessage()) {
+                <p class="text-red-600 bg-red-50 font-bold text-sm mt-3 p-3 rounded-lg">{{ errorMessage() }}</p>
+              }
+              <button (click)="connectToSchool()" [disabled]="isLoading()" class="w-full py-4 mt-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center">
+                 @if(isLoading()) {
+                    <i class="fa-solid fa-spinner animate-spin mr-2"></i>
+                    <span>Connecting...</span>
+                 } @else {
+                    <span>Connect</span>
+                 }
+              </button>
+            </div>
+        </div>
       }
 
       @if (view() === 'user_select') {
@@ -180,25 +193,21 @@ type ViewState = 'initial_choice' | 'coordinator_login' | 'coordinator_signup' |
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class PortalChoiceComponent implements OnInit {
+export class PortalChoiceComponent {
   attendanceService = inject(AttendanceService);
   
   view = signal<ViewState>('initial_choice');
   
-  // Coordinator Auth State
   authForm = { email: '', password: '' };
   signupForm = { schoolName: '', name: '', mobile: '', pin: '', className: '', section: '' };
   
-  // Teacher Auth State
-  schoolId = signal('');
+  schoolPinInput = signal('');
 
-  // User & PIN State
   allUsers = this.attendanceService.getTeachers;
   usersForSelection = computed(() => this.allUsers());
   selectedUser = signal<Teacher | null>(null);
   pin = signal('');
   
-  // UI State
   isLoading = signal(false);
   errorMessage = signal('');
 
@@ -207,84 +216,13 @@ export class PortalChoiceComponent implements OnInit {
     return coordinator?.schoolName || 'Your School';
   });
 
-  constructor() {
-    effect(() => {
-      const isAuth = this.attendanceService.isSupabaseAuthenticated();
-      const activeRole = this.attendanceService.activeUserRole();
-      const supabaseUser = this.attendanceService.supabaseUser();
-
-      if (isAuth && !activeRole) {
-        // If the supabaseUser object has an email, it's a real authenticated user (the coordinator).
-        // This handles the transition after a successful login or signup.
-        if (supabaseUser && supabaseUser.email) {
-          this.view.set('user_select');
-        } else {
-          // If there's no email, it's the dummy user for a teacher's "school session".
-          // This handles the teacher flow (invite links, remembered schools).
-          this.processUrlAndAutoLogin();
-        }
-      } else if (!isAuth && !activeRole) {
-        // This handles logout. If we are not in a view that's accessible without
-        // authentication, reset to the initial choice.
-        const currentView = this.view();
-        const nonAuthViews = ['initial_choice', 'coordinator_login', 'coordinator_signup', 'teacher_instructions'];
-        if (!nonAuthViews.includes(currentView)) {
-          this.view.set('initial_choice');
-        }
-      }
-    });
-  }
-
-  ngOnInit() {
-    this.processUrlAndAutoLogin();
-  }
-  
-  async processUrlAndAutoLogin() {
-    const hash = window.location.hash;
-    
-    // Priority 1: Check for a new invitation link
-    if (hash.startsWith('#/join?schoolId=')) {
-      const schoolId = hash.substring('#/join?schoolId='.length);
-      history.pushState("", document.title, window.location.pathname + window.location.search);
-      
-      localStorage.removeItem('lastSchoolId');
-      localStorage.removeItem('lastSelectedTeacherId');
-      this.schoolId.set(schoolId);
-      await this.loadSchoolAndShowProfiles();
-      return;
-    }
-    
-    // Priority 2: Check for a remembered user to go straight to PIN entry
-    const savedSchoolId = localStorage.getItem('lastSchoolId');
-    const savedTeacherId = localStorage.getItem('lastSelectedTeacherId');
-    
-    if (savedSchoolId && savedTeacherId) {
-      this.isLoading.set(true);
-      try {
-        await this.attendanceService.loadSchoolById(savedSchoolId);
-        const user = this.usersForSelection().find(u => u.id === savedTeacherId);
-        if (user) {
-          this.selectUser(user);
-        } else {
-          localStorage.removeItem('lastSelectedTeacherId');
-          this.view.set('user_select');
-        }
-      } catch (e: any) {
-        this.errorMessage.set(e.message);
-        this.handleFullLogout();
-      } finally {
-        this.isLoading.set(false);
-      }
-    }
-  }
-
   async handleTeacherPortalClick() {
-    const savedSchoolId = localStorage.getItem('lastSchoolId');
-    if (savedSchoolId) {
-      this.schoolId.set(savedSchoolId);
-      await this.loadSchoolAndShowProfiles();
+    const lastPin = localStorage.getItem('lastSchoolPin');
+    if (lastPin) {
+      this.schoolPinInput.set(lastPin);
+      await this.connectToSchool();
     } else {
-      this.view.set('teacher_instructions');
+      this.view.set('teacher_school_pin');
     }
   }
 
@@ -300,29 +238,37 @@ export class PortalChoiceComponent implements OnInit {
       if (this.view() === 'coordinator_login') {
         await this.attendanceService.login(this.authForm.email, this.authForm.password);
       } else {
-        await this.attendanceService.signUpCoordinator({ email: this.authForm.email, password: this.authForm.password, ...this.signupForm });
+        await this.attendanceService.signUpCoordinator({ ...this.authForm, ...this.signupForm });
       }
-      // NOTE: After a successful login/signup, the `effect` in the constructor
-      // will automatically handle changing the view to 'user_select'.
     } catch (e: any) { 
         this.errorMessage.set(e.message); 
-    } 
-    finally { 
+    } finally { 
         this.isLoading.set(false); 
     }
   }
 
-  async loadSchoolAndShowProfiles() {
+  async connectToSchool() {
+    const pin = this.schoolPinInput().trim();
+    if (!pin) {
+        this.errorMessage.set('Please enter a School PIN.');
+        return;
+    }
     this.isLoading.set(true);
     this.errorMessage.set('');
     try {
-      await this.attendanceService.loadSchoolById(this.schoolId());
-      localStorage.setItem('lastSchoolId', this.schoolId());
-      this.view.set('user_select');
+      await this.attendanceService.loadSchoolByPin(pin);
+      localStorage.setItem('lastSchoolPin', pin);
+      const savedTeacherId = localStorage.getItem('lastSelectedTeacherId');
+      const user = this.usersForSelection().find(u => u.id === savedTeacherId);
+      if(user) {
+        this.selectUser(user);
+      } else {
+        this.view.set('user_select');
+      }
     } catch (e: any) {
       this.errorMessage.set(e.message);
-      localStorage.removeItem('lastSchoolId');
-      this.view.set('teacher_instructions');
+      this.view.set('teacher_school_pin'); // Stay on this view on error
+      localStorage.removeItem('lastSchoolPin');
     } finally {
       this.isLoading.set(false);
     }
@@ -337,20 +283,16 @@ export class PortalChoiceComponent implements OnInit {
 
   backToUserSelect() {
     localStorage.removeItem('lastSelectedTeacherId');
-    if (localStorage.getItem('lastSchoolId')) {
-      this.view.set('user_select');
-    } else {
-      this.view.set('initial_choice');
-    }
+    this.view.set('user_select');
     this.selectedUser.set(null);
     this.pin.set('');
     this.errorMessage.set('');
   }
   
   async handleFullLogout() {
-    localStorage.removeItem('lastSchoolId');
+    localStorage.removeItem('lastSchoolPin');
     localStorage.removeItem('lastSelectedTeacherId');
-    this.schoolId.set('');
+    this.schoolPinInput.set('');
     await this.attendanceService.logout();
     this.view.set('initial_choice');
   }
@@ -369,15 +311,20 @@ export class PortalChoiceComponent implements OnInit {
     const user = this.selectedUser();
     if (!user) return;
     
+    this.isLoading.set(true);
     const isValid = this.attendanceService.verifyPin(user.id, this.pin());
+    
     if (isValid) {
       this.errorMessage.set('');
-      localStorage.setItem('lastSelectedTeacherId', user.id);
+      if (user.role !== 'coordinator') {
+        localStorage.setItem('lastSelectedTeacherId', user.id);
+      }
       await this.attendanceService.setActiveUser(user.id);
     } else {
       this.errorMessage.set('Incorrect PIN. Please try again.');
       if (navigator.vibrate) navigator.vibrate(200);
       setTimeout(() => this.pin.set(''), 1000);
     }
+    this.isLoading.set(false);
   }
 }

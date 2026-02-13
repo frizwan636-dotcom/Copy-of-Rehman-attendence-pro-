@@ -1,11 +1,11 @@
 import { Component, inject, signal, effect, computed, ViewChild, ElementRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AttendanceService, Student, Teacher, DailySubmission } from '../services/attendance.service';
+import { AttendanceService, Student, Teacher, DailySubmission, AttendanceRecord, FeePayment } from '../services/attendance.service';
 import { ReportsComponent } from './reports.component';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 
-type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status: 'Paid' | 'Partial' | 'Unpaid' | 'Overpaid' };
+export type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status: 'Paid' | 'Partial' | 'Unpaid' | 'Overpaid' };
 
 @Component({
   selector: 'app-dashboard',
@@ -137,7 +137,7 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
                   <div class="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
                     <div class="flex items-center gap-4">
                       <div class="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center border-2 border-white shadow-sm text-indigo-400">
-                        <i class="fa-solid fa-user text-2xl"></i>
+                          <i class="fa-solid fa-user text-2xl"></i>
                       </div>
                       <div>
                         <h4 class="font-bold text-slate-800 leading-none mb-1">{{ student.name }}</h4>
@@ -222,24 +222,15 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
               @if (filteredStudents().length > 0) {
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   @for (student of filteredStudents(); track student.id) {
-                    <div class="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm flex items-start gap-4 hover:border-blue-200 transition-all group">
-                      <div class="w-16 h-16 rounded-2xl bg-slate-100 border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center text-slate-400">
+                    <div class="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
+                      <div class="w-16 h-16 rounded-2xl bg-slate-100 border border-slate-200 flex-shrink-0 flex items-center justify-center text-slate-400">
                         <i class="fa-solid fa-user-graduate text-2xl"></i>
                       </div>
                       <div class="flex-1">
-                        <div class="flex justify-between items-start">
-                          <div>
-                            <h4 class="font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{{ student.name }}</h4>
-                            <p class="text-xs text-slate-500">S/O: {{ student.fatherName || 'N/A' }}</p>
-                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Roll: {{ student.rollNumber }}</p>
-                             <p class="text-[10px] font-bold text-indigo-400 mt-1">{{ student.className || teacher()?.className }} - {{ student.section || teacher()?.section }}</p>
-                          </div>
-                          <button (click)="openEditStudentModal(student)" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors flex-shrink-0">
-                            <i class="fa-solid fa-pen-to-square text-sm"></i>
-                          </button>
-                        </div>
-                        <p class="text-[10px] font-medium text-slate-400 mt-1"><i class="fa-solid fa-phone text-[9px] mr-1"></i>{{ student.mobileNumber }}</p>
-                         @if(student.feeDue > 0) {
+                        <h4 class="font-bold text-slate-800">{{ student.name }}</h4>
+                        <p class="text-xs text-slate-500">S/O: {{ student.fatherName || 'N/A' }}</p>
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Roll: {{ student.rollNumber }}</p>
+                        @if(student.feeDue > 0) {
                           <div class="mt-2 text-xs font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-full w-fit">
                             <i class="fa-solid fa-hourglass-half mr-1.5"></i> Due: {{ student.feeDue }}
                           </div>
@@ -249,6 +240,9 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
                           </div>
                         }
                       </div>
+                      <button (click)="openEditStudentModal(student)" title="Edit Student" class="self-start w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-blue-50 hover:text-blue-600 rounded-full transition-colors">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                      </button>
                     </div>
                   }
                 </div>
@@ -284,7 +278,7 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
                   <div class="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm grid grid-cols-3 items-center gap-4">
                     <div class="flex items-center gap-4 col-span-1">
                        <div class="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center border-2 border-white shadow-sm flex-shrink-0 text-green-500">
-                        <i class="fa-solid fa-user text-2xl"></i>
+                          <i class="fa-solid fa-user text-2xl"></i>
                       </div>
                       <div>
                         <h4 class="font-bold text-slate-800 leading-none mb-1">{{ student.name }}</h4>
@@ -368,21 +362,22 @@ type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; status:
               <button (click)="showStudentModal.set(false)" class="text-slate-400 hover:text-slate-600">&times;</button>
             </div>
             
-            <div class="space-y-3 mb-4">
+            <div class="space-y-3">
               <input type="text" [ngModel]="studentForm().name" (ngModelChange)="updateStudentFormField('name', $event)" placeholder="Full Name" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
               <input type="text" [ngModel]="studentForm().fatherName" (ngModelChange)="updateStudentFormField('fatherName', $event)" placeholder="Father's Name" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
-              <div class="grid grid-cols-2 gap-3">
-                <input type="text" [ngModel]="studentForm().roll" (ngModelChange)="updateStudentFormField('roll', $event)" placeholder="Roll #" class="p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
-                <input type="tel" [ngModel]="studentForm().mobile" (ngModelChange)="updateStudentFormField('mobile', $event)" placeholder="Contact Mobile" class="p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
-              </div>
-              <input type="number" [ngModel]="studentForm().totalFee" (ngModelChange)="updateStudentFormField('totalFee', $event)" placeholder="Total Fee" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
-              <div class="grid grid-cols-2 gap-3">
-                <input type="text" [ngModel]="studentForm().className" (ngModelChange)="updateStudentFormField('className', $event)" placeholder="Class" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
-                <input type="text" [ngModel]="studentForm().section" (ngModelChange)="updateStudentFormField('section', $event)" placeholder="Section" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
-              </div>
             </div>
 
-            <button (click)="saveStudent()" [disabled]="!studentForm().name || !studentForm().roll || !studentForm().mobile" class="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+            <div class="grid grid-cols-2 gap-3 mt-3">
+              <input type="text" [ngModel]="studentForm().roll" (ngModelChange)="updateStudentFormField('roll', $event)" placeholder="Roll #" class="p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
+              <input type="tel" [ngModel]="studentForm().mobile" (ngModelChange)="updateStudentFormField('mobile', $event)" placeholder="Contact Mobile" class="p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
+            </div>
+            <input type="number" [ngModel]="studentForm().totalFee" (ngModelChange)="updateStudentFormField('totalFee', $event)" placeholder="Total Fee" class="w-full p-4 mt-3 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
+            <div class="grid grid-cols-2 gap-3 mt-3">
+              <input type="text" [ngModel]="studentForm().className" (ngModelChange)="updateStudentFormField('className', $event)" placeholder="Class" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
+              <input type="text" [ngModel]="studentForm().section" (ngModelChange)="updateStudentFormField('section', $event)" placeholder="Section" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
+            </div>
+
+            <button (click)="saveStudent()" [disabled]="!studentForm().name || !studentForm().roll || !studentForm().mobile" class="w-full mt-6 py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
               <i class="fa-solid fa-check-circle"></i> {{ isEditMode() ? 'Save Changes' : 'Enroll Student' }}
             </button>
           </div>
@@ -530,7 +525,8 @@ export class DashboardComponent {
   studentForm = signal({
     name: '', roll: '', mobile: '',
     fatherName: '',
-    totalFee: null as number | null, className: '', section: ''
+    totalFee: null as number | null, 
+    className: '', section: ''
   });
 
   // Fee Management State
@@ -807,7 +803,7 @@ export class DashboardComponent {
     this.showStudentModal.set(true);
   }
   
-  openEditStudentModal(student: Student) {
+  openEditStudentModal(student: Student | StudentWithFeeStatus) {
     this.isEditMode.set(true);
     this.editingStudentId.set(student.id);
     this.studentForm.set({

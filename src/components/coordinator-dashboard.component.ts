@@ -1,5 +1,3 @@
-
-
 import { Component, inject, signal, effect, ViewChild, ElementRef, ChangeDetectionStrategy, computed } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -8,11 +6,10 @@ import { PdfService } from '../services/pdf.service';
 import { CsvService } from '../services/csv.service';
 import { DocService } from '../services/doc.service';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
-import { CameraComponent } from './camera.component';
 
 @Component({
   selector: 'app-coordinator-dashboard',
-  imports: [CommonModule, FormsModule, CameraComponent, DatePipe],
+  imports: [CommonModule, FormsModule, DatePipe],
   template: `
     <div class="min-h-screen pb-24 bg-slate-50/50">
       <nav class="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 py-4 shadow-sm">
@@ -28,7 +25,7 @@ import { CameraComponent } from './camera.component';
               </p>
             </div>
           </div>
-          <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2">
             <!-- Sync Status Indicator -->
             <div class="hidden sm:flex items-center gap-3">
               @if (attendanceService.isSyncing()) {
@@ -47,13 +44,16 @@ import { CameraComponent } from './camera.component';
             <button (click)="attendanceService.pinLogout()" title="Switch User" class="p-2.5 text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition-colors">
               <i class="fa-solid fa-users"></i>
             </button>
+            <button (click)="attendanceService.logout()" title="Logout" class="p-2.5 text-slate-400 hover:text-red-600 rounded-xl hover:bg-red-50 transition-colors">
+              <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
           </div>
         </div>
       </nav>
 
       <main class="max-w-4xl mx-auto p-4 md:p-8">
         @if (attendanceService.isOnline()) {
-          <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
             <button (click)="view.set('attendance')" 
               class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3"
               [class]="view() === 'attendance' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200' : 'bg-white text-slate-600 hover:bg-indigo-50 border'">
@@ -65,6 +65,12 @@ import { CameraComponent } from './camera.component';
               [class]="view() === 'teachers' ? 'bg-blue-600 text-white shadow-xl shadow-blue-200' : 'bg-white text-slate-600 hover:bg-blue-50 border'">
               <i class="fa-solid fa-users-gear text-xl" [class]="view() === 'teachers' ? 'text-white' : 'text-blue-500'"></i>
               <span class="text-xs font-black uppercase tracking-widest">Manage Teachers</span>
+            </button>
+            <button (click)="view.set('security')" 
+              class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3"
+              [class]="view() === 'security' ? 'bg-orange-600 text-white shadow-xl shadow-orange-200' : 'bg-white text-slate-600 hover:bg-orange-50 border'">
+              <i class="fa-solid fa-shield-halved text-xl" [class]="view() === 'security' ? 'text-white' : 'text-orange-500'"></i>
+              <span class="text-xs font-black uppercase tracking-widest">Security</span>
             </button>
              <button (click)="view.set('summary')" 
               class="p-6 rounded-[2rem] transition-all flex flex-col items-center gap-3"
@@ -101,12 +107,8 @@ import { CameraComponent } from './camera.component';
                     @if (teacher.id !== coordinator()?.id) {
                       <div class="bg-white p-4 rounded-3xl border shadow-sm flex items-center justify-between">
                         <div class="flex items-center gap-4">
-                          <div class="w-14 h-14 rounded-2xl bg-indigo-50 overflow-hidden border-2 border-white shadow-sm flex items-center justify-center">
-                            @if (teacher.photo) {
-                              <img [src]="teacher.photo" class="w-full h-full object-cover">
-                            } @else {
-                              <i class="fa-solid fa-user-tie text-2xl text-indigo-200"></i>
-                            }
+                           <div class="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center border-2 border-white shadow-sm text-indigo-200">
+                              <i class="fa-solid fa-user-tie text-2xl"></i>
                           </div>
                           <div>
                             <h4 class="font-bold text-slate-800">{{ teacher.name }}</h4>
@@ -132,42 +134,19 @@ import { CameraComponent } from './camera.component';
             }
             @case ('teachers') {
               <div class="space-y-6 animate-in fade-in">
-                 <div class="bg-indigo-50 p-6 rounded-[2.5rem] shadow-sm border border-indigo-200 space-y-2">
-                  <h3 class="text-lg font-bold text-indigo-800">Teacher Invitation Link</h3>
-                  <p class="text-sm text-indigo-600">Share this one-time link with your teachers. When they click it, their device will be connected to your school.</p>
-                  <div class="flex items-center gap-3 pt-2">
-                    <div class="flex-1 p-3 bg-white rounded-xl border border-indigo-300 font-mono text-indigo-900 text-sm outline-none truncate">
-                      <i class="fa-solid fa-link mr-2 text-slate-400"></i>School Invitation Link
-                    </div>
-                    <button (click)="shareInvitationLink(coordinator()?.id)" class="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 flex items-center gap-2">
-                      <i class="fa-solid fa-share-nodes"></i>Share Link
-                    </button>
-                  </div>
-                </div>
-
                 <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-4">
                   <h2 class="text-2xl font-black tracking-tight text-slate-800">Create Teacher Account</h2>
-                  <div class="flex gap-4">
-                    <div class="w-24 h-24 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer hover:bg-slate-100 relative" (click)="openPhotoSourceModal('new')">
-                      @if(newTeacherPhoto()) {
-                        <img [src]="newTeacherPhoto()" class="w-full h-full object-cover">
-                      } @else {
-                        <i class="fa-solid fa-camera text-slate-300 text-xl"></i>
-                      }
-                    </div>
-                    <div class="flex-1 grid grid-cols-2 gap-3">
-                      <input type="text" [ngModel]="newTeacherName()" (ngModelChange)="newTeacherName.set($event)" placeholder="Full Name" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                      <input type="email" [ngModel]="newTeacherEmail()" (ngModelChange)="newTeacherEmail.set($event)" placeholder="Email Address (Optional)" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                      <input type="tel" [ngModel]="newTeacherMobile()" (ngModelChange)="newTeacherMobile.set($event)" placeholder="Contact Mobile" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                      <input type="text" [ngModel]="newTeacherClass()" (ngModelChange)="newTeacherClass.set($event)" placeholder="Class" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                      <input type="text" [ngModel]="newTeacherSection()" (ngModelChange)="newTeacherSection.set($event)" placeholder="Section" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                      <input type="password" maxlength="4" inputmode="numeric" pattern="[0-9]*" [ngModel]="newTeacherPin()" (ngModelChange)="newTeacherPin.set($event)" placeholder="4-Digit PIN" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                    </div>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input type="text" [ngModel]="newTeacherName()" (ngModelChange)="newTeacherName.set($event)" placeholder="Full Name" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                    <input type="email" [ngModel]="newTeacherEmail()" (ngModelChange)="newTeacherEmail.set($event)" placeholder="Email Address (Optional)" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                    <input type="tel" [ngModel]="newTeacherMobile()" (ngModelChange)="newTeacherMobile.set($event)" placeholder="Contact Mobile" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                    <input type="text" [ngModel]="newTeacherClass()" (ngModelChange)="newTeacherClass.set($event)" placeholder="Class" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                    <input type="text" [ngModel]="newTeacherSection()" (ngModelChange)="newTeacherSection.set($event)" placeholder="Section" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                    <input type="password" maxlength="4" inputmode="numeric" pattern="[0-9]*" [ngModel]="newTeacherPin()" (ngModelChange)="newTeacherPin.set($event)" placeholder="4-Digit PIN" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
                   </div>
                   <button (click)="addTeacher()" [disabled]="!newTeacherName() || !newTeacherMobile() || newTeacherPin().length < 4" class="w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50">
                     <i class="fa-solid fa-user-plus mr-2"></i>Add Teacher Profile
                   </button>
-                  <input type="file" #teacherPhotoInput accept="image/*" (change)="onPhotoSelected($event)" class="hidden">
                 </div>
                 <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-3">
                   <h2 class="text-2xl font-black tracking-tight text-slate-800">Registered Teachers ({{ teachers().length - 1 }})</h2>
@@ -175,12 +154,8 @@ import { CameraComponent } from './camera.component';
                     @if(teacher.id !== coordinator()?.id) {
                       <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border">
                         <div class="flex items-center gap-3">
-                          <div class="w-12 h-12 rounded-lg bg-white overflow-hidden border shadow-sm">
-                            @if (teacher.photo) {
-                              <img [src]="teacher.photo" class="w-full h-full object-cover">
-                            } @else {
-                              <div class="w-full h-full flex items-center justify-center text-slate-300"><i class="fa-solid fa-user-tie"></i></div>
-                            }
+                          <div class="w-12 h-12 rounded-lg bg-white flex items-center justify-center text-slate-300 border shadow-sm">
+                            <i class="fa-solid fa-user-tie"></i>
                           </div>
                           <div>
                             <p class="font-bold text-slate-700">{{ teacher.name }}</p>
@@ -208,6 +183,24 @@ import { CameraComponent } from './camera.component';
                     }
                   }
                 </div>
+              </div>
+            }
+            @case('security') {
+              <div class="bg-white p-8 rounded-[2.5rem] shadow-sm border space-y-6 animate-in fade-in">
+                  <div>
+                      <h2 class="text-2xl font-black text-slate-800 tracking-tight">Teacher Portal Security</h2>
+                      <p class="text-slate-500 text-sm font-medium">Set the PIN teachers will use to connect to your school.</p>
+                  </div>
+
+                   <div class="space-y-2">
+                      <label class="text-xs font-black uppercase text-slate-400 tracking-widest ml-1">School PIN (Share with Teachers)</label>
+                      <input type="text" [ngModel]="schoolPinForm()" (ngModelChange)="schoolPinForm.set($event)" placeholder="e.g., 12345" class="w-full p-4 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-medium">
+                      <p class="text-xs text-slate-400 ml-2 mt-1">Teachers will enter this PIN to connect to your school portal.</p>
+                  </div>
+                  
+                  <button (click)="saveSecuritySettings()" [disabled]="!schoolPinForm().trim()" class="w-full py-4 bg-orange-600 text-white rounded-xl font-bold hover:bg-orange-700 disabled:opacity-50 transition-all">
+                      <i class="fa-solid fa-save mr-2"></i> Save School PIN
+                  </button>
               </div>
             }
             @case('summary') {
@@ -383,58 +376,18 @@ import { CameraComponent } from './camera.component';
         <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center p-4" (click)="showEditModal.set(false)">
           <div class="bg-white max-w-lg w-full rounded-[2rem] p-8 shadow-2xl border animate-in zoom-in-95" (click)="$event.stopPropagation()">
             <h3 class="text-xl font-bold text-slate-800 mb-6">Edit Teacher Profile</h3>
-            <div class="space-y-4">
-              <div class="flex gap-4">
-                <div class="w-24 h-24 bg-slate-50 rounded-2xl border-2 border-dashed flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer relative" (click)="openPhotoSourceModal('edit')">
-                  @if(editTeacherPhoto()) {
-                    <img [src]="editTeacherPhoto()" class="w-full h-full object-cover">
-                  } @else {
-                    <i class="fa-solid fa-camera text-slate-300 text-xl"></i>
-                  }
-                </div>
-                <div class="flex-1 grid grid-cols-2 gap-3">
-                  <input type="text" [ngModel]="editTeacherName()" (ngModelChange)="editTeacherName.set($event)" placeholder="Full Name" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                  <input type="email" [ngModel]="editTeacherEmail()" (ngModelChange)="editTeacherEmail.set($event)" placeholder="Email Address" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                  <input type="tel" [ngModel]="editTeacherMobile()" (ngModelChange)="editTeacherMobile.set($event)" placeholder="Contact Mobile" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                  <input type="text" [ngModel]="editTeacherClass()" (ngModelChange)="editTeacherClass.set($event)" placeholder="Class" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                  <input type="text" [ngModel]="editTeacherSection()" (ngModelChange)="editTeacherSection.set($event)" placeholder="Section" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                  <input type="password" maxlength="4" inputmode="numeric" pattern="[0-9]*" [ngModel]="editTeacherPin()" (ngModelChange)="editTeacherPin.set($event)" placeholder="4-Digit PIN" class="col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                </div>
-              </div>
+             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <input type="text" [ngModel]="editTeacherName()" (ngModelChange)="editTeacherName.set($event)" placeholder="Full Name" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                <input type="email" [ngModel]="editTeacherEmail()" (ngModelChange)="editTeacherEmail.set($event)" placeholder="Email Address" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                <input type="tel" [ngModel]="editTeacherMobile()" (ngModelChange)="editTeacherMobile.set($event)" placeholder="Contact Mobile" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                <input type="text" [ngModel]="editTeacherClass()" (ngModelChange)="editTeacherClass.set($event)" placeholder="Class" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                <input type="text" [ngModel]="editTeacherSection()" (ngModelChange)="editTeacherSection.set($event)" placeholder="Section" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                <input type="password" maxlength="4" inputmode="numeric" pattern="[0-9]*" [ngModel]="editTeacherPin()" (ngModelChange)="editTeacherPin.set($event)" placeholder="4-Digit PIN" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
             </div>
             <div class="flex gap-3 mt-6">
               <button (click)="showEditModal.set(false)" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold">Cancel</button>
               <button (click)="saveTeacherChanges()" [disabled]="!editTeacherName() || !editTeacherMobile() || editTeacherPin().length < 4" class="flex-[2] py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50">Save Changes</button>
             </div>
-          </div>
-        </div>
-        <input type="file" #editTeacherPhotoInput accept="image/*" (change)="onEditPhotoSelected($event)" class="hidden">
-      }
-
-      <!-- Photo Source Selection Modal -->
-      @if (showPhotoSourceModal()) {
-        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" (click)="showPhotoSourceModal.set(false)">
-          <div class="bg-white max-w-sm w-full rounded-[2rem] p-8 shadow-2xl border animate-in zoom-in-95" (click)="$event.stopPropagation()">
-            <h3 class="text-xl font-bold text-slate-800 mb-6 text-center">Select Photo Source</h3>
-            <div class="grid grid-cols-2 gap-4">
-              <button (click)="selectPhotoSource('file')" class="flex flex-col items-center gap-3 p-6 bg-slate-50 rounded-2xl hover:bg-indigo-50 border-2 border-transparent hover:border-indigo-400 transition-all">
-                <i class="fa-solid fa-upload text-3xl text-indigo-500"></i>
-                <span class="font-bold text-slate-700">Upload File</span>
-              </button>
-              <button (click)="selectPhotoSource('camera')" class="flex flex-col items-center gap-3 p-6 bg-slate-50 rounded-2xl hover:bg-green-50 border-2 border-transparent hover:border-green-400 transition-all">
-                <i class="fa-solid fa-camera-retro text-3xl text-green-500"></i>
-                <span class="font-bold text-slate-700">Use Camera</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      }
-
-      <!-- Camera Modal -->
-      @if (showCameraModal()) {
-        <div class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" (click)="showCameraModal.set(false)">
-          <div class="bg-black max-w-lg w-full aspect-square rounded-[2rem] shadow-2xl border animate-in zoom-in-95" (click)="$event.stopPropagation()">
-            <app-camera (photoCaptured)="onPhotoCaptured($event)" (close)="showCameraModal.set(false)"></app-camera>
           </div>
         </div>
       }
@@ -449,14 +402,13 @@ export class CoordinatorDashboardComponent {
   docService = inject(DocService);
   sanitizer: DomSanitizer = inject(DomSanitizer);
 
-  view = signal<'attendance' | 'teachers' | 'reports' | 'meetings' | 'summary'>('attendance');
+  view = signal<'attendance' | 'teachers' | 'reports' | 'meetings' | 'summary' | 'security'>('attendance');
   coordinator = this.attendanceService.activeCoordinator;
   teachers = signal<Teacher[]>([]);
   
   // Add Teacher State
   newTeacherName = signal('');
   newTeacherEmail = signal('');
-  newTeacherPhoto = signal<string | null>(null);
   newTeacherMobile = signal('');
   newTeacherClass = signal('');
   newTeacherSection = signal('');
@@ -470,7 +422,6 @@ export class CoordinatorDashboardComponent {
   editTeacherMobile = signal('');
   editTeacherClass = signal('');
   editTeacherSection = signal('');
-  editTeacherPhoto = signal<string | null | undefined>(undefined);
   editTeacherPin = signal('');
 
   // Attendance State
@@ -500,8 +451,6 @@ export class CoordinatorDashboardComponent {
       const key = `${tc.className}|${tc.section}`;
       const submission = submissionMap.get(key);
       if (submission) {
-        // FIX: Explicitly cast submission to DailySubmission to address a likely
-        // type inference issue where 'submission' is incorrectly typed as 'unknown'.
         const sub = submission as DailySubmission;
         return {
           ...tc,
@@ -528,17 +477,12 @@ export class CoordinatorDashboardComponent {
     return { summaryList, submissions, schoolTotalStudents, schoolTotalPresent, schoolTotalAbsent, schoolPresentPercentage };
   });
 
+  // Security State
+  schoolPinForm = signal('');
+
   // General UI State
   showToast = signal(false);
   toastMessage = signal('');
-  
-  // Photo Upload State
-  showPhotoSourceModal = signal(false);
-  showCameraModal = signal(false);
-  photoContext = signal<'new' | 'edit' | null>(null);
-  
-  @ViewChild('teacherPhotoInput') teacherPhotoInput!: ElementRef<HTMLInputElement>;
-  @ViewChild('editTeacherPhotoInput') editTeacherPhotoInput!: ElementRef<HTMLInputElement>;
 
   constructor() {
     this.teachers.set(this.attendanceService.getTeachers());
@@ -559,75 +503,16 @@ export class CoordinatorDashboardComponent {
       });
       this.dailyRecords.set(newMap);
     });
-  }
-  
-  shareInvitationLink(id: string | undefined) {
-    if (!id) return;
-    const baseUrl = window.location.origin + window.location.pathname;
-    const link = `${baseUrl}#/join?schoolId=${id}`;
-    
-    if (navigator.share) {
-      navigator.share({
-        title: 'Rehman Attendance School Invitation',
-        text: 'Click this link to join our school on the Rehman Attendance app.',
-        url: link,
-      }).then(() => {
-        this.showToastMessage('Invitation link shared!');
-      }).catch(err => {
-        if (err.name !== 'AbortError') {
-           console.error('Share failed:', err);
-           navigator.clipboard.writeText(link).then(() => this.showToastMessage('Link copied to clipboard!'));
+
+    effect(() => {
+        const schoolPin = this.attendanceService.activeSchoolPin();
+        if (schoolPin) {
+          this.schoolPinForm.set(schoolPin);
         }
-      });
-    } else {
-      navigator.clipboard.writeText(link).then(() => {
-        this.showToastMessage('Invitation link copied to clipboard!');
-      }).catch(err => {
-        console.error('Failed to copy link: ', err);
-        alert('Failed to copy link.');
-      });
-    }
-  }
-
-  // --- Teacher Photo Management ---
-  openPhotoSourceModal(context: 'new' | 'edit') {
-    this.photoContext.set(context);
-    this.showPhotoSourceModal.set(true);
-  }
-
-  selectPhotoSource(source: 'file' | 'camera') {
-    this.showPhotoSourceModal.set(false);
-    if (source === 'file') {
-      if (this.photoContext() === 'new') {
-        this.triggerPhotoUpload();
-      } else {
-        this.triggerEditPhotoUpload();
-      }
-    } else { // camera
-      this.showCameraModal.set(true);
-    }
-  }
-
-  onPhotoCaptured(dataUrl: string) {
-    if (this.photoContext() === 'new') {
-      this.newTeacherPhoto.set(dataUrl);
-    } else {
-      this.editTeacherPhoto.set(dataUrl);
-    }
-    this.showCameraModal.set(false);
+    });
   }
 
   // --- Teacher Management ---
-  triggerPhotoUpload() { this.teacherPhotoInput.nativeElement.click(); }
-  onPhotoSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files[0]) {
-      const reader = new FileReader();
-      reader.onload = (e: any) => this.newTeacherPhoto.set(e.target.result);
-      reader.readAsDataURL(input.files[0]);
-    }
-  }
-
   async addTeacher() {
     const email = this.newTeacherEmail().trim();
     if (email) {
@@ -648,7 +533,6 @@ export class CoordinatorDashboardComponent {
         name: this.newTeacherName(),
         email: email,
         pin: this.newTeacherPin(),
-        photo: this.newTeacherPhoto() || undefined,
         mobile: this.newTeacherMobile(),
         className: this.newTeacherClass(),
         section: this.newTeacherSection()
@@ -659,12 +543,10 @@ export class CoordinatorDashboardComponent {
       // Reset form fields
       this.newTeacherName.set('');
       this.newTeacherEmail.set('');
-      this.newTeacherPhoto.set(null);
       this.newTeacherMobile.set('');
       this.newTeacherClass.set('');
       this.newTeacherSection.set('');
       this.newTeacherPin.set('');
-
 
       this.showToastMessage('Teacher account created successfully');
     } catch (e: any) {
@@ -688,19 +570,8 @@ export class CoordinatorDashboardComponent {
     this.editTeacherMobile.set(teacher.mobileNumber || '');
     this.editTeacherClass.set(teacher.className || '');
     this.editTeacherSection.set(teacher.section || '');
-    this.editTeacherPhoto.set(teacher.photo);
     this.editTeacherPin.set(teacher.pin);
     this.showEditModal.set(true);
-  }
-
-  triggerEditPhotoUpload() { this.editTeacherPhotoInput.nativeElement.click(); }
-  onEditPhotoSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files[0]) {
-      const reader = new FileReader();
-      reader.onload = (e: any) => this.editTeacherPhoto.set(e.target.result);
-      reader.readAsDataURL(input.files[0]);
-    }
   }
   
   saveTeacherChanges() {
@@ -734,7 +605,6 @@ export class CoordinatorDashboardComponent {
         mobileNumber: this.editTeacherMobile(),
         className: this.editTeacherClass(),
         section: this.editTeacherSection(),
-        photo: this.editTeacherPhoto(),
         setupComplete: !!(this.editTeacherClass() && this.editTeacherSection())
       });
       this.teachers.set(this.attendanceService.getTeachers());
@@ -840,6 +710,21 @@ export class CoordinatorDashboardComponent {
       case 'doc':
         this.docService.exportSchoolDailySummary(this.summaryDate(), this.coordinator()!.name, dataForExport, schoolStats);
         break;
+    }
+  }
+
+  // --- Security ---
+  async saveSecuritySettings() {
+    if (!this.schoolPinForm().trim()) {
+      alert('Please enter a School PIN.');
+      return;
+    }
+    try {
+      await this.attendanceService.setSchoolPin(this.schoolPinForm());
+      this.showToastMessage('School PIN updated successfully!');
+    } catch (e) {
+      alert('Failed to save School PIN.');
+      console.error(e);
     }
   }
 
