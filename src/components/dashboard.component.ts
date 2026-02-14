@@ -377,6 +377,12 @@ export type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; 
               <input type="text" [ngModel]="studentForm().section" (ngModelChange)="updateStudentFormField('section', $event)" placeholder="Section" class="w-full p-4 rounded-xl border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm text-sm bg-slate-50">
             </div>
 
+            @if (studentModalError()) {
+              <div class="mt-4 p-3 bg-red-50 text-red-700 text-center rounded-lg text-sm font-semibold border border-red-200">
+                {{ studentModalError() }}
+              </div>
+            }
+
             <button (click)="saveStudent()" [disabled]="!studentForm().name || !studentForm().roll || !studentForm().mobile" class="w-full mt-6 py-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
               <i class="fa-solid fa-check-circle"></i> {{ isEditMode() ? 'Save Changes' : 'Enroll Student' }}
             </button>
@@ -522,6 +528,7 @@ export class DashboardComponent {
   showStudentModal = signal(false);
   isEditMode = signal(false);
   editingStudentId = signal<string | null>(null);
+  studentModalError = signal('');
   studentForm = signal({
     name: '', roll: '', mobile: '',
     fatherName: '',
@@ -703,24 +710,28 @@ export class DashboardComponent {
     return this.dailyRecords().get(studentId);
   }
 
-  saveAndSubmit() {
+  async saveAndSubmit() {
     const records: { studentId: string, status: 'Present' | 'Absent' }[] = [];
     this.dailyRecords().forEach((status, studentId) => {
       records.push({ studentId, status });
     });
 
-    // 1. Save locally
-    this.attendanceService.saveAttendance(this.selectedDate(), records);
+    try {
+      // 1. Save attendance records
+      await this.attendanceService.saveAttendance(this.selectedDate(), records);
 
-    // 2. Submit summary to coordinator
-    this.attendanceService.submitAttendanceToCoordinator(
-      this.selectedDate(),
-      this.activeClass()!,
-      this.displayedStudents(),
-      this.dailyRecords()
-    );
+      // 2. Submit summary to coordinator
+      await this.attendanceService.submitAttendanceToCoordinator(
+        this.selectedDate(),
+        this.activeClass()!,
+        this.displayedStudents(),
+        this.dailyRecords()
+      );
 
-    this.showToastWithMessage('Attendance Saved & Submitted');
+      this.showToastWithMessage('Attendance Saved & Submitted');
+    } catch (e: any) {
+      alert(`Submission Error: ${e.message}`);
+    }
   }
 
   // SMS Alert Logic for Absentees
@@ -800,6 +811,7 @@ export class DashboardComponent {
     this.isEditMode.set(false);
     this.editingStudentId.set(null);
     this.resetStudentForm();
+    this.studentModalError.set('');
     this.showStudentModal.set(true);
   }
   
@@ -815,6 +827,7 @@ export class DashboardComponent {
         className: student.className || this.teacher()?.className || '',
         section: student.section || this.teacher()?.section || ''
     });
+    this.studentModalError.set('');
     this.showStudentModal.set(true);
   }
 
@@ -822,47 +835,52 @@ export class DashboardComponent {
     this.studentForm.update(form => ({...form, [field]: value }));
   }
 
-  saveStudent() {
+  async saveStudent() {
+    this.studentModalError.set('');
     const form = this.studentForm();
     const { name, fatherName, roll, mobile, totalFee, className, section } = form;
 
     if (!name.trim() || !roll.trim() || !mobile.trim()) {
-      alert('Please fill in the student name, roll number, and contact mobile.');
+      this.studentModalError.set('Please fill in student name, roll number, and contact mobile.');
       return;
     }
 
     if (this.attendanceService.isRollNumberTaken(roll, this.editingStudentId() || undefined)) {
-      alert(`Error: Roll number "${roll}" is already assigned to another student.`);
+      this.studentModalError.set(`Error: Roll number "${roll}" is already assigned to another student.`);
       return;
     }
 
-    if (this.isEditMode()) {
-      // Update existing student
-      this.attendanceService.updateStudentDetails(this.editingStudentId()!, {
-        name: name.trim(),
-        fatherName: fatherName?.trim(),
-        rollNumber: roll.trim(),
-        mobileNumber: mobile.trim(),
-        totalFee: totalFee || 0,
-        className: className?.trim(),
-        section: section?.trim()
-      });
-      this.showToastWithMessage(`Updated profile for ${name}.`);
-    } else {
-      // Add new student
-      this.attendanceService.addStudents([{
-        name: name.trim(),
-        fatherName: fatherName?.trim(),
-        roll: roll.trim(),
-        mobile: mobile.trim(),
-        totalFee: totalFee || 0,
-        className: className?.trim(),
-        section: section?.trim()
-      }]);
-      this.showToastWithMessage(`Student ${name} admitted successfully!`);
-    }
+    try {
+      if (this.isEditMode()) {
+        // Update existing student
+        await this.attendanceService.updateStudentDetails(this.editingStudentId()!, {
+          name: name.trim(),
+          fatherName: fatherName?.trim(),
+          rollNumber: roll.trim(),
+          mobileNumber: mobile.trim(),
+          totalFee: totalFee || 0,
+          className: className?.trim(),
+          section: section?.trim()
+        });
+        this.showToastWithMessage(`Updated profile for ${name}.`);
+      } else {
+        // Add new student
+        await this.attendanceService.addStudents([{
+          name: name.trim(),
+          fatherName: fatherName?.trim(),
+          roll: roll.trim(),
+          mobile: mobile.trim(),
+          totalFee: totalFee || 0,
+          className: className?.trim(),
+          section: section?.trim()
+        }]);
+        this.showToastWithMessage(`Student ${name} admitted successfully!`);
+      }
 
-    this.showStudentModal.set(false);
+      this.showStudentModal.set(false);
+    } catch (e: any) {
+      this.studentModalError.set(e.message);
+    }
   }
 
   // Payment Modal Logic
@@ -872,16 +890,20 @@ export class DashboardComponent {
     this.showPaymentModal.set(true);
   }
   
-  savePayment() {
+  async savePayment() {
     const student = this.selectedStudentForPayment();
     const amount = this.paymentAmount();
     if (!student || !amount || amount <= 0) {
         alert("Please enter a valid payment amount.");
         return;
     }
-
-    this.attendanceService.recordFeePayment(student.id, amount);
-    this.showToastWithMessage(`Payment of ${amount} recorded for ${student.name}.`);
-    this.showPaymentModal.set(false);
+    
+    try {
+      await this.attendanceService.recordFeePayment(student.id, amount);
+      this.showToastWithMessage(`Payment of ${amount} recorded for ${student.name}.`);
+      this.showPaymentModal.set(false);
+    } catch(e: any) {
+      alert("Error saving payment: " + e.message);
+    }
   }
 }

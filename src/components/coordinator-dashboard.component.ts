@@ -92,6 +92,12 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
             </button>
           </div>
 
+          @if (errorMessage()) {
+            <div class="mb-6 p-4 bg-red-50 text-red-700 text-center rounded-lg text-sm font-semibold border border-red-200">
+              {{ errorMessage() }}
+            </div>
+          }
+
           @switch (view()) {
             @case ('attendance') {
               <div class="space-y-6 animate-in fade-in">
@@ -483,6 +489,7 @@ export class CoordinatorDashboardComponent {
   // General UI State
   showToast = signal(false);
   toastMessage = signal('');
+  errorMessage = signal('');
 
   constructor() {
     this.teachers.set(this.attendanceService.getTeachers());
@@ -510,21 +517,28 @@ export class CoordinatorDashboardComponent {
           this.schoolPinForm.set(schoolPin);
         }
     });
+    
+    effect(() => {
+      // When view changes, clear the error message
+      this.view();
+      this.errorMessage.set('');
+    });
   }
 
   // --- Teacher Management ---
   async addTeacher() {
+    this.errorMessage.set('');
     const email = this.newTeacherEmail().trim();
     if (email) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
-            alert('The provided email address is not valid. Please correct it or leave it empty.');
+            this.errorMessage.set('The provided email is not valid. Please correct it or leave it empty.');
             return;
         }
     }
 
     if (this.newTeacherPin().length !== 4) {
-      alert('PIN must be exactly 4 digits.');
+      this.errorMessage.set('PIN must be exactly 4 digits.');
       return;
     }
 
@@ -550,7 +564,7 @@ export class CoordinatorDashboardComponent {
 
       this.showToastMessage('Teacher account created successfully');
     } catch (e: any) {
-      alert(`Error: ${e.message}`);
+      this.errorMessage.set(`Error: ${e.message}`);
     }
   }
 
@@ -564,6 +578,7 @@ export class CoordinatorDashboardComponent {
 
   // --- Edit Teacher Modal ---
   openEditModal(teacher: Teacher) {
+    this.errorMessage.set('');
     this.selectedTeacherForEdit.set(teacher);
     this.editTeacherName.set(teacher.name);
     this.editTeacherEmail.set(teacher.email);
@@ -575,11 +590,12 @@ export class CoordinatorDashboardComponent {
   }
   
   saveTeacherChanges() {
+    this.errorMessage.set('');
     const teacher = this.selectedTeacherForEdit();
     if (!teacher) return;
     
     if (!this.editTeacherName().trim() || !this.editTeacherMobile().trim()) {
-        alert('Teacher name and mobile number are required.');
+        this.errorMessage.set('Teacher name and mobile number are required.');
         return;
     }
 
@@ -587,13 +603,13 @@ export class CoordinatorDashboardComponent {
     if (email) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
-            alert('The provided email address is not valid. Please correct it or leave it empty.');
+            this.errorMessage.set('The provided email is not valid. Please correct it or leave it empty.');
             return;
         }
     }
 
     if (this.editTeacherPin().length !== 4) {
-      alert('PIN must be exactly 4 digits.');
+      this.errorMessage.set('PIN must be exactly 4 digits.');
       return;
     }
     
@@ -611,7 +627,7 @@ export class CoordinatorDashboardComponent {
       this.showToastMessage('Teacher details updated');
       this.showEditModal.set(false);
     } catch (e: any) {
-      alert(e.message);
+      this.errorMessage.set(e.message);
     }
   }
 
@@ -629,8 +645,9 @@ export class CoordinatorDashboardComponent {
   
   // --- Meetings ---
   sendMeetingReminder(teacher: Teacher) {
+    this.errorMessage.set('');
     if (!teacher.mobileNumber) {
-        alert(`Cannot send reminder: No mobile number found for ${teacher.name}.`);
+        this.errorMessage.set(`Cannot send reminder: No mobile number found for ${teacher.name}.`);
         return;
     }
 
@@ -715,15 +732,16 @@ export class CoordinatorDashboardComponent {
 
   // --- Security ---
   async saveSecuritySettings() {
+    this.errorMessage.set('');
     if (!this.schoolPinForm().trim()) {
-      alert('Please enter a School PIN.');
+      this.errorMessage.set('Please enter a School PIN.');
       return;
     }
     try {
       await this.attendanceService.setSchoolPin(this.schoolPinForm());
       this.showToastMessage('School PIN updated successfully!');
     } catch (e) {
-      alert('Failed to save School PIN.');
+      this.errorMessage.set('Failed to save School PIN.');
       console.error(e);
     }
   }
