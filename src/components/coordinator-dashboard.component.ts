@@ -137,14 +137,14 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
                 <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border space-y-4">
                   <h2 class="text-2xl font-black tracking-tight text-slate-800">Create Teacher Account</h2>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <input type="text" [ngModel]="newTeacherName()" (ngModelChange)="newTeacherName.set($event)" placeholder="Full Name" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                    <input type="text" [ngModel]="newTeacherName()" (ngModelChange)="newTeacherName.set($event)" placeholder="Full Name *" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
                     <input type="email" [ngModel]="newTeacherEmail()" (ngModelChange)="newTeacherEmail.set($event)" placeholder="Email Address (Optional)" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                    <input type="tel" [ngModel]="newTeacherMobile()" (ngModelChange)="newTeacherMobile.set($event)" placeholder="Contact Mobile" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                    <input type="text" [ngModel]="newTeacherClass()" (ngModelChange)="newTeacherClass.set($event)" placeholder="Class" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                    <input type="text" [ngModel]="newTeacherSection()" (ngModelChange)="newTeacherSection.set($event)" placeholder="Section" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                    <input type="password" maxlength="4" inputmode="numeric" pattern="[0-9]*" [ngModel]="newTeacherPin()" (ngModelChange)="newTeacherPin.set($event)" placeholder="4-Digit PIN" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                    <input type="tel" [ngModel]="newTeacherMobile()" (ngModelChange)="newTeacherMobile.set($event)" placeholder="Contact Mobile *" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                    <input type="text" [ngModel]="newTeacherClass()" (ngModelChange)="newTeacherClass.set($event)" placeholder="Class *" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                    <input type="text" [ngModel]="newTeacherSection()" (ngModelChange)="newTeacherSection.set($event)" placeholder="Section *" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                    <input type="password" maxlength="4" inputmode="numeric" pattern="[0-9]*" [ngModel]="newTeacherPin()" (ngModelChange)="newTeacherPin.set($event)" placeholder="4-Digit PIN *" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
                   </div>
-                  <button (click)="addTeacher()" [disabled]="!newTeacherName() || !newTeacherMobile() || newTeacherPin().length < 4" class="w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50">
+                  <button (click)="addTeacher()" [disabled]="!newTeacherName().trim() || !newTeacherMobile().trim() || newTeacherPin().length < 4 || !newTeacherClass().trim() || !newTeacherSection().trim()" class="w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50">
                     <i class="fa-solid fa-user-plus mr-2"></i>Add Teacher Profile
                   </button>
                 </div>
@@ -377,16 +377,16 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
           <div class="bg-white max-w-lg w-full rounded-[2rem] p-8 shadow-2xl border animate-in zoom-in-95" (click)="$event.stopPropagation()">
             <h3 class="text-xl font-bold text-slate-800 mb-6">Edit Teacher Profile</h3>
              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input type="text" [ngModel]="editTeacherName()" (ngModelChange)="editTeacherName.set($event)" placeholder="Full Name" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                <input type="text" [ngModel]="editTeacherName()" (ngModelChange)="editTeacherName.set($event)" placeholder="Full Name *" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
                 <input type="email" [ngModel]="editTeacherEmail()" (ngModelChange)="editTeacherEmail.set($event)" placeholder="Email Address" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                <input type="tel" [ngModel]="editTeacherMobile()" (ngModelChange)="editTeacherMobile.set($event)" placeholder="Contact Mobile" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                <input type="text" [ngModel]="editTeacherClass()" (ngModelChange)="editTeacherClass.set($event)" placeholder="Class" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                <input type="text" [ngModel]="editTeacherSection()" (ngModelChange)="editTeacherSection.set($event)" placeholder="Section" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
-                <input type="password" maxlength="4" inputmode="numeric" pattern="[0-9]*" [ngModel]="editTeacherPin()" (ngModelChange)="editTeacherPin.set($event)" placeholder="4-Digit PIN" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                <input type="tel" [ngModel]="editTeacherMobile()" (ngModelChange)="editTeacherMobile.set($event)" placeholder="Contact Mobile *" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                <input type="text" [ngModel]="editTeacherClass()" (ngModelChange)="editTeacherClass.set($event)" placeholder="Class *" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                <input type="text" [ngModel]="editTeacherSection()" (ngModelChange)="editTeacherSection.set($event)" placeholder="Section *" class="p-3 bg-slate-50 rounded-xl border outline-none text-sm">
+                <input type="password" maxlength="4" inputmode="numeric" pattern="[0-9]*" [ngModel]="editTeacherPin()" (ngModelChange)="editTeacherPin.set($event)" placeholder="4-Digit PIN *" class="sm:col-span-2 p-3 bg-slate-50 rounded-xl border outline-none text-sm">
             </div>
             <div class="flex gap-3 mt-6">
               <button (click)="showEditModal.set(false)" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold">Cancel</button>
-              <button (click)="saveTeacherChanges()" [disabled]="!editTeacherName() || !editTeacherMobile() || editTeacherPin().length < 4" class="flex-[2] py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50">Save Changes</button>
+              <button (click)="saveTeacherChanges()" [disabled]="!editTeacherName().trim() || !editTeacherMobile().trim() || editTeacherPin().length < 4 || !editTeacherClass().trim() || !editTeacherSection().trim()" class="flex-[2] py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50">Save Changes</button>
             </div>
           </div>
         </div>

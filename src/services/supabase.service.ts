@@ -40,6 +40,10 @@ export class SupabaseService {
       error.message = "Network error: Could not connect to the database. Please check your internet connection and Supabase URL.";
     } else if (lowerCaseMessage.includes('invalid login credentials')) {
       error.message = "Invalid email or password. Please check your credentials and try again.";
+    } else if (lowerCaseMessage.includes('user already registered')) {
+      error.message = "This email is already registered. Please try logging in instead.";
+    } else if (lowerCaseMessage.includes('violates not-null constraint')) {
+        error.message = "A required field was left empty. Please ensure all required fields are filled and try again.";
     }
     return error as { message: string, status?: number };
   }
@@ -49,35 +53,27 @@ export class SupabaseService {
   }
 
   async signUpAndCreateSchool(details: { email: string, password: string, name: string, schoolName: string, mobile: string, className: string, section: string, pin: string }) {
-    // 1. Sign up the user (coordinator)
-    const { data: authData, error: signUpError } = await this.supabase.auth.signUp({
+    // The new database trigger 'handle_new_user' will automatically create the school and teacher profiles.
+    // We just need to sign up the user and pass the details in the metadata.
+    const { data, error } = await this.supabase.auth.signUp({
       email: details.email,
       password: details.password,
-      options: { data: { name: details.name, schoolName: details.schoolName } }
+      options: {
+        data: {
+          name: details.name,
+          schoolName: details.schoolName,
+          mobile: details.mobile,
+          pin: details.pin,
+          className: details.className,
+          section: details.section
+        }
+      }
     });
-    if (signUpError) throw this.processError(signUpError);
-    if (!authData.user) throw new Error("User registration failed.");
-    const user = authData.user;
 
-    // 2. Create the School profile, linked to the coordinator's user ID
-    const { error: schoolError } = await this.supabase.from('schools').insert({
-      id: user.id, // Use coordinator's user ID as the school's primary key
-      coordinator_id: user.id,
-      name: details.schoolName,
-      pin: '12345'
-    });
-    if (schoolError) throw this.processError(schoolError);
+    if (error) throw this.processError(error);
+    if (!data.user) throw new Error("User registration failed.");
 
-    // 3. Create the coordinator's own profile in the teachers table
-    const coordinatorProfile: Omit<Teacher, 'schoolName'> = {
-      id: user.id, name: details.name, email: user.email!, pin: details.pin,
-      role: 'coordinator', className: details.className, section: details.section,
-      setupComplete: true, mobileNumber: details.mobile, school_id: user.id,
-    };
-    const { error: teacherError } = await this.supabase.from('teachers').insert(coordinatorProfile);
-    if (teacherError) throw this.processError(teacherError);
-    
-    return authData;
+    return data;
   }
 
   async signIn(email: string, password: string) {
@@ -157,8 +153,36 @@ export class SupabaseService {
   }
 
   // --- DATA MODIFICATION METHODS ---
-  async addTeacher(teacher: Omit<Teacher, 'schoolName'>) {
-    const { data, error } = await this.supabase.from('teachers').insert(teacher).select().single();
+  async addTeacher(teacher: Omit<Teacher, 'id' | 'schoolName'>) {
+    // FIX: Explicitly construct the object to insert, ensuring no 'id' field is ever sent.
+    // This is a defensive measure against runtime issues that might be causing the not-null constraint error.
+    const {
+      school_id,
+      name,
+      email,
+      pin,
+      role,
+      className,
+      section,
+      setupComplete,
+      photo,
+      mobileNumber
+    } = teacher;
+
+    const insertData = {
+      school_id,
+      name,
+      email,
+      pin,
+      role,
+      className,
+      section,
+      setupComplete,
+      photo,
+      mobileNumber
+    };
+
+    const { data, error } = await this.supabase.from('teachers').insert(insertData).select().single();
     if(error) throw this.processError(error);
     return data;
   }

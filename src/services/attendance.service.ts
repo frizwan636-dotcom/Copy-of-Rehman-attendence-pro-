@@ -245,6 +245,12 @@ export class AttendanceService {
     const schoolData = await this.supabaseService.getSchoolDataForCoordinator(data.user.id);
     if (schoolData) {
         this.loadStateFromData(schoolData);
+        // Set the logged-in coordinator as the active user to trigger dashboard view
+        await this.setActiveUser(data.user.id);
+    } else {
+        // If school data is not found, something is wrong. Log out and inform user.
+        await this.logout();
+        throw new Error("Coordinator account is valid, but no school data was found. Please sign up again or contact support.");
     }
   }
   
@@ -303,7 +309,7 @@ export class AttendanceService {
       setupComplete: !!(details.className && details.section), mobileNumber: details.mobile 
     };
 
-    const newTeacher = await this.supabaseService.addTeacher(teacherData as any);
+    const newTeacher = await this.supabaseService.addTeacher(teacherData);
     this.teachers.update(list => [...list, {...newTeacher, schoolName: this.school()?.name}]);
   }
 
@@ -339,7 +345,7 @@ export class AttendanceService {
   async updateStudentDetails(studentId: string, details: Partial<Omit<Student, 'id' | 'teacherId' | 'feeHistory'>>) {
     const updatedStudent = await this.supabaseService.updateStudent(studentId, details);
     this.students.update(list => list.map(s => {
-      if (s.id === studentId) return { ...s, ...updatedStudent };
+      if (s.id === studentId) return { ...s, ...updatedStudent, feeHistory: s.feeHistory }; // Preserve fee history
       return s;
     }));
   }

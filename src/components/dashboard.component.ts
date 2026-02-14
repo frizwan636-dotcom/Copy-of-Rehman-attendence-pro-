@@ -136,7 +136,7 @@ export type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; 
                 @for (student of displayedStudents(); track student.id) {
                   <div class="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
                     <div class="flex items-center gap-4">
-                      <div class="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center border-2 border-white shadow-sm text-indigo-400">
+                      <div class="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center border-2 border-white shadow-sm text-indigo-400 overflow-hidden">
                           <i class="fa-solid fa-user text-2xl"></i>
                       </div>
                       <div>
@@ -223,7 +223,7 @@ export type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   @for (student of filteredStudents(); track student.id) {
                     <div class="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
-                      <div class="w-16 h-16 rounded-2xl bg-slate-100 border border-slate-200 flex-shrink-0 flex items-center justify-center text-slate-400">
+                      <div class="w-16 h-16 rounded-2xl bg-slate-100 border border-slate-200 flex-shrink-0 flex items-center justify-center text-slate-400 overflow-hidden">
                         <i class="fa-solid fa-user-graduate text-2xl"></i>
                       </div>
                       <div class="flex-1">
@@ -277,7 +277,7 @@ export type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; 
                 @for (student of filteredStudents(); track student.id) {
                   <div class="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm grid grid-cols-3 items-center gap-4">
                     <div class="flex items-center gap-4 col-span-1">
-                       <div class="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center border-2 border-white shadow-sm flex-shrink-0 text-green-500">
+                       <div class="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center border-2 border-white shadow-sm flex-shrink-0 text-green-500 overflow-hidden">
                           <i class="fa-solid fa-user text-2xl"></i>
                       </div>
                       <div>
