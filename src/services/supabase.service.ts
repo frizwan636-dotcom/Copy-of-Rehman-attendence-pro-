@@ -235,7 +235,7 @@ export class SupabaseService {
   }
 
   async saveTeacherAttendance(records: TeacherAttendanceRecord[]) {
-    const { error } = await this.supabase.from('teacher_attendance_records').upsert(records, { onConflict: 'date,teacher_id' });
+    const { error } = await this.supabase.from('teacher_attendance_records').upsert(records, { onConflict: 'date,"teacherId"' });
     if(error) throw this.processError(error);
   }
 
