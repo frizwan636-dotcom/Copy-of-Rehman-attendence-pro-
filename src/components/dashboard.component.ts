@@ -9,6 +9,7 @@ export type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; 
 
 @Component({
   selector: 'app-dashboard',
+  standalone: true,
   imports: [CommonModule, FormsModule, ReportsComponent, DatePipe],
   template: `
     <div class="min-h-screen pb-24 bg-slate-50/50">

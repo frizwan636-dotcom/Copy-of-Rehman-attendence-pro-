@@ -8,6 +8,7 @@ import { DocService } from '../services/doc.service';
 
 @Component({
   selector: 'app-reports',
+  standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
     <div class="space-y-6">

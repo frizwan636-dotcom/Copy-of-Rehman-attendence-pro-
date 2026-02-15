@@ -9,6 +9,7 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-coordinator-dashboard',
+  standalone: true,
   imports: [CommonModule, FormsModule, DatePipe],
   template: `
     <div class="min-h-screen pb-24 bg-slate-50/50">

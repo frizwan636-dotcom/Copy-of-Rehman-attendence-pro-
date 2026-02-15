@@ -7,6 +7,7 @@ type ViewState = 'initial_choice' | 'coordinator_login' | 'coordinator_signup' |
 
 @Component({
   selector: 'app-portal-choice',
+  standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
     <div class="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-slate-50 to-indigo-100">

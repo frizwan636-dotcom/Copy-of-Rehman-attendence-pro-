@@ -8,6 +8,7 @@ import { SplashScreenComponent } from './components/splash-screen.component';
 
 @Component({
   selector: 'app-root',
+  standalone: true,
   imports: [CommonModule, DashboardComponent, CoordinatorDashboardComponent, PortalChoiceComponent, SplashScreenComponent],
   template: `
     <div class="min-h-screen">
