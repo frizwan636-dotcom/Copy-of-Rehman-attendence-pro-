@@ -1,33 +1,27 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "experimentalDecorators": true,
-    "useDefineForClassFields": false,
     "module": "ESNext",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
-    "skipLibCheck": true,
-    "types": [
-      "node"
-    ],
     "moduleResolution": "bundler",
-    "isolatedModules": true,
-    "moduleDetection": "force",
-    "allowJs": true,
-    "jsx": "react-jsx",
-    "paths": {
-      "@/*": [
-        "./*"
-      ]
-    }
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictPropertyInitialization": false,
+    "outDir": "./dist",
+    "rootDir": "./",
+    "baseUrl": "./",
+    "lib": ["ES2022", "DOM"]
   },
   "files": [
-    "./index.tsx"
+    "index.tsx"
   ],
   "angularCompilerOptions": {
-    "disableTypeScriptVersionCheck": true
+    "enableIvy": true,
+    "compilationMode": "full"
   }
 }

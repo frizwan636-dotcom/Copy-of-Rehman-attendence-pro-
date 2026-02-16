@@ -2,6 +2,9 @@
   "name": "copy-of-rehman-attendance-pro",
   "version": "0.0.0",
   "private": true,
+  "scripts": {
+    "build": "ngc"
+  },
   "dependencies": {
     "@angular/common": "21.1.0",
     "@angular/compiler": "21.1.0",
@@ -14,6 +17,7 @@
   },
   "devDependencies": {
     "@angular/build": "21.1.0",
+    "@angular/compiler-cli": "21.1.0",
     "typescript": "~5.9.4"
   }
 }
