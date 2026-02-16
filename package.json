@@ -15,7 +15,7 @@
     "@google/genai": "^1.37.0",
     "@supabase/supabase-js": "^2.95.3",
     "rxjs": "^7.8.2",
-    "typescript": "5.4.5"
+    "typescript": "^5.9.3"
   },
   "devDependencies": {}
 }
