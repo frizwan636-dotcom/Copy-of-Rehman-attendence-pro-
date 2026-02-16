@@ -6,7 +6,6 @@
     "build": "ngc"
   },
   "dependencies": {
-    "@angular/build": "21.1.0",
     "@angular/common": "21.1.0",
     "@angular/compiler": "21.1.0",
     "@angular/compiler-cli": "21.1.0",
@@ -16,7 +15,7 @@
     "@google/genai": "^1.37.0",
     "@supabase/supabase-js": "^2.95.3",
     "rxjs": "^7.8.2",
-    "typescript": "5.9.4"
+    "typescript": "5.4.5"
   },
   "devDependencies": {}
 }
