@@ -187,6 +187,16 @@ export class AttendanceService {
   constructor() {
     window.addEventListener('online', () => this.isOnline.set(true));
     window.addEventListener('offline', () => this.isOnline.set(false));
+    
+    // Safety timeout for initialization
+    setTimeout(() => {
+      if (!this.isInitialized()) {
+        console.warn("Supabase initialization timed out. Proceeding anyway.");
+        this.isInitialized.set(true);
+        if (this.initializationResolver) this.initializationResolver();
+      }
+    }, 8000);
+
     this.supabaseService.onAuthStateChange((event, session) => {
       this.handleAuthStateChange(event, session);
     });
@@ -554,7 +564,7 @@ export class AttendanceService {
                   name: { type: Type.STRING }, fatherName: { type: Type.STRING }, roll: { type: Type.STRING }, mobile: { type: Type.STRING }
                 }, required: ["name", "fatherName", "roll", "mobile"] } } }
       });
-      return JSON.parse(response.text);
+      return JSON.parse(response.text || '[]');
     } catch (e) {
       console.error("AI OCR Failure:", e);
       throw new Error("Could not parse image. Please try better lighting or manual entry.");
@@ -566,7 +576,7 @@ export class AttendanceService {
     if (!ai) return "AI analysis is unavailable because the Gemini API key has not been configured.";
     const prompt = `Analyze this monthly student attendance data for ${month}. Provide a 2-3 sentence summary highlighting overall attendance percentage, identifying top performers (over 95%), and students needing attention (under 75%). The data is: ${JSON.stringify(data)}. Be encouraging and professional.`;
     const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-    return response.text;
+    return response.text || "Analysis could not be generated.";
   }
   
   async generateTeacherMonthlyAnalysis(month: string, data: any[]): Promise<string> {
@@ -574,6 +584,6 @@ export class AttendanceService {
     if (!ai) return "AI analysis is unavailable because the Gemini API key has not been configured.";
     const prompt = `Analyze this monthly teacher attendance data for ${month}. Provide a 2-3 sentence summary highlighting overall staff attendance, identifying any teachers with perfect attendance, and those with notable absences (e.g., more than 3 absences). Data: ${JSON.stringify(data)}. Keep the tone professional and data-focused.`;
     const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-    return response.text;
+    return response.text || "Analysis could not be generated.";
   }
 }

@@ -16,7 +16,10 @@ import { CommonModule } from '@angular/common';
         50% { border-color: white; }
       }
     </style>
-    <div class="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900 text-white text-center animate-in fade-in duration-1000">
+    <div class="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900 text-white text-center animate-in fade-in duration-1000 relative">
+      <button (click)="skipAnimation()" class="absolute top-6 right-6 text-white/30 hover:text-white/80 text-sm font-medium transition-colors">
+        Skip <i class="fa-solid fa-forward ml-1"></i>
+      </button>
       <div class="w-28 h-28 bg-white/10 rounded-3xl flex items-center justify-center mb-8 animate-in zoom-in-50 duration-700">
         <i class="fa-solid fa-book-open-reader text-6xl text-white"></i>
       </div>
@@ -62,9 +65,9 @@ export class SplashScreenComponent implements OnInit {
       } else {
         clearInterval(interval);
         this.isTitleComplete.set(true);
-        setTimeout(() => this.typeParagraph(), 300); // Pause before typing paragraph
+        setTimeout(() => this.typeParagraph(), 100); // Pause before typing paragraph
       }
-    }, 400); // Speed of word appearance
+    }, 150); // Speed of word appearance
   }
 
   private typeParagraph() {
@@ -84,8 +87,12 @@ export class SplashScreenComponent implements OnInit {
         // Wait a moment after completion before notifying parent to hide splash
         setTimeout(() => {
           this.animationFinished.emit();
-        }, 1000); // 1 second pause after text is complete
+        }, 500); // 0.5 second pause after text is complete
       }
-    }, 200); // Slower speed for the paragraph
+    }, 80); // Slower speed for the paragraph
+  }
+
+  skipAnimation() {
+    this.animationFinished.emit();
   }
 }

@@ -63,12 +63,20 @@ export class AppComponent implements OnInit {
   ngOnInit() {
     // Start loading data in the background, the splash screen will wait for its animation.
     this.attendanceService.initialize();
+    
+    // Safety timeout: if splash animation doesn't finish for some reason, hide it after 10s
+    setTimeout(() => {
+      if (this.showSplash()) {
+        this.onSplashAnimationFinished();
+      }
+    }, 10000);
   }
 
   onSplashAnimationFinished() {
+    if (this.hidingSplash()) return;
     this.hidingSplash.set(true); // Start fade-out animation
     setTimeout(() => {
       this.showSplash.set(false); // Remove splash screen from DOM after animation
-    }, 500); // This duration must match the fade-out animation duration
+    }, 500);
   }
 }
