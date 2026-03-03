@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, OnInit, output } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, OnInit, OnDestroy, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -38,7 +38,7 @@ import { CommonModule } from '@angular/common';
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class SplashScreenComponent implements OnInit {
+export class SplashScreenComponent implements OnInit, OnDestroy {
   animationFinished = output<void>();
 
   fullTitle = "Welcome to Rehman Attendance Pro";
@@ -51,21 +51,37 @@ export class SplashScreenComponent implements OnInit {
   displayedWords = signal<{ word: string; highlight: boolean }[]>([]);
   isParagraphComplete = signal(false);
 
+  private titleInterval: any;
+  private paragraphInterval: any;
+  private titleTimeout: any;
+  private completionTimeout: any;
+
   ngOnInit() {
     this.typeTitle();
+  }
+
+  ngOnDestroy() {
+    this.clearTimers();
+  }
+
+  private clearTimers() {
+    if (this.titleInterval) clearInterval(this.titleInterval);
+    if (this.paragraphInterval) clearInterval(this.paragraphInterval);
+    if (this.titleTimeout) clearTimeout(this.titleTimeout);
+    if (this.completionTimeout) clearTimeout(this.completionTimeout);
   }
 
   private typeTitle() {
     const words = this.fullTitle.split(' ');
     let currentWordIndex = 0;
-    const interval = setInterval(() => {
+    this.titleInterval = setInterval(() => {
       if (currentWordIndex < words.length) {
         this.displayedTitle.update(val => val + (val ? ' ' : '') + words[currentWordIndex]);
         currentWordIndex++;
       } else {
-        clearInterval(interval);
+        clearInterval(this.titleInterval);
         this.isTitleComplete.set(true);
-        setTimeout(() => this.typeParagraph(), 100); // Pause before typing paragraph
+        this.titleTimeout = setTimeout(() => this.typeParagraph(), 100); // Pause before typing paragraph
       }
     }, 150); // Speed of word appearance
   }
@@ -73,7 +89,7 @@ export class SplashScreenComponent implements OnInit {
   private typeParagraph() {
     const words = this.fullParagraph.split(' ');
     let currentWordIndex = 0;
-    const interval = setInterval(() => {
+    this.paragraphInterval = setInterval(() => {
       if (currentWordIndex < words.length) {
         const word = words[currentWordIndex];
         const cleanWord = word.replace(/[.,]/g, ''); // Remove punctuation for checking
@@ -82,10 +98,10 @@ export class SplashScreenComponent implements OnInit {
         this.displayedWords.update(currentWords => [...currentWords, { word: word, highlight: shouldHighlight }]);
         currentWordIndex++;
       } else {
-        clearInterval(interval);
+        clearInterval(this.paragraphInterval);
         this.isParagraphComplete.set(true);
         // Wait a moment after completion before notifying parent to hide splash
-        setTimeout(() => {
+        this.completionTimeout = setTimeout(() => {
           this.animationFinished.emit();
         }, 500); // 0.5 second pause after text is complete
       }
@@ -93,6 +109,8 @@ export class SplashScreenComponent implements OnInit {
   }
 
   skipAnimation() {
+    this.clearTimers();
     this.animationFinished.emit();
   }
 }
+
