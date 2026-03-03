@@ -5,20 +5,11 @@ export default defineConfig({
     port: 3000,
     host: '0.0.0.0',
   },
-  plugins: [
-    {
-      name: 'rewrite-index',
-      configureServer(server) {
-        server.middlewares.use((req, res, next) => {
-          if (req.url === '/index.js') {
-            req.url = '/index.tsx';
-          }
-          next();
-        });
-      }
-    }
-  ],
+  build: {
+    minify: 'esbuild',
+  },
   esbuild: {
+    keepNames: true,
     tsconfigRaw: {
       compilerOptions: {
         experimentalDecorators: true,
