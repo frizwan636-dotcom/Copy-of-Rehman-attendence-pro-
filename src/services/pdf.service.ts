@@ -19,11 +19,12 @@ export class PdfService {
 
     const totalStudents = records.length;
     const presentStudents = records.filter(r => r.status === 'Present').length;
+    const lateStudents = records.filter(r => r.status === 'Late').length;
     const studentsWithStatus = records.filter(r => r.status !== 'N/A').length;
-    const absentStudents = studentsWithStatus - presentStudents;
-    const overallPercentage = studentsWithStatus > 0 ? ((presentStudents / studentsWithStatus) * 100).toFixed(1) : '0.0';
+    const absentStudents = studentsWithStatus - (presentStudents + lateStudents);
+    const overallPercentage = studentsWithStatus > 0 ? (((presentStudents + lateStudents) / studentsWithStatus) * 100).toFixed(1) : '0.0';
 
-    const summaryText = `Total: ${totalStudents} | Present: ${presentStudents} | Absent: ${absentStudents}`;
+    const summaryText = `Total: ${totalStudents} | Present: ${presentStudents} | Late: ${lateStudents} | Absent: ${absentStudents}`;
     doc.text(summaryText, 196, 25, { align: 'right' });
     doc.text(`Today's Attendance: ${overallPercentage}%`, 196, 32, { align: 'right' });
 
@@ -84,9 +85,10 @@ export class PdfService {
       
       const totalStudents = monthData.records.length;
       const totalPresent = monthData.records.reduce((sum: number, s: any) => sum + s.present, 0);
+      const totalLate = monthData.records.reduce((sum: number, s: any) => sum + s.late, 0);
       const totalAbsent = monthData.records.reduce((sum: number, s: any) => sum + s.absent, 0);
-      const totalRecords = totalPresent + totalAbsent;
-      const overallPercentage = totalRecords > 0 ? ((totalPresent / totalRecords) * 100).toFixed(1) : '0.0';
+      const totalRecords = totalPresent + totalLate + totalAbsent;
+      const overallPercentage = totalRecords > 0 ? (((totalPresent + totalLate) / totalRecords) * 100).toFixed(1) : '0.0';
 
       doc.text(`Total Students: ${totalStudents}`, 196, 28, { align: 'right' });
       doc.text(`Overall Attendance: ${overallPercentage}%`, 196, 35, { align: 'right' });
@@ -108,8 +110,8 @@ export class PdfService {
       doc.setTextColor(0);
 
 
-      const head = [['Roll', 'Name', "Father's Name", 'Pres.', 'Abs.', 'Month %']];
-      const body = monthData.records.map(d => [d.roll, d.name, d.fatherName || 'N/A', d.present, d.absent, d.percentage + '%']);
+      const head = [['Roll', 'Name', "Father's Name", 'Pres.', 'Late', 'Abs.', 'Month %']];
+      const body = monthData.records.map(d => [d.roll, d.name, d.fatherName || 'N/A', d.present, d.late, d.absent, d.percentage + '%']);
 
       doc.autoTable({
         head: head,
@@ -144,9 +146,10 @@ export class PdfService {
 
     const totalStudents = data.length;
     const totalPresent = data.reduce((sum, s) => sum + s.present, 0);
+    const totalLate = data.reduce((sum, s) => sum + s.late, 0);
     const totalAbsent = data.reduce((sum, s) => sum + s.absent, 0);
-    const totalRecords = totalPresent + totalAbsent;
-    const overallPercentage = totalRecords > 0 ? ((totalPresent / totalRecords) * 100).toFixed(1) : '0.0';
+    const totalRecords = totalPresent + totalLate + totalAbsent;
+    const overallPercentage = totalRecords > 0 ? (((totalPresent + totalLate) / totalRecords) * 100).toFixed(1) : '0.0';
 
     doc.text(`Total Students: ${totalStudents}`, 196, 25, { align: 'right' });
     doc.text(`Overall Attendance: ${overallPercentage}%`, 196, 32, { align: 'right' });
@@ -167,8 +170,8 @@ export class PdfService {
     startY += analysisLines.length * 5 + 5;
     doc.setTextColor(0);
 
-    const head = [['Roll', 'Name', "Father's Name", 'Present', 'Absent', 'Month %']];
-    const body = data.map(d => [d.roll, d.name, d.fatherName || 'N/A', d.present, d.absent, d.percentage + '%']);
+    const head = [['Roll', 'Name', "Father's Name", 'Present', 'Late', 'Absent', 'Month %']];
+    const body = data.map(d => [d.roll, d.name, d.fatherName || 'N/A', d.present, d.late, d.absent, d.percentage + '%']);
 
     doc.autoTable({
       head: head,
@@ -291,21 +294,22 @@ export class PdfService {
     doc.text(`Coordinator: ${coordinatorName}`, 14, 25);
     doc.text(`Date: ${date}`, 14, 32);
 
-    const summaryText = `Total Students: ${schoolStats.total} | Present: ${schoolStats.present} | Absent: ${schoolStats.absent}`;
+    const summaryText = `Total Students: ${schoolStats.total} | Present: ${schoolStats.present} | Late: ${schoolStats.late} | Absent: ${schoolStats.absent}`;
     doc.text(summaryText, 196, 25, { align: 'right' });
     doc.text(`Overall Attendance: ${schoolStats.percentage}%`, 196, 32, { align: 'right' });
 
-    const head = [['Class', 'Teacher', 'Total', 'Present', 'Absent', 'Attendance %', 'Status']];
+    const head = [['Class', 'Teacher', 'Total', 'Present', 'Late', 'Absent', 'Attendance %', 'Status']];
     const body = records.map(r => [
         r.classNameAndSection,
         r.teacherName,
         r.total ?? 'N/A',
         r.present ?? 'N/A',
+        r.late ?? 'N/A',
         r.absent ?? 'N/A',
         r.percentage != null ? `${r.percentage}%` : 'N/A',
         r.status
     ]);
-    const statusColumnIndex = 6;
+    const statusColumnIndex = 7;
 
     doc.autoTable({
       head: head,

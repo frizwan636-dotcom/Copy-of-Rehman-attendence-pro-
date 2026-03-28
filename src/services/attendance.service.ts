@@ -45,7 +45,7 @@ export interface AttendanceRecord {
   date: string;
   teacherId: string;
   studentId: string;
-  status: 'Present' | 'Absent';
+  status: 'Present' | 'Absent' | 'Late';
   lastUpdated: number;
 }
 
@@ -65,6 +65,7 @@ export interface DailySubmission {
   section: string;
   totalStudents: number;
   presentStudents: number;
+  lateStudents?: number;
   absentStudents: number;
   submissionTimestamp: number;
 }
@@ -371,7 +372,7 @@ export class AttendanceService {
     }));
   }
 
-  async saveAttendance(date: string, records: { studentId: string, status: 'Present' | 'Absent' }[]) {
+  async saveAttendance(date: string, records: { studentId: string, status: 'Present' | 'Absent' | 'Late' }[]) {
     const schoolId = this.school()!.id;
     const teacherId = this.activeTeacher()!.id;
     const lastUpdated = Date.now();
@@ -386,19 +387,22 @@ export class AttendanceService {
     });
   }
 
-  async submitAttendanceToCoordinator( date: string, activeClass: { className: string; section: string }, studentsInClass: Student[], attendanceMap: Map<string, 'Present' | 'Absent'>) {
+  async submitAttendanceToCoordinator( date: string, activeClass: { className: string; section: string }, studentsInClass: Student[], attendanceMap: Map<string, 'Present' | 'Absent' | 'Late'>) {
     const schoolId = this.school()!.id;
     const teacherId = this.activeTeacher()!.id;
     
     const totalStudents = studentsInClass.length;
     let presentStudents = 0;
+    let lateStudents = 0;
     studentsInClass.forEach(s => {
-      if (attendanceMap.get(s.id) === 'Present') presentStudents++;
+      const status = attendanceMap.get(s.id);
+      if (status === 'Present') presentStudents++;
+      else if (status === 'Late') lateStudents++;
     });
 
     const newSubmission: DailySubmission = {
       school_id: schoolId, date, teacherId, className: activeClass.className, section: activeClass.section,
-      totalStudents, presentStudents, absentStudents: totalStudents - presentStudents, submissionTimestamp: Date.now(),
+      totalStudents, presentStudents: presentStudents + lateStudents, absentStudents: totalStudents - (presentStudents + lateStudents), submissionTimestamp: Date.now(),
     };
 
     await this.supabaseService.submitDailySummary(newSubmission);
@@ -462,7 +466,7 @@ export class AttendanceService {
     return students.map(s => {
       const record = records.find(r => r.studentId === s.id);
       const studentRecords = this.attendance().filter(r => r.studentId === s.id);
-      const presentCount = studentRecords.filter(r => r.status === 'Present').length;
+      const presentCount = studentRecords.filter(r => r.status === 'Present' || r.status === 'Late').length;
       const totalCount = studentRecords.length;
       const percentage = totalCount > 0 ? ((presentCount / totalCount) * 100).toFixed(0) : '0';
       return { roll: s.rollNumber, name: s.name, fatherName: s.fatherName, mobile: s.mobileNumber, status: record?.status || 'N/A', percentage };
@@ -475,10 +479,11 @@ export class AttendanceService {
     return students.map(s => {
       const studentRecords = records.filter(r => r.studentId === s.id);
       const present = studentRecords.filter(r => r.status === 'Present').length;
+      const late = studentRecords.filter(r => r.status === 'Late').length;
       const absent = studentRecords.filter(r => r.status === 'Absent').length;
-      const total = present + absent;
-      const percentage = total > 0 ? ((present / total) * 100).toFixed(0) : '0';
-      return { roll: s.rollNumber, name: s.name, fatherName: s.fatherName, present, absent, percentage };
+      const total = present + late + absent;
+      const percentage = total > 0 ? (((present + late) / total) * 100).toFixed(0) : '0';
+      return { roll: s.rollNumber, name: s.name, fatherName: s.fatherName, present, late, absent, percentage };
     }).sort((a,b) => a.roll.localeCompare(b.roll, undefined, { numeric: true }));
   }
 
@@ -501,10 +506,11 @@ export class AttendanceService {
       const studentStats = studentsInRange.map(s => {
         const studentMonthRecords = monthRecords.filter(rec => rec.studentId === s.id);
         const present = studentMonthRecords.filter(r => r.status === 'Present').length;
+        const late = studentMonthRecords.filter(r => r.status === 'Late').length;
         const absent = studentMonthRecords.filter(r => r.status === 'Absent').length;
-        const total = present + absent;
-        const percentage = total > 0 ? ((present / total) * 100).toFixed(0) : '0';
-        return { roll: s.rollNumber, name: s.name, fatherName: s.fatherName, present, absent, percentage };
+        const total = present + late + absent;
+        const percentage = total > 0 ? (((present + late) / total) * 100).toFixed(0) : '0';
+        return { roll: s.rollNumber, name: s.name, fatherName: s.fatherName, present, late, absent, percentage };
       });
       breakdown.push({ monthName, records: studentStats });
     });

@@ -153,8 +153,9 @@ export type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; 
                         </a>
                       }
                       <div class="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
-                        <button (click)="toggleStatus(student.id, 'Present')" [class]="getStatus(student.id) === 'Present' ? 'px-4 py-2 bg-indigo-600 text-white rounded-[0.9rem] shadow-lg font-black text-[10px]' : 'px-4 py-2 text-slate-400 font-bold text-[10px]'">P</button>
-                        <button (click)="toggleStatus(student.id, 'Absent')" [class]="getStatus(student.id) === 'Absent' ? 'px-4 py-2 bg-red-500 text-white rounded-[0.9rem] shadow-lg font-black text-[10px]' : 'px-4 py-2 text-slate-400 font-bold text-[10px]'">A</button>
+                        <button (click)="toggleStatus(student.id, 'Present')" [class]="getStatus(student.id) === 'Present' ? 'px-3 py-2 bg-indigo-600 text-white rounded-[0.9rem] shadow-lg font-black text-[10px]' : 'px-3 py-2 text-slate-400 font-bold text-[10px]'">P</button>
+                        <button (click)="toggleStatus(student.id, 'Late')" [class]="getStatus(student.id) === 'Late' ? 'px-3 py-2 bg-amber-500 text-white rounded-[0.9rem] shadow-lg font-black text-[10px]' : 'px-3 py-2 text-slate-400 font-bold text-[10px]'">L</button>
+                        <button (click)="toggleStatus(student.id, 'Absent')" [class]="getStatus(student.id) === 'Absent' ? 'px-3 py-2 bg-red-500 text-white rounded-[0.9rem] shadow-lg font-black text-[10px]' : 'px-3 py-2 text-slate-400 font-bold text-[10px]'">A</button>
                       </div>
                     </div>
                   </div>
@@ -592,7 +593,7 @@ export class DashboardComponent {
   });
   
   selectedDate = signal(new Date().toISOString().split('T')[0]);
-  dailyRecords = signal<Map<string, 'Present' | 'Absent'>>(new Map());
+  dailyRecords = signal<Map<string, 'Present' | 'Absent' | 'Late'>>(new Map());
   showToast = signal(false);
   toastMessage = signal('');
 
@@ -621,7 +622,7 @@ export class DashboardComponent {
       const date = this.selectedDate();
       const studentsForDate = this.displayedStudents();
       const existingRecordsForDate = this.attendanceService.getAttendanceForDate(date);
-      const newMap = new Map<string, 'Present' | 'Absent'>();
+      const newMap = new Map<string, 'Present' | 'Absent' | 'Late'>();
       
       studentsForDate.forEach(s => {
         const record = existingRecordsForDate.find(r => r.studentId === s.id);
@@ -698,7 +699,7 @@ export class DashboardComponent {
     setTimeout(() => this.showToast.set(false), 3000);
   }
 
-  toggleStatus(studentId: string, status: 'Present' | 'Absent') {
+  toggleStatus(studentId: string, status: 'Present' | 'Absent' | 'Late') {
     if (this.submissionStatus()) return; // Don't allow changes after submission
     this.dailyRecords.update(map => {
       const newMap = new Map(map);
@@ -712,7 +713,7 @@ export class DashboardComponent {
   }
 
   async saveAndSubmit() {
-    const records: { studentId: string, status: 'Present' | 'Absent' }[] = [];
+    const records: { studentId: string, status: 'Present' | 'Absent' | 'Late' }[] = [];
     this.dailyRecords().forEach((status, studentId) => {
       records.push({ studentId, status });
     });

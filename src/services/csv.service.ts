@@ -52,7 +52,7 @@ export class CsvService {
   ) {
     const filename = `RangeReport_${className}_${startDate}_to_${endDate}.csv`;
     const allRows: any[][] = [];
-    const headers = ['Month', 'Roll', 'Name', 'Present', 'Absent', 'Month %'];
+    const headers = ['Month', 'Roll', 'Name', 'Present', 'Late', 'Absent', 'Month %'];
     allRows.push(headers);
     
     monthlyBreakdown.forEach(monthData => {
@@ -62,6 +62,7 @@ export class CsvService {
                 d.roll,
                 d.name,
                 d.present,
+                d.late,
                 d.absent,
                 d.percentage
             ]);
@@ -73,11 +74,12 @@ export class CsvService {
   
   exportMonthly(monthLabel: string, className: string, section: string, data: any[]) {
     const filename = `Monthly_${className}_${monthLabel.replace(/\s/g, '_')}.csv`;
-    const headers = ['Roll', 'Name', 'Present', 'Absent', 'Month %'];
+    const headers = ['Roll', 'Name', 'Present', 'Late', 'Absent', 'Month %'];
     const dataRows = data.map(d => [
       d.roll,
       d.name,
       d.present,
+      d.late,
       d.absent,
       d.percentage
     ]);
@@ -114,12 +116,13 @@ export class CsvService {
   // FIX: Add missing method to export school-wide daily summary.
   exportSchoolDailySummary(date: string, coordinatorName: string, records: any[], schoolStats: any) {
     const filename = `School_Daily_Summary_${date}.csv`;
-    const headers = ['Class', 'Teacher', 'Total', 'Present', 'Absent', 'Attendance %', 'Status'];
+    const headers = ['Class', 'Teacher', 'Total', 'Present', 'Late', 'Absent', 'Attendance %', 'Status'];
     const data = records.map(r => [
       r.classNameAndSection,
       r.teacherName,
       r.total ?? 'N/A',
       r.present ?? 'N/A',
+      r.late ?? 'N/A',
       r.absent ?? 'N/A',
       r.percentage ?? 'N/A',
       r.status

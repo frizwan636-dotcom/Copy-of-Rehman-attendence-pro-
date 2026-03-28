@@ -229,12 +229,16 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
                         <p class="text-xs font-black uppercase text-green-400">Total Present</p>
                         <p class="text-3xl font-black text-green-800">{{ dailySummary().schoolTotalPresent }}</p>
                       </div>
+                      <div class="p-4 bg-amber-50 rounded-2xl text-center">
+                        <p class="text-xs font-black uppercase text-amber-400">Total Late</p>
+                        <p class="text-3xl font-black text-amber-800">{{ dailySummary().schoolTotalLate }}</p>
+                      </div>
                       <div class="p-4 bg-red-50 rounded-2xl text-center">
                         <p class="text-xs font-black uppercase text-red-400">Total Absent</p>
                         <p class="text-3xl font-black text-red-800">{{ dailySummary().schoolTotalAbsent }}</p>
                       </div>
-                      <div class="p-4 bg-indigo-50 rounded-2xl text-center">
-                        <p class="text-xs font-black uppercase text-indigo-400">Present %</p>
+                      <div class="p-4 bg-indigo-50 rounded-2xl text-center col-span-2 md:col-span-4">
+                        <p class="text-xs font-black uppercase text-indigo-400">Attendance %</p>
                         <p class="text-3xl font-black text-indigo-800">{{ dailySummary().schoolPresentPercentage }}%</p>
                       </div>
                   </div>
@@ -256,22 +260,26 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
                           </p>
                         </div>
                         @if(summary.status === 'Submitted') {
-                          <div class="grid grid-cols-4 gap-2 text-center text-xs w-1/2">
+                          <div class="grid grid-cols-5 gap-2 text-center text-[10px] w-2/3">
                               <div>
                                 <p class="font-bold text-slate-500">Total</p>
-                                <p class="font-black text-lg text-slate-800">{{ summary.total }}</p>
+                                <p class="font-black text-sm text-slate-800">{{ summary.total }}</p>
                               </div>
                               <div>
-                                <p class="font-bold text-green-500">Present</p>
-                                <p class="font-black text-lg text-green-800">{{ summary.present }}</p>
+                                <p class="font-bold text-green-500">Pres.</p>
+                                <p class="font-black text-sm text-green-800">{{ summary.present }}</p>
                               </div>
                               <div>
-                                <p class="font-bold text-red-500">Absent</p>
-                                <p class="font-black text-lg text-red-800">{{ summary.absent }}</p>
+                                <p class="font-bold text-amber-500">Late</p>
+                                <p class="font-black text-sm text-amber-800">{{ summary.late }}</p>
                               </div>
                               <div>
-                                <p class="font-bold text-indigo-500">Percent</p>
-                                <p class="font-black text-lg text-indigo-800">{{ summary.percentage }}%</p>
+                                <p class="font-bold text-red-500">Abs.</p>
+                                <p class="font-black text-sm text-red-800">{{ summary.absent }}</p>
+                              </div>
+                              <div>
+                                <p class="font-bold text-indigo-500">Pct.</p>
+                                <p class="font-black text-sm text-indigo-800">{{ summary.percentage }}%</p>
                               </div>
                           </div>
                         } @else {
@@ -464,8 +472,9 @@ export class CoordinatorDashboardComponent {
           status: 'Submitted' as const,
           total: sub.totalStudents,
           present: sub.presentStudents,
+          late: sub.lateStudents || 0,
           absent: sub.absentStudents,
-          percentage: sub.totalStudents > 0 ? ((sub.presentStudents / sub.totalStudents) * 100).toFixed(0) : '0',
+          percentage: sub.totalStudents > 0 ? (((sub.presentStudents + (sub.lateStudents || 0)) / sub.totalStudents) * 100).toFixed(0) : '0',
           timestamp: sub.submissionTimestamp
         };
       } else {
@@ -478,10 +487,11 @@ export class CoordinatorDashboardComponent {
 
     const schoolTotalStudents = submissions.reduce((sum, s) => sum + s.totalStudents, 0);
     const schoolTotalPresent = submissions.reduce((sum, s) => sum + s.presentStudents, 0);
+    const schoolTotalLate = submissions.reduce((sum, s) => sum + (s.lateStudents || 0), 0);
     const schoolTotalAbsent = submissions.reduce((sum, s) => sum + s.absentStudents, 0);
-    const schoolPresentPercentage = schoolTotalStudents > 0 ? ((schoolTotalPresent / schoolTotalStudents) * 100).toFixed(0) : '0';
+    const schoolPresentPercentage = schoolTotalStudents > 0 ? (((schoolTotalPresent + schoolTotalLate) / schoolTotalStudents) * 100).toFixed(0) : '0';
     
-    return { summaryList, submissions, schoolTotalStudents, schoolTotalPresent, schoolTotalAbsent, schoolPresentPercentage };
+    return { summaryList, submissions, schoolTotalStudents, schoolTotalPresent, schoolTotalLate, schoolTotalAbsent, schoolPresentPercentage };
   });
 
   // Security State
@@ -714,6 +724,7 @@ export class CoordinatorDashboardComponent {
     const schoolStats = {
       total: summary.schoolTotalStudents,
       present: summary.schoolTotalPresent,
+      late: summary.schoolTotalLate,
       absent: summary.schoolTotalAbsent,
       percentage: summary.schoolPresentPercentage
     };

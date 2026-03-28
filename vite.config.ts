@@ -6,7 +6,7 @@ export default defineConfig({
     host: '0.0.0.0',
   },
   build: {
-    minify: 'esbuild',
+    minify: false,
   },
   esbuild: {
     keepNames: true,

@@ -48,14 +48,17 @@ export class DocService {
     const title = `Daily Student Report - ${date}`;
     const totalStudents = records.length;
     const presentStudents = records.filter(r => r.status === 'Present').length;
+    const lateStudents = records.filter(r => r.status === 'Late').length;
     const studentsWithStatus = records.filter(r => r.status !== 'N/A').length;
-    const overallPercentage = studentsWithStatus > 0 ? ((presentStudents / studentsWithStatus) * 100).toFixed(1) : '0.0';
+    const overallPercentage = studentsWithStatus > 0 ? (((presentStudents + lateStudents) / studentsWithStatus) * 100).toFixed(1) : '0.0';
     
     let html = this.getHtmlHeader(title);
     html += `<h1>${title}</h1>`;
     html += `<div class="summary">
       <p><strong>Class:</strong> ${className} (${section})</p>
       <p><strong>Total Students:</strong> ${totalStudents}</p>
+      <p><strong>Present:</strong> ${presentStudents}</p>
+      <p><strong>Late:</strong> ${lateStudents}</p>
       <p><strong>Today's Attendance:</strong> ${overallPercentage}%</p>
     </div>`;
     html += `<table><thead><tr><th>Roll</th><th>Name</th><th>Contact</th><th>Attendance %</th></tr></thead><tbody>`;
@@ -71,15 +74,18 @@ export class DocService {
     const title = `Monthly Student Report - ${monthLabel}`;
     const totalStudents = data.length;
     const totalPresent = data.reduce((sum, s) => sum + s.present, 0);
+    const totalLate = data.reduce((sum, s) => sum + s.late, 0);
     const totalAbsent = data.reduce((sum, s) => sum + s.absent, 0);
-    const totalRecords = totalPresent + totalAbsent;
-    const overallPercentage = totalRecords > 0 ? ((totalPresent / totalRecords) * 100).toFixed(1) : '0.0';
+    const totalRecords = totalPresent + totalLate + totalAbsent;
+    const overallPercentage = totalRecords > 0 ? (((totalPresent + totalLate) / totalRecords) * 100).toFixed(1) : '0.0';
 
     let html = this.getHtmlHeader(title);
     html += `<h1>${title}</h1>`;
     html += `<div class="summary">
       <p><strong>Class:</strong> ${className} (${section})</p>
       <p><strong>Total Students:</strong> ${totalStudents}</p>
+      <p><strong>Total Present:</strong> ${totalPresent}</p>
+      <p><strong>Total Late:</strong> ${totalLate}</p>
       <p><strong>Overall Attendance:</strong> ${overallPercentage}%</p>
     </div>`;
 
@@ -91,9 +97,9 @@ export class DocService {
       </div>
     `;
 
-    html += `<table><thead><tr><th>Roll</th><th>Name</th><th>Present</th><th>Absent</th><th>Month %</th></tr></thead><tbody>`;
+    html += `<table><thead><tr><th>Roll</th><th>Name</th><th>Present</th><th>Late</th><th>Absent</th><th>Month %</th></tr></thead><tbody>`;
     data.forEach(d => {
-      html += `<tr><td>${d.roll}</td><td>${d.name}</td><td>${d.present}</td><td>${d.absent}</td><td>${d.percentage}%</td></tr>`;
+      html += `<tr><td>${d.roll}</td><td>${d.name}</td><td>${d.present}</td><td>${d.late}</td><td>${d.absent}</td><td>${d.percentage}%</td></tr>`;
     });
     html += `</tbody></table>` + this.getHtmlFooter();
     
@@ -117,9 +123,9 @@ export class DocService {
             </div>
           `;
 
-          html += `<table><thead><tr><th>Roll</th><th>Name</th><th>Present</th><th>Absent</th><th>Month %</th></tr></thead><tbody>`;
+          html += `<table><thead><tr><th>Roll</th><th>Name</th><th>Present</th><th>Late</th><th>Absent</th><th>Month %</th></tr></thead><tbody>`;
           monthData.records.forEach(d => {
-              html += `<tr><td>${d.roll}</td><td>${d.name}</td><td>${d.present}</td><td>${d.absent}</td><td>${d.percentage}%</td></tr>`;
+              html += `<tr><td>${d.roll}</td><td>${d.name}</td><td>${d.present}</td><td>${d.late}</td><td>${d.absent}</td><td>${d.percentage}%</td></tr>`;
           });
           html += `</tbody></table>`;
       }
@@ -194,12 +200,13 @@ export class DocService {
       <p><strong>Coordinator:</strong> ${coordinatorName}</p>
       <p><strong>Total Students:</strong> ${schoolStats.total}</p>
       <p><strong>Total Present:</strong> ${schoolStats.present}</p>
+      <p><strong>Total Late:</strong> ${schoolStats.late}</p>
       <p><strong>Total Absent:</strong> ${schoolStats.absent}</p>
       <p><strong>Overall Attendance:</strong> ${schoolStats.percentage}%</p>
     </div>`;
-    html += `<table><thead><tr><th>Class</th><th>Teacher</th><th>Total</th><th>Present</th><th>Absent</th><th>Attendance %</th><th>Status</th></tr></thead><tbody>`;
+    html += `<table><thead><tr><th>Class</th><th>Teacher</th><th>Total</th><th>Present</th><th>Late</th><th>Absent</th><th>Attendance %</th><th>Status</th></tr></thead><tbody>`;
     records.forEach(r => {
-      html += `<tr><td>${r.classNameAndSection}</td><td>${r.teacherName}</td><td>${r.total ?? 'N/A'}</td><td>${r.present ?? 'N/A'}</td><td>${r.absent ?? 'N/A'}</td><td>${r.percentage != null ? r.percentage + '%' : 'N/A'}</td><td>${r.status}</td></tr>`;
+      html += `<tr><td>${r.classNameAndSection}</td><td>${r.teacherName}</td><td>${r.total ?? 'N/A'}</td><td>${r.present ?? 'N/A'}</td><td>${r.late ?? 'N/A'}</td><td>${r.absent ?? 'N/A'}</td><td>${r.percentage != null ? r.percentage + '%' : 'N/A'}</td><td>${r.status}</td></tr>`;
     });
     html += `</tbody></table>` + this.getHtmlFooter();
 
