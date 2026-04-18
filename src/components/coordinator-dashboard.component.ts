@@ -16,17 +16,25 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
       <nav class="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 py-4 shadow-sm">
         <div class="max-w-5xl mx-auto flex justify-between items-center">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-green-200">
-              <i class="fa-solid fa-sitemap"></i>
+            <div class="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200">
+              <i class="fa-solid fa-shield-halved"></i>
             </div>
             <div>
-              <h1 class="text-lg font-black text-slate-800 tracking-tight leading-none">Coordinator Panel</h1>
-              <p class="text-[10px] text-green-600 font-bold uppercase tracking-widest mt-1">
-                {{ coordinator()?.name }}
+              <h1 class="text-lg font-black text-slate-900 tracking-tight leading-none">MustEducate</h1>
+              <p class="text-[10px] text-emerald-600 font-bold uppercase tracking-widest mt-1">
+                Coordinator: {{ coordinator()?.name }}
               </p>
             </div>
           </div>
           <div class="flex items-center gap-2">
+            <!-- Theme and Language Toggles -->
+            <button (click)="attendanceService.toggleDarkMode()" [title]="isDarkMode() ? 'Switch to Light Mode' : 'Switch to Dark Mode'" class="p-2.5 text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition-colors">
+               <i class="fa-solid" [class]="isDarkMode() ? 'fa-sun' : 'fa-moon'"></i>
+            </button>
+            <button (click)="attendanceService.toggleRtl()" [title]="isRtl() ? 'Switch to LTR' : 'Switch to RTL'" class="p-2.5 text-slate-400 hover:text-indigo-600 rounded-xl hover:bg-indigo-50 transition-colors">
+               <i class="fa-solid fa-language"></i>
+            </button>
+
             <!-- Sync Status Indicator -->
             <div class="hidden sm:flex items-center gap-3">
               @if (attendanceService.isSyncing()) {
@@ -175,9 +183,15 @@ import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
                         <div class="flex items-center gap-2">
                           <button (click)="sendMeetingReminder(teacher)"
                                   [disabled]="!isMeetingScheduled()"
-                                  title="Send Meeting Reminder"
+                                  title="Send SMS Meeting Reminder"
                                   class="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-purple-50 hover:text-purple-600 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                             <i class="fa-solid fa-paper-plane"></i>
+                          </button>
+                          <button (click)="sendWhatsAppMeetingReminder(teacher)"
+                                  [disabled]="!isMeetingScheduled()"
+                                  title="Send WhatsApp Meeting Reminder"
+                                  class="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                            <i class="fa-brands fa-whatsapp"></i>
                           </button>
                           <button (click)="openEditModal(teacher)" class="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors">
                             <i class="fa-solid fa-pen-to-square"></i>
@@ -416,6 +430,8 @@ export class CoordinatorDashboardComponent {
   csvService = inject(CsvService);
   docService = inject(DocService);
   sanitizer: DomSanitizer = inject(DomSanitizer);
+  isDarkMode = this.attendanceService.isDarkMode;
+  isRtl = this.attendanceService.isRtl;
 
   view = signal<'attendance' | 'teachers' | 'reports' | 'meetings' | 'summary' | 'security'>('attendance');
   coordinator = this.attendanceService.activeCoordinator;
@@ -678,6 +694,32 @@ export class CoordinatorDashboardComponent {
     
     window.open(smsUrl, '_blank');
     this.showToastMessage(`Opening SMS for ${teacher.name}...`);
+  }
+
+  sendWhatsAppMeetingReminder(teacher: Teacher) {
+    this.errorMessage.set('');
+    if (!teacher.mobileNumber) {
+        this.errorMessage.set(`Cannot send reminder: No mobile number found for ${teacher.name}.`);
+        return;
+    }
+
+    const date = new Date(this.meetingDate()).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    
+    const timeParts = this.meetingTime().split(':');
+    const hours = parseInt(timeParts[0], 10);
+    const minutes = parseInt(timeParts[1], 10);
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const formattedHours = hours % 12 || 12; // Handle midnight
+    const formattedTime = `${formattedHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+
+    const message = `*MEETING REMINDER*\n\nHi *${teacher.name.split(' ')[0]}*,\nA staff meeting has been scheduled.\n\n*Date:* ${date}\n*Time:* ${formattedTime}\n*Agenda:* ${this.meetingAgenda()}\n\nRegards,\n${this.coordinator()?.name}`;
+
+    const cleanNumber = teacher.mobileNumber.replace(/\D/g, '');
+    const phone = cleanNumber.startsWith('0') ? '92' + cleanNumber.substring(1) : cleanNumber;
+    const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    
+    window.open(waUrl, '_blank');
+    this.showToastMessage(`Opening WhatsApp for ${teacher.name}...`);
   }
 
   // --- Reports ---

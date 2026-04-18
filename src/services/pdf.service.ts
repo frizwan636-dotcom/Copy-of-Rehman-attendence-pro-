@@ -11,7 +11,7 @@ export class PdfService {
     const doc = new jspdf.jsPDF();
     
     doc.setFontSize(20);
-    doc.text('Rehman Attendance - Daily Student Report', 105, 15, { align: 'center' });
+    doc.text('MustEducate - Daily Student Report', 105, 15, { align: 'center' });
     
     doc.setFontSize(12);
     doc.text(`Class: ${className} (${section})`, 14, 25);
@@ -73,7 +73,7 @@ export class PdfService {
       }
       
       doc.setFontSize(20);
-      doc.text('Rehman Attendance - Monthly Breakdown', 105, 15, { align: 'center' });
+      doc.text('MustEducate - Monthly Breakdown', 105, 15, { align: 'center' });
       
       doc.setFontSize(14);
       doc.setFont(undefined, 'bold');
@@ -138,7 +138,7 @@ export class PdfService {
     const doc = new jspdf.jsPDF();
     
     doc.setFontSize(20);
-    doc.text('Rehman Attendance - Monthly Report', 105, 15, { align: 'center' });
+    doc.text('MustEducate - Monthly Report', 105, 15, { align: 'center' });
     
     doc.setFontSize(12);
     doc.text(`Class: ${className} (${section})`, 14, 25);
@@ -189,7 +189,7 @@ export class PdfService {
     const doc = new jspdf.jsPDF();
     
     doc.setFontSize(20);
-    doc.text('Rehman Attendance - Daily Teacher Report', 105, 15, { align: 'center' });
+    doc.text('MustEducate - Daily Teacher Report', 105, 15, { align: 'center' });
     
     doc.setFontSize(12);
     doc.text(`Coordinator: ${coordinatorName}`, 14, 25);
@@ -237,7 +237,7 @@ export class PdfService {
     const doc = new jspdf.jsPDF();
     
     doc.setFontSize(20);
-    doc.text('Rehman Attendance - Monthly Teacher Report', 105, 15, { align: 'center' });
+    doc.text('MustEducate - Monthly Teacher Report', 105, 15, { align: 'center' });
     
     doc.setFontSize(12);
     doc.text(`Coordinator: ${coordinatorName}`, 14, 25);
@@ -288,7 +288,7 @@ export class PdfService {
     const doc = new jspdf.jsPDF();
     
     doc.setFontSize(20);
-    doc.text('Rehman Attendance - School-Wide Daily Summary', 105, 15, { align: 'center' });
+    doc.text('MustEducate - School-Wide Daily Summary', 105, 15, { align: 'center' });
     
     doc.setFontSize(12);
     doc.text(`Coordinator: ${coordinatorName}`, 14, 25);

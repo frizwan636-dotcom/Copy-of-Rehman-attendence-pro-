@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { createClient, SupabaseClient, User, AuthChangeEvent, Session, AuthError } from '@supabase/supabase-js';
-import type { Teacher, Student, AttendanceRecord, TeacherAttendanceRecord, DailySubmission, FeePayment } from './attendance.service';
+import type { Teacher, Student, AttendanceRecord, TeacherAttendanceRecord, DailySubmission, FeePayment, Subject, ExamProgress, Quiz, QuizSubmission, Homework, HomeworkSubmission } from './attendance.service';
 
 export interface School {
   id: string; // Corresponds to Supabase coordinator user ID for simplicity
@@ -15,6 +15,12 @@ export interface SchoolData {
     studentAttendance: AttendanceRecord[];
     teacherAttendance: TeacherAttendanceRecord[];
     dailySubmissions: DailySubmission[];
+    subjects: Subject[];
+    examProgress: ExamProgress[];
+    quizzes: Quiz[];
+    quizSubmissions: QuizSubmission[];
+    homeworks: Homework[];
+    homeworkSubmissions: HomeworkSubmission[];
 }
 
 
@@ -22,16 +28,17 @@ export interface SchoolData {
 export class SupabaseService {
   private supabase: SupabaseClient;
 
-  private readonly SUPABASE_URL = process.env.SUPABASE_URL || 'https://lucpmecyfkgdcwpditzs.supabase.co';
-  private readonly SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1Y3BtZWN5ZmtnZGN3cGRpdHpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4ODQxOTUsImV4cCI6MjA4NjQ2MDE5NX0.TuQYOT2sQoo5U6gLIJfHRx5IHz0oS69uGp6CdesMyv0';
+  private readonly SUPABASE_URL = (typeof process !== 'undefined' && process.env.SUPABASE_URL) || 'https://lucpmecyfkgdcwpditzs.supabase.co';
+  private readonly SUPABASE_KEY = (typeof process !== 'undefined' && process.env.SUPABASE_KEY) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1Y3BtZWN5ZmtnZGN3cGRpdHpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4ODQxOTUsImV4cCI6MjA4NjQ2MDE5NX0.TuQYOT2sQoo5U6gLIJfHRx5IHz0oS69uGp6CdesMyv0';
   
   constructor() {
     this.supabase = createClient(this.SUPABASE_URL, this.SUPABASE_KEY);
   }
   
-  private processError(error: AuthError | { message: string, status?: number } | null): { message: string, status?: number } | null {
+  private processError(error: AuthError | { message: string, status?: number, details?: string, hint?: string, code?: string } | null): { message: string, status?: number } | null {
     if (!error) return null;
 
+    console.error('Supabase Error Details:', error);
     const lowerCaseMessage = error.message.toLowerCase();
 
     if (lowerCaseMessage.includes('invalid api key') || error.status === 401) {
@@ -118,22 +125,39 @@ export class SupabaseService {
   }
 
   async getAllDataForSchool(schoolId: string): Promise<SchoolData> {
-      const { data: school, error: schoolError } = await this.supabase.from('schools').select('*').eq('id', schoolId).single();
+      const [
+        { data: school, error: schoolError },
+        { data: teachers, error: teachersError },
+        { data: students, error: studentsError },
+        { data: studentAttendance, error: saError },
+        { data: teacherAttendance, error: taError },
+        { data: dailySubmissions, error: dsError },
+        { data: subjects, error: subError },
+        { data: examProgress, error: epError },
+        { data: quizzes, error: qError },
+        { data: quizSubmissions, error: qsError },
+        { data: homeworks, error: hError },
+        { data: homeworkSubmissions, error: hsError }
+      ] = await Promise.all([
+        this.supabase.from('schools').select('*').eq('id', schoolId).single(),
+        this.supabase.from('teachers').select('*').eq('school_id', schoolId),
+        this.supabase.from('students').select('*, fee_payments(*)').eq('school_id', schoolId),
+        this.supabase.from('attendance_records').select('*').eq('school_id', schoolId),
+        this.supabase.from('teacher_attendance_records').select('*').eq('school_id', schoolId),
+        this.supabase.from('daily_submissions').select('*').eq('school_id', schoolId),
+        this.supabase.from('subjects').select('*').eq('school_id', schoolId),
+        this.supabase.from('exam_progress').select('*').eq('school_id', schoolId),
+        this.supabase.from('quizzes').select('*').eq('school_id', schoolId),
+        this.supabase.from('quiz_submissions').select('*').eq('school_id', schoolId),
+        this.supabase.from('homeworks').select('*').eq('school_id', schoolId),
+        this.supabase.from('homework_submissions').select('*').eq('school_id', schoolId)
+      ]);
+
       if (schoolError) throw schoolError;
-
-      const { data: teachers, error: teachersError } = await this.supabase.from('teachers').select('*').eq('school_id', schoolId);
       if (teachersError) throw teachersError;
-
-      const { data: students, error: studentsError } = await this.supabase.from('students').select('*, fee_payments(*)').eq('school_id', schoolId);
       if (studentsError) throw studentsError;
-
-      const { data: studentAttendance, error: saError } = await this.supabase.from('attendance_records').select('*').eq('school_id', schoolId);
       if (saError) throw saError;
-      
-      const { data: teacherAttendance, error: taError } = await this.supabase.from('teacher_attendance_records').select('*').eq('school_id', schoolId);
       if (taError) throw taError;
-
-      const { data: dailySubmissions, error: dsError } = await this.supabase.from('daily_submissions').select('*').eq('school_id', schoolId);
       if (dsError) throw dsError;
 
       // Restructure students to match previous format
@@ -149,6 +173,12 @@ export class SupabaseService {
           studentAttendance: studentAttendance || [],
           teacherAttendance: teacherAttendance || [],
           dailySubmissions: dailySubmissions || [],
+          subjects: subjects || [],
+          examProgress: examProgress || [],
+          quizzes: quizzes || [],
+          quizSubmissions: quizSubmissions || [],
+          homeworks: homeworks || [],
+          homeworkSubmissions: homeworkSubmissions || [],
       };
   }
 
@@ -182,15 +212,15 @@ export class SupabaseService {
       mobileNumber
     };
 
-    const { data, error } = await this.supabase.from('teachers').insert(insertData).select().single();
+    const { data, error } = await this.supabase.from('teachers').insert(insertData).select();
     if(error) throw this.processError(error);
-    return data;
+    return data && data.length > 0 ? data[0] : { ...insertData, id: Date.now().toString() };
   }
   
   async updateTeacher(teacherId: string, updates: Partial<Teacher>) {
-    const { data, error } = await this.supabase.from('teachers').update(updates).eq('id', teacherId).select().single();
+    const { data, error } = await this.supabase.from('teachers').update(updates).eq('id', teacherId).select();
     if (error) throw this.processError(error);
-    return data;
+    return data && data.length > 0 ? data[0] : { id: teacherId, ...updates };
   }
 
   async removeTeacher(teacherId: string) {
@@ -257,5 +287,139 @@ export class SupabaseService {
   async updateSchoolPin(schoolId: string, pin: string) {
     const { error } = await this.supabase.from('schools').update({ pin }).eq('id', schoolId);
     if(error) throw this.processError(error);
+  }
+
+  // --- NEW METHODS FOR SUBJECTS, EXAMS, QUIZZES, HOMEWORK ---
+
+  async addSubject(subject: Omit<Subject, 'id'>) {
+    const { data, error } = await this.supabase.from('subjects').insert(subject).select();
+    if (error) throw this.processError(error);
+    return data && data.length > 0 ? data[0] : { ...subject, id: Date.now().toString() };
+  }
+
+  async updateSubject(id: string, updates: Partial<Subject>) {
+    const { data, error } = await this.supabase.from('subjects').update(updates).eq('id', id).select();
+    if (error) throw this.processError(error);
+    return data && data.length > 0 ? data[0] : { id, ...updates };
+  }
+
+  async removeSubject(id: string) {
+    const { error } = await this.supabase.from('subjects').delete().eq('id', id);
+    if (error) throw this.processError(error);
+  }
+
+  async addExamProgress(progress: Omit<ExamProgress, 'id'>) {
+    const { data, error } = await this.supabase.from('exam_progress').insert(progress).select();
+    if (error) throw this.processError(error);
+    return data && data.length > 0 ? data[0] : { ...progress, id: Date.now().toString() };
+  }
+
+  async removeExamProgress(id: string) {
+    const { error } = await this.supabase.from('exam_progress').delete().eq('id', id);
+    if (error) throw this.processError(error);
+  }
+
+  async addQuiz(quiz: Omit<Quiz, 'id'>) {
+    const { data, error } = await this.supabase.from('quizzes').insert(quiz).select();
+    if (error) throw this.processError(error);
+    return data && data.length > 0 ? data[0] : { ...quiz, id: Date.now().toString() };
+  }
+
+  async updateQuiz(id: string, updates: Partial<Quiz>) {
+    const { data, error } = await this.supabase.from('quizzes').update(updates).eq('id', id).select();
+    if (error) throw this.processError(error);
+    return data && data.length > 0 ? data[0] : { id, ...updates };
+  }
+
+  async deleteQuiz(id: string) {
+    const { error } = await this.supabase.from('quizzes').delete().eq('id', id);
+    if (error) throw this.processError(error);
+  }
+
+  async submitQuiz(submission: Omit<QuizSubmission, 'id'>) {
+    const { data, error } = await this.supabase.from('quiz_submissions').insert(submission).select();
+    if (error) throw this.processError(error);
+    return data && data.length > 0 ? data[0] : { ...submission, id: Date.now().toString() };
+  }
+
+  async markQuiz(id: string, updates: Partial<QuizSubmission>) {
+    const { data, error } = await this.supabase.from('quiz_submissions').update(updates).eq('id', id).select();
+    if (error) throw this.processError(error);
+    return data && data.length > 0 ? data[0] : { id, ...updates };
+  }
+
+  async addHomework(homework: Omit<Homework, 'id'>) {
+    const { data, error } = await this.supabase.from('homeworks').insert(homework).select();
+    if (error) throw this.processError(error);
+    return data && data.length > 0 ? data[0] : { ...homework, id: Date.now().toString() };
+  }
+
+  async updateHomework(id: string, updates: Partial<Homework>) {
+    const { data, error } = await this.supabase.from('homeworks').update(updates).eq('id', id).select();
+    if (error) throw this.processError(error);
+    return data && data.length > 0 ? data[0] : { id, ...updates };
+  }
+
+  async deleteHomework(id: string) {
+    const { error } = await this.supabase.from('homeworks').delete().eq('id', id);
+    if (error) throw this.processError(error);
+  }
+
+  async submitHomework(submission: Omit<HomeworkSubmission, 'id'>) {
+    const { data, error } = await this.supabase.from('homework_submissions').insert(submission).select();
+    if (error) throw this.processError(error);
+    return data && data.length > 0 ? data[0] : { ...submission, id: Date.now().toString() };
+  }
+
+  async markHomework(id: string, updates: Partial<HomeworkSubmission>) {
+    const { data, error } = await this.supabase.from('homework_submissions').update(updates).eq('id', id).select();
+    if (error) throw this.processError(error);
+    return data && data.length > 0 ? data[0] : { id, ...updates };
+  }
+
+  async uploadFile(file: File, path: string) {
+    const { data, error } = await this.supabase.storage.from('attachments').upload(path, file);
+    if (error) throw this.processError(error);
+    
+    const { data: { publicUrl } } = this.supabase.storage.from('attachments').getPublicUrl(path);
+    return publicUrl;
+  }
+
+  // --- CHAT METHODS ---
+  async getMessages(schoolId: string) {
+    const { data, error } = await this.supabase
+      .from('messages')
+      .select('*')
+      .eq('school_id', schoolId)
+      .order('timestamp', { ascending: true });
+    if (error) throw this.processError(error);
+    return data;
+  }
+
+  async sendMessage(message: { school_id: string, sender_id: string, text: string }) {
+    const { data, error } = await this.supabase
+      .from('messages')
+      .insert(message)
+      .select();
+    if (error) throw this.processError(error);
+    return data && data.length > 0 ? data[0] : { ...message, id: Date.now().toString(), timestamp: new Date().toISOString() };
+  }
+
+  async updateMessage(id: string, text: string) {
+    const { data, error } = await this.supabase
+      .from('messages')
+      .update({ text })
+      .eq('id', id)
+      .select();
+    if (error) throw this.processError(error);
+    return data && data.length > 0 ? data[0] : { id, text, timestamp: new Date().toISOString() };
+  }
+
+  async deleteMessage(id: string) {
+    const { error } = await this.supabase
+      .from('messages')
+      .delete()
+      .eq('id', id);
+    if (error) throw this.processError(error);
   }
 }

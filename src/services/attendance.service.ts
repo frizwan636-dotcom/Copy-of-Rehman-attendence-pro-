@@ -34,6 +34,7 @@ export interface Student {
   fatherName?: string;
   rollNumber: string;
   mobileNumber: string;
+  pin: string; // Added PIN for student/parent login
   totalFee: number;
   feeHistory: FeePayment[];
   className?: string;
@@ -70,7 +71,82 @@ export interface DailySubmission {
   submissionTimestamp: number;
 }
 
-type CurrentPinUser = { id: string, role: 'teacher' | 'coordinator' };
+export interface Subject {
+  id: string;
+  school_id: string;
+  name: string;
+}
+
+export interface ExamProgress {
+  id: string;
+  school_id: string;
+  student_id: string;
+  subject_id: string;
+  date: string;
+  marks: number;
+  total_marks: number;
+  remarks?: string;
+}
+
+export interface QuizQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correct_answer: string;
+}
+
+export interface Quiz {
+  id: string;
+  school_id: string;
+  teacher_id: string;
+  subject_id: string;
+  title: string;
+  description?: string;
+  duration_minutes: number;
+  questions: QuizQuestion[];
+  status: 'active' | 'inactive';
+}
+
+export interface QuizSubmission {
+  id: string;
+  quiz_id: string;
+  student_id: string;
+  answers: string[];
+  score: number;
+  total_marks: number;
+  submitted_at: string;
+  marked: boolean;
+  teacher_remarks?: string;
+}
+
+export interface Homework {
+  id: string;
+  school_id: string;
+  teacher_id: string;
+  subject_id: string;
+  title: string;
+  description: string;
+  dueDate: string;
+  questions?: QuizQuestion[]; // Optional questions for homework
+  timeLimit?: number; // Optional time limit
+  status: 'active' | 'inactive';
+}
+
+export interface HomeworkSubmission {
+  id: string;
+  homework_id: string;
+  student_id: string;
+  content?: string;
+  answers?: number[];
+  score?: number;
+  total_score?: number;
+  submitted_at: string;
+  marked: boolean;
+  teacher_remarks?: string;
+  attachment_url?: string;
+}
+
+type CurrentPinUser = { id: string, role: 'teacher' | 'coordinator' | 'student' | 'parent' };
 
 @Injectable({ providedIn: 'root' })
 export class AttendanceService {
@@ -93,6 +169,25 @@ export class AttendanceService {
   isOnline = signal(navigator.onLine);
   isSyncing = signal(false);
   isInitialized = signal(false);
+  isDarkMode = signal(localStorage.getItem('theme') === 'dark');
+  isRtl = signal(localStorage.getItem('dir') === 'rtl');
+
+  toggleDarkMode() {
+    this.isDarkMode.update(v => !v);
+    localStorage.setItem('theme', this.isDarkMode() ? 'dark' : 'light');
+  }
+
+  toggleRtl() {
+    const isNowRtl = !this.isRtl();
+    this.isRtl.set(isNowRtl);
+    localStorage.setItem('dir', isNowRtl ? 'rtl' : 'ltr');
+    
+    // Auto-translate using Google Translate when entering RTL (Urdu)
+    const lang = isNowRtl ? 'ur' : 'en';
+    document.cookie = `googtrans=/en/${lang}; path=/`;
+    document.cookie = `googtrans=/en/${lang}; domain=${window.location.hostname}; path=/`;
+    window.location.reload();
+  }
 
   private initializationResolver: ((value: void | PromiseLike<void>) => void) | null = null;
   private initializationPromise = new Promise<void>(resolve => {
@@ -101,6 +196,13 @@ export class AttendanceService {
 
   supabaseUser = signal<User | null>(null);
   
+  toast = signal<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
+
+  showToast(message: string, type: 'success' | 'error' | 'info' = 'info') {
+    this.toast.set({ message, type });
+    setTimeout(() => this.toast.set(null), 3000);
+  }
+
   private school = signal<School | null>(null);
   private currentPinUser = signal<CurrentPinUser | null>(null);
   private teachers = signal<Teacher[]>([]);
@@ -109,8 +211,24 @@ export class AttendanceService {
   private teacherAttendance = signal<TeacherAttendanceRecord[]>([]);
   private dailySubmissions = signal<DailySubmission[]>([]);
 
+  // New signals for the requested features
+  private subjects = signal<Subject[]>([]);
+  private examProgress = signal<ExamProgress[]>([]);
+  private quizzes = signal<Quiz[]>([]);
+  private quizSubmissions = signal<QuizSubmission[]>([]);
+  private homeworks = signal<Homework[]>([]);
+  private homeworkSubmissions = signal<HomeworkSubmission[]>([]);
+
+  allSubjects = this.subjects.asReadonly();
+  allExamProgress = this.examProgress.asReadonly();
+  allQuizzes = this.quizzes.asReadonly();
+  allQuizSubmissions = this.quizSubmissions.asReadonly();
+  allHomeworks = this.homeworks.asReadonly();
+  allHomeworkSubmissions = this.homeworkSubmissions.asReadonly();
+
   isSupabaseAuthenticated = computed(() => !!this.supabaseUser() && !!this.supabaseUser()?.email);
   activeUserRole = computed(() => this.currentPinUser()?.role);
+  activeUser = computed(() => this.currentPinUser());
   activeSchoolPin = computed(() => this.school()?.pin);
   
   coordinator = computed(() => this.teachers().find(t => t.role === 'coordinator'));
@@ -120,6 +238,19 @@ export class AttendanceService {
     const user = this.currentPinUser();
     if (user?.role !== 'teacher') return null;
     return this.teachers().find(t => t.id === user.id) || null;
+  });
+
+  activeStudent = computed(() => {
+    const user = this.currentPinUser();
+    if (user?.role !== 'student' && user?.role !== 'parent') return null;
+    return this.students().find(s => s.id === user.id) || null;
+  });
+
+  parentChildren = computed(() => {
+    const student = this.activeStudent();
+    const role = this.activeUserRole();
+    if (role !== 'parent' || !student) return [];
+    return this.students().filter(s => s.mobileNumber === student.mobileNumber);
   });
 
   activeCoordinator = computed(() => {
@@ -138,6 +269,7 @@ export class AttendanceService {
   });
 
   allSchoolStudents = computed(() => this.students());
+  allSchoolAttendance = computed(() => this.attendance());
 
   allSchoolClasses = computed(() => {
     const classSet = new Set<string>();
@@ -244,6 +376,12 @@ export class AttendanceService {
     this.attendance.set(data.studentAttendance);
     this.teacherAttendance.set(data.teacherAttendance);
     this.dailySubmissions.set(data.dailySubmissions);
+    this.subjects.set(data.subjects);
+    this.examProgress.set(data.examProgress);
+    this.quizzes.set(data.quizzes);
+    this.quizSubmissions.set(data.quizSubmissions);
+    this.homeworks.set(data.homeworks);
+    this.homeworkSubmissions.set(data.homeworkSubmissions);
   }
 
   async signUpCoordinator(details: { email: string; password: string; schoolName: string; name: string; className: string; section: string; mobile: string; pin: string; }) {
@@ -272,6 +410,7 @@ export class AttendanceService {
     }
     const schoolData = await this.supabaseService.getAllDataForSchool(school.id);
     this.loadStateFromData(schoolData);
+    localStorage.setItem('lastSchoolPin', pin);
     // Set a non-authed user so the app knows we are in teacher mode
     this.supabaseUser.set({ id: school.id } as User);
     return school.id;
@@ -296,16 +435,169 @@ export class AttendanceService {
     return user ? user.pin === pin : false;
   }
 
-  async setActiveUser(userId: string): Promise<void> {
+  verifyStudentPin(studentId: string, pin: string): boolean {
+    const student = this.students().find(s => s.id === studentId);
+    return student ? student.pin === pin : false;
+  }
+
+  async setActiveUser(userId: string, roleOverride?: 'student' | 'parent'): Promise<void> {
+    if (roleOverride === 'student' || roleOverride === 'parent') {
+      const student = this.students().find(s => s.id === userId);
+      if (student) {
+        this.currentPinUser.set({ id: student.id, role: roleOverride });
+        return;
+      }
+    }
+
     const user = this.teachers().find(t => t.id === userId);
     if (user) {
-        this.currentPinUser.set({ id: user.id, role: user.role });
+      this.currentPinUser.set({ id: user.id, role: user.role });
     } else {
-        throw new Error('User not found');
+      throw new Error('User not found');
     }
   }
 
   // --- Data Modification Methods ---
+
+  async addSubject(name: string) {
+    try {
+      const schoolId = this.school()!.id;
+      const newSubject = await this.supabaseService.addSubject({ school_id: schoolId, name });
+      this.subjects.update(list => [...list, newSubject]);
+      this.showToast(`Subject "${name}" added successfully`, 'success');
+    } catch (e: any) {
+      console.error('Error adding subject:', e);
+      this.showToast(e.message || 'Failed to add subject', 'error');
+      throw e;
+    }
+  }
+
+  async removeSubject(id: string) {
+    try {
+      await this.supabaseService.removeSubject(id);
+      this.subjects.update(list => list.filter(s => s.id !== id));
+      this.showToast('Subject removed', 'success');
+    } catch (e: any) {
+      this.showToast(e.message || 'Failed to remove subject', 'error');
+    }
+  }
+
+  async addExamProgress(details: Omit<ExamProgress, 'id' | 'school_id'>) {
+    try {
+      const schoolId = this.school()!.id;
+      const newProgress = await this.supabaseService.addExamProgress({ ...details, school_id: schoolId });
+      this.examProgress.update(list => [...list, newProgress]);
+      this.showToast('Exam progress saved', 'success');
+    } catch (e: any) {
+      this.showToast(e.message || 'Failed to save progress', 'error');
+      throw e;
+    }
+  }
+
+  async removeExamProgress(id: string) {
+    try {
+      await this.supabaseService.removeExamProgress(id);
+      this.examProgress.update(list => list.filter(p => p.id !== id));
+      this.showToast('Progress removed', 'success');
+    } catch (e: any) {
+      this.showToast(e.message || 'Failed to remove progress', 'error');
+    }
+  }
+
+  async addQuiz(quiz: Omit<Quiz, 'id' | 'school_id' | 'teacher_id'>) {
+    try {
+      const schoolId = this.school()!.id;
+      const teacherId = this.activeTeacher()!.id;
+      const newQuiz = await this.supabaseService.addQuiz({ ...quiz, school_id: schoolId, teacher_id: teacherId });
+      this.quizzes.update(list => [...list, newQuiz]);
+      this.showToast('Quiz created successfully', 'success');
+    } catch (e: any) {
+      this.showToast(e.message || 'Failed to create quiz', 'error');
+      throw e;
+    }
+  }
+
+  async updateQuiz(id: string, updates: Partial<Quiz>) {
+    try {
+      const updatedQuiz = await this.supabaseService.updateQuiz(id, updates);
+      this.quizzes.update(list => list.map(q => q.id === id ? updatedQuiz : q));
+      this.showToast('Quiz updated', 'success');
+    } catch (e: any) {
+      this.showToast(e.message || 'Failed to update quiz', 'error');
+      throw e;
+    }
+  }
+
+  async deleteQuiz(id: string) {
+    try {
+      await this.supabaseService.deleteQuiz(id);
+      this.quizzes.update(list => list.filter(q => q.id !== id));
+      this.showToast('Quiz deleted', 'success');
+    } catch (e: any) {
+      this.showToast(e.message || 'Failed to delete quiz', 'error');
+    }
+  }
+
+  async submitQuiz(submission: Omit<QuizSubmission, 'id'>) {
+    const newSubmission = await this.supabaseService.submitQuiz(submission);
+    this.quizSubmissions.update(list => [...list, newSubmission]);
+  }
+
+  async markQuiz(id: string, updates: Partial<QuizSubmission>) {
+    const updatedSubmission = await this.supabaseService.markQuiz(id, updates);
+    this.quizSubmissions.update(list => list.map(s => s.id === id ? updatedSubmission : s));
+  }
+
+  async addHomework(homework: Omit<Homework, 'id' | 'school_id' | 'teacher_id'>) {
+    try {
+      const schoolId = this.school()!.id;
+      const teacherId = this.activeTeacher()!.id;
+      const newHomework = await this.supabaseService.addHomework({ ...homework, school_id: schoolId, teacher_id: teacherId });
+      this.homeworks.update(list => [...list, newHomework]);
+      this.showToast('Homework assigned', 'success');
+    } catch (e: any) {
+      this.showToast(e.message || 'Failed to assign homework', 'error');
+      throw e;
+    }
+  }
+
+  async updateHomework(id: string, updates: Partial<Homework>) {
+    try {
+      const updatedHomework = await this.supabaseService.updateHomework(id, updates);
+      this.homeworks.update(list => list.map(h => h.id === id ? updatedHomework : h));
+      this.showToast('Homework updated', 'success');
+    } catch (e: any) {
+      this.showToast(e.message || 'Failed to update homework', 'error');
+      throw e;
+    }
+  }
+
+  async deleteHomework(id: string) {
+    try {
+      await this.supabaseService.deleteHomework(id);
+      this.homeworks.update(list => list.filter(h => h.id !== id));
+      this.showToast('Homework deleted', 'success');
+    } catch (e: any) {
+      this.showToast(e.message || 'Failed to delete homework', 'error');
+    }
+  }
+
+  async submitHomework(submission: Omit<HomeworkSubmission, 'id'>) {
+    const newSubmission = await this.supabaseService.submitHomework(submission);
+    this.homeworkSubmissions.update(list => [...list, newSubmission]);
+  }
+
+  async markHomework(id: string, updates: Partial<HomeworkSubmission>) {
+    const updatedSubmission = await this.supabaseService.markHomework(id, updates);
+    this.homeworkSubmissions.update(list => list.map(s => s.id === id ? updatedSubmission : s));
+  }
+
+  async uploadAttachment(file: File) {
+    const fileName = `${Date.now()}_${file.name}`;
+    const schoolId = this.school()?.id || 'unknown';
+    const path = `${schoolId}/${fileName}`;
+    return await this.supabaseService.uploadFile(file, path);
+  }
 
   async addTeacher(details: { name: string; email: string; pin: string; photo?: string; mobile: string; className: string; section: string; }) {
     const schoolId = this.school()!.id;
@@ -562,7 +854,7 @@ export class AttendanceService {
     try {
       const data = base64Image.split(',')[1];
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash', contents: [{ parts: [
+        model: 'gemini-3-flash-preview', contents: [{ parts: [
               { text: "Extract student information from this image of a list or roster. Return an array of objects with keys: name, fatherName, roll, mobile. If a field is missing, use an empty string. Ensure 'roll' and 'mobile' are strings. Focus on accuracy." },
               { inlineData: { mimeType: 'image/jpeg', data } } ] }],
         config: { responseMimeType: "application/json", responseSchema: { type: Type.ARRAY, items: {
@@ -581,7 +873,7 @@ export class AttendanceService {
     const ai = this.ai;
     if (!ai) return "AI analysis is unavailable because the Gemini API key has not been configured.";
     const prompt = `Analyze this monthly student attendance data for ${month}. Provide a 2-3 sentence summary highlighting overall attendance percentage, identifying top performers (over 95%), and students needing attention (under 75%). The data is: ${JSON.stringify(data)}. Be encouraging and professional.`;
-    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
     return response.text || "Analysis could not be generated.";
   }
   
@@ -589,7 +881,7 @@ export class AttendanceService {
     const ai = this.ai;
     if (!ai) return "AI analysis is unavailable because the Gemini API key has not been configured.";
     const prompt = `Analyze this monthly teacher attendance data for ${month}. Provide a 2-3 sentence summary highlighting overall staff attendance, identifying any teachers with perfect attendance, and those with notable absences (e.g., more than 3 absences). Data: ${JSON.stringify(data)}. Keep the tone professional and data-focused.`;
-    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
     return response.text || "Analysis could not be generated.";
   }
 }

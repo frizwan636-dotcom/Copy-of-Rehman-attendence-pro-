@@ -4,7 +4,7 @@ import { Injectable } from '@angular/core';
 @Injectable({ providedIn: 'root' })
 export class CsvService {
 
-  private downloadCsv(data: any[][], filename: string) {
+  private async downloadCsv(data: any[][], filename: string) {
     const separator = ';'; // Use semicolon for better Excel compatibility in some regions
     const csvContent = data.map(row => 
       row.map(cell => {
@@ -19,6 +19,24 @@ export class CsvService {
     ).join('\n');
 
     const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' }); // Add BOM for Excel compatibility
+    
+    // Try Web Share API first (better for APKs/Mobile)
+    if (navigator.share && navigator.canShare) {
+      try {
+        const file = new File([blob], filename, { type: 'text/csv' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: filename,
+            text: 'Attendance Report'
+          });
+          return; // Success
+        }
+      } catch (err) {
+        console.error('Share failed:', err);
+      }
+    }
+
     const link = document.createElement('a');
     if (link.download !== undefined) {
       const url = URL.createObjectURL(blob);
@@ -28,6 +46,7 @@ export class CsvService {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 100);
     }
   }
 

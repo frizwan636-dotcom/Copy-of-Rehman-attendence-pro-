@@ -24,7 +24,7 @@ import { CommonModule } from '@angular/common';
         <i class="fa-solid fa-book-open-reader text-6xl text-white"></i>
       </div>
       <h1 class="text-5xl font-black tracking-tight min-h-[72px]">
-        {{ displayedTitle() }}<span [class.blinking-cursor]="!isTitleComplete()"></span>
+        Welcome to {{ displayedTitle() }}<span [class.blinking-cursor]="!isTitleComplete()"></span>
       </h1>
       @if(isTitleComplete()) {
         <p class="text-indigo-200/70 mt-4 max-w-2xl animate-in slide-in-from-bottom-10 fade-in duration-700">
@@ -41,8 +41,8 @@ import { CommonModule } from '@angular/common';
 export class SplashScreenComponent implements OnInit, OnDestroy {
   animationFinished = output<void>();
 
-  fullTitle = "Welcome to Rehman Attendance Pro";
-  fullParagraph = "This application is the result of the tireless hard work and dedication of Rizwan Hanif. Enjoy a seamless and efficient attendance management experience.";
+  fullTitle = "MustEducate";
+  fullParagraph = "Experience the next generation of school management. This application is the result of the tireless hard work and dedication of Rizwan Hanif.";
   private readonly highlightWords = new Set(['Rizwan', 'Hanif']);
 
   displayedTitle = signal('');

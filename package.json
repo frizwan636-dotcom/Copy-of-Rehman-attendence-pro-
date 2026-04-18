@@ -9,14 +9,15 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@angular/cdk": "^21.2.5",
     "@angular/common": "21.1.0",
     "@angular/compiler": "21.1.0",
     "@angular/compiler-cli": "21.1.0",
     "@angular/core": "21.1.0",
     "@angular/forms": "21.1.0",
+    "@angular/material": "^21.2.5",
     "@angular/platform-browser": "21.1.0",
     "@google/genai": "^1.37.0",
-    "@modelcontextprotocol/sdk": "^1.26.0",
     "@supabase/supabase-js": "^2.95.3",
     "rxjs": "^7.8.2",
     "typescript": "^5.9.2"
@@ -25,4 +26,3 @@
     "vite": "^7.3.1"
   }
 }
-

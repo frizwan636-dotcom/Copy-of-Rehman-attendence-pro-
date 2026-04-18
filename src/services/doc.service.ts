@@ -30,8 +30,26 @@ export class DocService {
     return '</body></html>';
   }
 
-  private downloadDoc(htmlContent: string, filename: string) {
+  private async downloadDoc(htmlContent: string, filename: string) {
     const blob = new Blob([htmlContent], { type: 'application/msword' });
+    
+    // Try Web Share API first (better for APKs/Mobile)
+    if (navigator.share && navigator.canShare) {
+      try {
+        const file = new File([blob], filename, { type: 'application/msword' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: filename,
+            text: 'Attendance Report'
+          });
+          return; // Success
+        }
+      } catch (err) {
+        console.error('Share failed:', err);
+      }
+    }
+
     const link = document.createElement('a');
     if (link.download !== undefined) {
       const url = URL.createObjectURL(blob);
@@ -41,11 +59,12 @@ export class DocService {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 100);
     }
   }
   
   exportDaily(date: string, className: string, section: string, records: any[]) {
-    const title = `Daily Student Report - ${date}`;
+    const title = `MustEducate - Daily Student Report - ${date}`;
     const totalStudents = records.length;
     const presentStudents = records.filter(r => r.status === 'Present').length;
     const lateStudents = records.filter(r => r.status === 'Late').length;
@@ -71,7 +90,7 @@ export class DocService {
   }
 
   async exportMonthly(monthLabel: string, className: string, section: string, data: any[], attendanceService: AttendanceService) {
-    const title = `Monthly Student Report - ${monthLabel}`;
+    const title = `MustEducate - Monthly Student Report - ${monthLabel}`;
     const totalStudents = data.length;
     const totalPresent = data.reduce((sum, s) => sum + s.present, 0);
     const totalLate = data.reduce((sum, s) => sum + s.late, 0);
@@ -107,7 +126,7 @@ export class DocService {
   }
   
   async exportRange(startDate: string, endDate: string, className: string, section: string, monthlyBreakdown: { monthName: string, records: any[] }[], attendanceService: AttendanceService) {
-      const title = `Student Report: ${startDate} to ${endDate}`;
+      const title = `MustEducate - Student Report: ${startDate} to ${endDate}`;
       let html = this.getHtmlHeader(title);
       html += `<h1>${title}</h1>`;
       html += `<p><strong>Class:</strong> ${className} (${section})</p>`;
@@ -135,7 +154,7 @@ export class DocService {
   }
 
   exportTeacherReport(date: string, coordinatorName: string, records: any[]) {
-    const title = `Daily Teacher Report - ${date}`;
+    const title = `MustEducate - Daily Teacher Report - ${date}`;
     const totalTeachers = records.length;
     const presentTeachers = records.filter(r => r.status === 'Present').length;
     const teachersWithStatus = records.filter(r => r.status !== 'N/A').length;
@@ -158,7 +177,7 @@ export class DocService {
   }
 
   async exportTeacherMonthlyReport(monthLabel: string, coordinatorName: string, data: any[], attendanceService: AttendanceService) {
-    const title = `Monthly Teacher Report - ${monthLabel}`;
+    const title = `MustEducate - Monthly Teacher Report - ${monthLabel}`;
     const totalTeachers = data.filter(t => t.role === 'teacher').length;
     const totalPresent = data.reduce((sum: number, s: any) => sum + s.present, 0);
     const totalAbsent = data.reduce((sum: number, s: any) => sum + s.absent, 0);
@@ -192,7 +211,7 @@ export class DocService {
 
   // FIX: Add missing method to export school-wide daily summary.
   exportSchoolDailySummary(date: string, coordinatorName: string, records: any[], schoolStats: any) {
-    const title = `School-Wide Daily Summary - ${date}`;
+    const title = `MustEducate - School-Wide Daily Summary - ${date}`;
     
     let html = this.getHtmlHeader(title);
     html += `<h1>${title}</h1>`;

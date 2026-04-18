@@ -3,20 +3,62 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rehman Attendance</title>
+  <title>MustEducate</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
   <style>
-    body { font-family: 'Poppins', sans-serif; background-color: #f8fafc; }
-    .glass { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); }
+    body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
+    .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.3); }
+    .card-shadow { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05); }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+
+    /* --- Global Dark Mode Overrides --- */
+    .dark body { background-color: #0f172a !important; color: #f8fafc !important; }
+    .dark .bg-white { background-color: #1e293b !important; color: #f8fafc !important; border-color: #334155 !important; }
+    .dark .bg-slate-50 { background-color: #0f172a !important; color: #f8fafc !important; border-color: #334155 !important; }
+    .dark .bg-slate-100 { background-color: #334155 !important; color: #f8fafc !important; border-color: #475569 !important;}
+    .dark .bg-slate-200, .dark .bg-slate-800, .dark .bg-slate-900 { background-color: #475569 !important; }
+    
+    .dark .text-slate-800, .dark .text-slate-900, .dark .text-slate-700 { color: #f8fafc !important; }
+    .dark .text-slate-500, .dark .text-slate-600 { color: #94a3b8 !important; }
+    
+    .dark .border-slate-100, .dark .border-slate-200, .dark .border-slate-50 { border-color: #334155 !important; }
+
+    /* Colored background overrides */
+    .dark .bg-indigo-50 { background-color: rgba(67, 56, 202, 0.2) !important; color: #818cf8 !important; border-color: rgba(67, 56, 202, 0.3) !important;}
+    .dark .bg-emerald-50 { background-color: rgba(4, 120, 87, 0.2) !important; color: #34d399 !important; border-color: rgba(4, 120, 87, 0.3) !important;}
+    .dark .bg-rose-50, .dark .bg-red-50 { background-color: rgba(190, 18, 60, 0.2) !important; color: #fb7185 !important; border-color: rgba(190, 18, 60, 0.3) !important;}
+    .dark .bg-amber-50, .dark .bg-orange-50 { background-color: rgba(217, 119, 6, 0.2) !important; color: #fbbf24 !important; border-color: rgba(217, 119, 6, 0.3) !important;}
+    .dark .bg-blue-50, .dark .bg-sky-50 { background-color: rgba(3, 105, 161, 0.2) !important; color: #38bdf8 !important; border-color: rgba(3, 105, 161, 0.3) !important;}
+    .dark .bg-purple-50 { background-color: rgba(126, 34, 206, 0.2) !important; color: #c084fc !important; border-color: rgba(126, 34, 206, 0.3) !important;}
+    
+    .dark .cyber-card { background: rgba(30, 41, 59, 0.7) !important; border-color: rgba(255,255,255,0.1) !important;}
+
+    /* Hide google translate top bar to maintain clean UI */
+    .skiptranslate iframe { display: none !important; }
+    body { top: 0px !important; }
   </style>
+  <script type="text/javascript">
+    function googleTranslateElementInit() {
+      new google.translate.TranslateElement({
+        pageLanguage: 'en',
+        includedLanguages: 'ur,en',
+        autoDisplay: false
+      }, 'google_translate_element');
+    }
+  </script>
+  <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 </head>
 <body>
+  <div id="google_translate_element" style="display:none;"></div>
   <app-root></app-root>
   <script type="module" src="/index.tsx"></script>
 </body>
