@@ -512,7 +512,7 @@ import { AnnouncementComponent } from './announcement.component';
                   </div>
 
                   <div class="grid grid-cols-1 gap-3 pl-0 sm:pl-14">
-                    @for (opt of q.options; track opt; let i = $index) {
+                    @for (opt of q.options; track $index; let i = $index) {
                       <button (click)="selectOption(opt)"
                         [class]="selectedAnswers()[currentQuestionIndex()] === opt ? 'bg-indigo-50 text-indigo-700 border-indigo-600 shadow-md transform scale-[1.01] ring-1 ring-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:bg-slate-50'"
                         class="w-full p-4 rounded-2xl border-2 text-left font-bold transition-all duration-200 flex items-center justify-between gap-4 group">

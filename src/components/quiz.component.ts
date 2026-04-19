@@ -139,7 +139,7 @@ import { MatIconModule } from '@angular/material/icon';
                 <h4 class="text-lg sm:text-xl font-bold text-slate-800 leading-snug">{{ currentQuestion()?.question }}</h4>
                 
                 <div class="grid gap-2 sm:gap-3">
-                  @for (option of currentQuestion()?.options; track option; let i = $index) {
+                  @for (option of currentQuestion()?.options; track $index; let i = $index) {
                     <button (click)="selectOption(option)" 
                             [class]="selectedAnswers()[currentQuestionIndex()] === option ? 'bg-indigo-600 text-white border-indigo-600 shadow-md transform scale-[1.01]' : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-300 hover:bg-slate-50'"
                             class="w-full text-left p-3 sm:p-4 rounded-xl border-2 transition-all flex items-center gap-3 sm:gap-4 group">
@@ -235,7 +235,7 @@ import { MatIconModule } from '@angular/material/icon';
                           @for (opt of getOptions(i).controls; track $index; let j = $index) {
                             <div class="flex gap-2">
                               <span class="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-400">{{ String.fromCharCode(65 + j) }}</span>
-                              <input [formControlName]="j" type="text" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm outline-none focus:ring-1 focus:ring-indigo-500 bg-white">
+                              <input [formControlName]="j" (input)="null" type="text" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm outline-none focus:ring-1 focus:ring-indigo-500 bg-white">
                             </div>
                           }
                         </div>
@@ -243,7 +243,7 @@ import { MatIconModule } from '@angular/material/icon';
                           <label class="block text-xs font-bold text-slate-400 uppercase mb-1 tracking-wider">Correct Answer</label>
                           <select formControlName="correct_answer" class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:ring-1 focus:ring-indigo-500 bg-white">
                             <option value="">Select correct option</option>
-                            @for (opt of getOptions(i).value; track opt) {
+                            @for (opt of getOptions(i).value; track $index) {
                               @if (opt) {
                                 <option [value]="opt">{{ opt }}</option>
                               }
