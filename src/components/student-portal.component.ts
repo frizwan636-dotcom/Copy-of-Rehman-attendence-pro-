@@ -427,6 +427,17 @@ import { AnnouncementComponent } from './announcement.component';
               </button>
             </div>
             <form [formGroup]="homeworkForm" (ngSubmit)="submitHomework()" class="p-8 space-y-6">
+              <div class="bg-amber-50/50 p-4 rounded-2xl border border-amber-100 mb-6">
+                <h4 class="text-xs font-black text-amber-800 uppercase tracking-widest mb-1">Teacher's Instructions:</h4>
+                <p class="text-sm font-medium text-slate-700 whitespace-pre-wrap">{{ selectedHomework()?.description }}</p>
+                <div class="mt-3 flex items-center gap-2">
+                   <span class="px-2 py-1 bg-white text-amber-600 border border-amber-200 text-[10px] font-black uppercase rounded-lg">
+                    {{ getSubjectName(selectedHomework()?.subject_id || '') }}
+                  </span>
+                  <span class="text-xs text-slate-500 font-medium">Due: {{ selectedHomework()?.dueDate | date }}</span>
+                </div>
+              </div>
+
               <div>
                 <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Homework Content / Answer</label>
                 <textarea formControlName="content" rows="6" 
