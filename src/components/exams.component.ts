@@ -176,7 +176,7 @@ import { MatIconModule } from '@angular/material/icon';
             </div>
             <div class="p-6 space-y-4">
               <div class="flex gap-2">
-                <input #newSubInput type="text" class="flex-1 px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="New subject name" [disabled]="isAddingSubject()">
+                <input #newSubInput (input)="null" type="text" class="flex-1 px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="New subject name" [disabled]="isAddingSubject()">
                 <button (click)="addSubject(newSubInput.value); newSubInput.value = ''" [disabled]="!newSubInput.value.trim() || isAddingSubject()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-bold transition-colors disabled:opacity-50 flex items-center gap-2">
                   @if (isAddingSubject()) {
                     <i class="fa-solid fa-circle-notch animate-spin"></i>
