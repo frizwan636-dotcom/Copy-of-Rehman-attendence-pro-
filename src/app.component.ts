@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit, ChangeDetectionStrategy, computed } from '@angular/core';
+import { Component, inject, signal, OnInit, HostListener, ChangeDetectionStrategy, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AttendanceService } from './services/attendance.service';
 import { DashboardComponent } from './components/dashboard.component';
@@ -75,6 +75,29 @@ import { SplashScreenComponent } from './components/splash-screen.component';
         </div>
       </div>
     }
+
+    <!-- PWA Install Prompt -->
+    @if (showInstallPrompt()) {
+      <div class="fixed bottom-0 left-0 right-0 z-[110] bg-white dark:bg-slate-800 p-4 border-t border-slate-200 dark:border-slate-700 shadow-[0_-10px_30px_-15px_rgba(0,0,0,0.1)] flex items-center justify-between animate-in slide-in-from-bottom-full duration-500">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-[0.85rem] shrink-0 overflow-hidden shadow-sm">
+             <img src="/icon-192x192.png" alt="MustEducate App Logo" class="w-full h-full object-cover">
+          </div>
+          <div>
+            <h4 class="font-black text-slate-800 dark:text-white leading-tight tracking-tight">Install App</h4>
+            <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Add MustEducate to home screen</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button (click)="showInstallPrompt.set(false)" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 dark:bg-slate-700 text-slate-400 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+          <button (click)="installApp()" class="px-5 py-2 bg-indigo-600 text-white font-bold rounded-xl text-sm shadow-md shadow-indigo-200/50 hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-200/50 active:scale-95 transition-all">
+            Get
+          </button>
+        </div>
+      </div>
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -84,10 +107,38 @@ export class AppComponent implements OnInit {
   showSplash = signal(true);
   hidingSplash = signal(false);
 
+  showInstallPrompt = signal(false);
+  deferredPrompt: any = null;
+
   isDarkMode = this.attendanceService.isDarkMode;
   isRtl = this.attendanceService.isRtl;
 
   isPinLoggedIn = computed(() => !!this.attendanceService.activeUserRole());
+
+  @HostListener('window:beforeinstallprompt', ['$event'])
+  onbeforeinstallprompt(e: any) {
+    // Prevent Chrome 67 and earlier from automatically showing the prompt
+    e.preventDefault();
+    // Stash the event so it can be triggered later.
+    this.deferredPrompt = e;
+    // Update UI to notify the user they can add to home screen
+    this.showInstallPrompt.set(true);
+  }
+
+  installApp() {
+    this.showInstallPrompt.set(false);
+    if (this.deferredPrompt) {
+      this.deferredPrompt.prompt();
+      this.deferredPrompt.userChoice.then((choiceResult: any) => {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('User accepted the install prompt');
+        } else {
+          console.log('User dismissed the install prompt');
+        }
+        this.deferredPrompt = null;
+      });
+    }
+  }
 
   ngOnInit() {
     // Start loading data in the background, the splash screen will wait for its animation.
