@@ -1,20 +1,25 @@
 const https = require('https');
 const fs = require('fs');
 
-const url = 'https://i.postimg.cc/QCpmNJdd/file-00000000618072078a87ca5e6cac720d.png';
+const url192 = 'https://placehold.co/192x192/4f46e5/ffffff.png?text=ME';
+const url512 = 'https://placehold.co/512x512/4f46e5/ffffff.png?text=ME';
 
-https.get(url, (res) => {
-  const path1 = 'public/icon-192x192.png';
-  const path2 = 'public/icon-512x512.png';
-  
+https.get(url192, (res) => {
+  const path = 'public/icon-192x192.png';
   const chunks = [];
   res.on('data', chunk => chunks.push(chunk));
   res.on('end', () => {
-    const buffer = Buffer.concat(chunks);
-    fs.writeFileSync(path1, buffer);
-    fs.writeFileSync(path2, buffer);
-    console.log('Images downloaded successfully!');
+    fs.writeFileSync(path, Buffer.concat(chunks));
+    console.log('192x192 downloaded');
   });
-}).on('error', (err) => {
-  console.error('Error downloading:', err.message);
+});
+
+https.get(url512, (res) => {
+  const path = 'public/icon-512x512.png';
+  const chunks = [];
+  res.on('data', chunk => chunks.push(chunk));
+  res.on('end', () => {
+    fs.writeFileSync(path, Buffer.concat(chunks));
+    console.log('512x512 downloaded');
+  });
 });
