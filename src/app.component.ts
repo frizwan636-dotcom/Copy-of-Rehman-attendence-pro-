@@ -129,8 +129,7 @@ export class AppComponent implements OnInit {
     e.preventDefault();
     // Stash the event so it can be triggered later.
     this.deferredPrompt = e;
-    // Update UI to notify the user they can add to home screen
-    this.showInstallPrompt.set(true);
+    // Removed auto prompt UI show
   }
 
   installMessage = signal<string | null>(null);
@@ -171,13 +170,6 @@ export class AppComponent implements OnInit {
         this.onSplashAnimationFinished();
       }
     }, 10000);
-
-    setTimeout(() => {
-      // Show install prompt if not standalone and hasn't been explicitly hidden or accepted yet
-      if (!this.isStandalone()) {
-        this.showInstallPrompt.set(true);
-      }
-    }, 4000); // Wait for splash screen to finish
   }
 
   onSplashAnimationFinished() {

@@ -116,6 +116,51 @@ interface StudentWithFeeStatus extends Student {
         </div>
       </div>
 
+      <!-- Account Details Settings -->
+      <div class="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 md:p-8">
+        <h3 class="text-xl font-bold text-slate-800 mb-6">School Bank Account Details</h3>
+        <p class="text-sm text-slate-500 mb-6">These details will be shown to parents for fee payment.</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <input type="text" [(ngModel)]="accountName" placeholder="Account Name" 
+            class="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+          <input type="text" [(ngModel)]="accountNumber" placeholder="Account Number" 
+            class="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+          <input type="text" [(ngModel)]="bankName" placeholder="Bank Name" 
+            class="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+        </div>
+        <div class="mt-4 flex justify-end">
+          <button (click)="saveAccountDetails()" 
+            class="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors">
+            Save Details
+          </button>
+        </div>
+      </div>
+
+      <!-- Pending Fee Requests -->
+      @if (pendingFeeRequests().length > 0) {
+        <div class="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 md:p-8">
+          <h3 class="text-xl font-bold text-slate-800 mb-6">Pending Fee Requests</h3>
+          <div class="space-y-4">
+            @for (req of pendingFeeRequests(); track req.id) {
+              <div class="p-4 border border-slate-200 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50">
+                <div>
+                  <p class="font-bold text-slate-800">Student: {{ getStudentName(req.student_id) }}</p>
+                  <p class="text-sm text-slate-600">Parent A/C Name: {{ req.parentAccountName }}</p>
+                  <p class="text-sm text-slate-600">Parent A/C No: {{ req.parentAccountNumber }}</p>
+                  <p class="text-sm text-slate-600">Txn ID: {{ req.transactionId }}</p>
+                  <p class="text-sm text-slate-500 mt-1">Date: {{ req.date | date }}</p>
+                </div>
+                <div class="flex gap-2">
+                  <button (click)="approveFeeRequest(req.id)" class="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700">Approve</button>
+                  <button (click)="rejectFeeRequest(req.id)" class="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700">Reject</button>
+                  <button (click)="sendTeacherMsg(req.student_id)" class="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700">Message</button>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
       <!-- Payment Modal -->
       @if (showPaymentModal()) {
         <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -160,6 +205,59 @@ export class FeesComponent {
   showPaymentModal = signal(false);
   selectedStudent = signal<StudentWithFeeStatus | null>(null);
   paymentAmount = signal<number | null>(null);
+
+  accountName = signal<string>('');
+  accountNumber = signal<string>('');
+  bankName = signal<string>('');
+
+  constructor() {
+    const details = this.attendanceService.schoolAccountDetails();
+    if (details) {
+      this.accountName.set(details.accountName);
+      this.accountNumber.set(details.accountNumber);
+      this.bankName.set(details.bankName);
+    }
+  }
+
+  saveAccountDetails() {
+    this.attendanceService.updateSchoolAccountDetails({
+      accountName: this.accountName(),
+      accountNumber: this.accountNumber(),
+      bankName: this.bankName()
+    });
+    this.attendanceService.showToast('Account details saved!', 'success');
+  }
+
+  pendingFeeRequests = computed(() => {
+    return this.attendanceService.allFeeRequests().filter(r => r.status === 'pending');
+  });
+
+  getStudentName(id: string) {
+    const student = this.attendanceService.activeStudents().find(s => s.id === id);
+    return student ? student.name : 'Unknown';
+  }
+
+  approveFeeRequest(id: string) {
+    this.attendanceService.processFeeRequest(id, 'approved');
+    this.attendanceService.showToast('Fee request approved', 'success');
+  }
+
+  rejectFeeRequest(id: string) {
+    this.attendanceService.processFeeRequest(id, 'rejected');
+    this.attendanceService.showToast('Fee request rejected', 'success');
+  }
+
+  sendTeacherMsg(studentId: string) {
+    const student = this.attendanceService.activeStudents().find(s => s.id === studentId);
+    if (!student || !student.mobileNumber) {
+      this.attendanceService.showToast('No valid mobile number', 'error');
+      return;
+    }
+    const isApproved = confirm('Send Confirmation message? Cancel to send Reminder message.');
+    let msg = isApproved ? 'Your fee payment has been confirmed and approved.' : 'Please pay your pending fees as soon as possible.';
+    const num = student.mobileNumber.replace(/\D/g, '');
+    window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
+  }
 
   studentsWithFeeStatus = computed(() => {
     const teacher = this.attendanceService.activeTeacher();

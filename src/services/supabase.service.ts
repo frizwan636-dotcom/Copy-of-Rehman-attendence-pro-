@@ -148,9 +148,9 @@ export class SupabaseService {
         this.supabase.from('subjects').select('*').eq('school_id', schoolId),
         this.supabase.from('exam_progress').select('*').eq('school_id', schoolId),
         this.supabase.from('quizzes').select('*').eq('school_id', schoolId),
-        this.supabase.from('quiz_submissions').select('*').eq('school_id', schoolId),
+        this.supabase.from('quiz_submissions').select('*, quizzes!inner()').eq('quizzes.school_id', schoolId),
         this.supabase.from('homeworks').select('*').eq('school_id', schoolId),
-        this.supabase.from('homework_submissions').select('*').eq('school_id', schoolId)
+        this.supabase.from('homework_submissions').select('*, homeworks!inner()').eq('homeworks.school_id', schoolId)
       ]);
 
       if (schoolError) throw schoolError;

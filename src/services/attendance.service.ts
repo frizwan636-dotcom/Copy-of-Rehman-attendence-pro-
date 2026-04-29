@@ -88,6 +88,17 @@ export interface ExamProgress {
   remarks?: string;
 }
 
+export interface FeeRequest {
+  id: string;
+  school_id: string;
+  student_id: string;
+  parentAccountNumber: string;
+  parentAccountName: string;
+  transactionId: string;
+  status: 'pending' | 'approved' | 'rejected';
+  date: string;
+}
+
 export interface QuizQuestion {
   id: string;
   question: string;
@@ -218,6 +229,7 @@ export class AttendanceService {
   private quizSubmissions = signal<QuizSubmission[]>([]);
   private homeworks = signal<Homework[]>([]);
   private homeworkSubmissions = signal<HomeworkSubmission[]>([]);
+  private feeRequests = signal<FeeRequest[]>([]);
 
   allSubjects = this.subjects.asReadonly();
   allExamProgress = this.examProgress.asReadonly();
@@ -225,6 +237,51 @@ export class AttendanceService {
   allQuizSubmissions = this.quizSubmissions.asReadonly();
   allHomeworks = this.homeworks.asReadonly();
   allHomeworkSubmissions = this.homeworkSubmissions.asReadonly();
+  allFeeRequests = this.feeRequests.asReadonly();
+
+// Added for Fee Requests prototype
+  schoolAccountDetails = signal<{ accountName: string, accountNumber: string, bankName: string } | null>(null);
+  // Removed duplicate feeRequests
+  
+  allFeeRequests = this.feeRequests.asReadonly();
+
+  syncFeesToLocalStorage() {
+    localStorage.setItem(`fee_requests`, JSON.stringify(this.feeRequests()));
+    if (this.schoolAccountDetails()) {
+      localStorage.setItem(`school_account`, JSON.stringify(this.schoolAccountDetails()));
+    }
+  }
+
+  loadFeesFromLocalStorage() {
+    try {
+      const acc = localStorage.getItem(`school_account`);
+      if (acc) this.schoolAccountDetails.set(JSON.parse(acc));
+      const reqs = localStorage.getItem(`fee_requests`);
+      if (reqs) this.feeRequests.set(JSON.parse(reqs));
+    } catch (e) {}
+  }
+
+  async updateSchoolAccountDetails(details: { accountName: string, accountNumber: string, bankName: string }) {
+    this.schoolAccountDetails.set(details);
+    this.syncFeesToLocalStorage();
+  }
+
+  async submitFeeRequest(request: any) {
+    this.feeRequests.update(refs => [...refs.filter(r => r.id !== request.id), request]);
+    this.syncFeesToLocalStorage();
+  }
+
+  async processFeeRequest(requestId: string, status: 'approved' | 'rejected') {
+    const request = this.feeRequests().find(r => r.id === requestId);
+    if (!request) return;
+
+    this.feeRequests.update(refs => refs.map(r => r.id === requestId ? { ...r, status } : r));
+    this.syncFeesToLocalStorage();
+
+    if (status === 'approved') {
+      await this.recordFeePayment(request.student_id, request.amount);
+    }
+  }
 
   isSupabaseAuthenticated = computed(() => !!this.supabaseUser() && !!this.supabaseUser()?.email);
   activeUserRole = computed(() => this.currentPinUser()?.role);
@@ -318,6 +375,7 @@ export class AttendanceService {
   });
 
   constructor() {
+    this.loadFeesFromLocalStorage();
     window.addEventListener('online', () => this.isOnline.set(true));
     window.addEventListener('offline', () => this.isOnline.set(false));
     

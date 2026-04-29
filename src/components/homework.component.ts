@@ -135,46 +135,48 @@ import { MatIconModule } from '@angular/material/icon';
       <!-- Add/Edit Homework Modal -->
       @if (showAddModal()) {
         <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
-            <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+          <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg flex flex-col max-h-[90dvh]">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center shrink-0">
               <h3 class="text-xl font-bold text-slate-800">{{ editingHomeworkId ? 'Edit' : 'Add' }} Homework</h3>
               <button (click)="closeModal()" class="text-slate-400 hover:text-slate-600">
                 <i class="fa-solid fa-xmark text-xl"></i>
               </button>
             </div>
-            <form [formGroup]="homeworkForm" (ngSubmit)="saveHomework()" class="p-6 space-y-4">
-              <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">Subject</label>
-                <select formControlName="subject_id" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
-                  <option value="">Select Subject</option>
-                  @for (sub of attendanceService.allSubjects(); track sub.id) {
-                    <option [value]="sub.id">{{ sub.name }}</option>
-                  }
-                </select>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">Title</label>
-                <input formControlName="title" type="text" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Enter title">
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">Description</label>
-                <textarea formControlName="description" rows="3" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Enter details"></textarea>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">Due Date</label>
-                <input formControlName="dueDate" type="date" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
-              </div>
-              <div class="flex items-center gap-2">
-                <input type="checkbox" formControlName="status" id="hw-status" class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
-                <label for="hw-status" class="text-sm text-slate-700">Active (Visible to students)</label>
-              </div>
-              <div class="flex gap-3 pt-4">
-                <button type="button" (click)="closeModal()" class="flex-1 px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-colors font-bold">Cancel</button>
-                <button type="submit" [disabled]="homeworkForm.invalid" class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50 font-bold">
-                  {{ editingHomeworkId ? 'Update' : 'Assign' }}
-                </button>
-              </div>
-            </form>
+            <div class="overflow-y-auto p-6 flex-1">
+              <form [formGroup]="homeworkForm" id="homeworkFormId" (ngSubmit)="saveHomework()" class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1">Subject</label>
+                  <select formControlName="subject_id" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <option value="">Select Subject</option>
+                    @for (sub of attendanceService.allSubjects(); track sub.id) {
+                      <option [value]="sub.id">{{ sub.name }}</option>
+                    }
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1">Title</label>
+                  <input formControlName="title" type="text" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Enter title">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                  <textarea formControlName="description" rows="3" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Enter details"></textarea>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1">Due Date</label>
+                  <input formControlName="dueDate" type="date" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" formControlName="status" id="hw-status" class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                  <label for="hw-status" class="text-sm text-slate-700">Active (Visible to students)</label>
+                </div>
+              </form>
+            </div>
+            <div class="flex gap-3 p-6 border-t border-slate-100 shrink-0">
+              <button type="button" (click)="closeModal()" class="flex-1 px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-colors font-bold">Cancel</button>
+              <button type="submit" form="homeworkFormId" class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-bold">
+                {{ editingHomeworkId ? 'Update' : 'Assign' }}
+              </button>
+            </div>
           </div>
         </div>
       }
@@ -283,7 +285,10 @@ export class HomeworkComponent {
   }
 
   async saveHomework() {
-    if (this.homeworkForm.invalid) return;
+    if (this.homeworkForm.invalid) {
+      this.attendanceService.showToast('Please fill all required fields correctly.', 'error');
+      return;
+    }
 
     const val = this.homeworkForm.value;
     const homeworkData = {

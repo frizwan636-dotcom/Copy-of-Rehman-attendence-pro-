@@ -168,101 +168,108 @@ import { MatIconModule } from '@angular/material/icon';
 
       <!-- Create/Edit Quiz Modal -->
       @if (showQuizModal()) {
-        <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl my-8">
-            <div class="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
-              <h3 class="text-xl font-bold text-slate-800">{{ editingQuiz() ? 'Edit Quiz' : 'Create New Quiz' }}</h3>
+        <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl flex flex-col max-h-[90dvh]">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center shrink-0">
+              <h3 class="text-xl font-bold text-slate-800">{{ editingQuiz() ? 'Edit Quiz' : 'Assign New Quiz' }}</h3>
               <button (click)="showQuizModal.set(false)" class="text-slate-400 hover:text-slate-600">
                 <i class="fa-solid fa-xmark text-xl"></i>
               </button>
             </div>
-            <form [formGroup]="quizForm" (ngSubmit)="saveQuiz()" class="p-6 space-y-6">
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-slate-700 mb-1">Title</label>
-                  <input formControlName="title" type="text" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+            <div class="overflow-y-auto flex-1 p-6">
+              <form [formGroup]="quizForm" id="quizFormId" (ngSubmit)="saveQuiz()" class="space-y-6">
+                <!-- Grid layouts ... -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Title</label>
+                    <input formControlName="title" type="text" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="e.g. Science Test">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Subject</label>
+                    <select formControlName="subject_id" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+                      <option value="">Select Subject</option>
+                      @for (sub of attendanceService.allSubjects(); track sub.id) {
+                        <option [value]="sub.id">{{ sub.name }}</option>
+                      }
+                    </select>
+                  </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Duration (minutes)</label>
+                    <input formControlName="duration_minutes" type="number" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                    <select formControlName="status" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium text-slate-700 mb-1">Subject</label>
-                  <select formControlName="subject_id" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
-                    <option value="">Select Subject</option>
-                    @for (sub of attendanceService.allSubjects(); track sub.id) {
-                      <option [value]="sub.id">{{ sub.name }}</option>
-                    }
-                  </select>
+                  <label class="block text-sm font-medium text-slate-700 mb-1">Description</label>
+                  <textarea formControlName="description" rows="2" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Instructions..."></textarea>
                 </div>
-              </div>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-slate-700 mb-1">Duration (minutes)</label>
-                  <input formControlName="duration_minutes" type="number" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-slate-700 mb-1">Status</label>
-                  <select formControlName="status" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">Description</label>
-                <textarea formControlName="description" rows="2" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
-              </div>
 
-              <!-- Questions Section -->
-              <div class="space-y-4">
-                <div class="flex justify-between items-center">
-                  <h4 class="font-bold text-slate-700">Questions</h4>
-                  <button type="button" (click)="addQuestion()" class="text-sm text-indigo-600 font-bold flex items-center gap-1.5 hover:text-indigo-700 transition-colors">
-                    <i class="fa-solid fa-circle-plus"></i> Add Question
-                  </button>
-                </div>
-                
-                <div formArrayName="questions" class="space-y-6">
-                  @for (q of questions.controls; track $index; let i = $index) {
-                    <div [formGroupName]="i" class="p-4 bg-slate-50 rounded-2xl border border-slate-100 relative">
-                      <button type="button" (click)="removeQuestion(i)" class="absolute top-4 right-4 text-slate-300 hover:text-rose-500 transition-colors">
-                        <i class="fa-solid fa-trash-can text-sm"></i>
-                      </button>
-                      <div class="mb-4">
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1 tracking-wider">Question {{ i + 1 }}</label>
-                        <input formControlName="question" type="text" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
-                      </div>
-                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div formArrayName="options" class="space-y-2">
-                          <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider">Options</label>
-                          @for (opt of getOptions(i).controls; track $index; let j = $index) {
-                            <div class="flex gap-2">
-                              <span class="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-400">{{ String.fromCharCode(65 + j) }}</span>
-                              <input [formControlName]="j" (input)="null" type="text" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm outline-none focus:ring-1 focus:ring-indigo-500 bg-white">
-                            </div>
-                          }
+                <!-- Questions Section -->
+                <div class="space-y-4">
+                  <div class="flex justify-between items-center">
+                    <h4 class="font-bold text-slate-700">Questions</h4>
+                    <button type="button" (click)="addQuestion()" class="text-sm text-indigo-600 font-bold flex items-center gap-1.5 hover:text-indigo-700 transition-colors">
+                      <i class="fa-solid fa-circle-plus"></i> Add Question
+                    </button>
+                  </div>
+                  
+                  <div formArrayName="questions" class="space-y-6">
+                    @for (q of questions.controls; track $index; let i = $index) {
+                      <div [formGroupName]="i" class="p-4 bg-slate-50 rounded-2xl border border-slate-100 relative">
+                        <button type="button" (click)="removeQuestion(i)" class="absolute top-4 right-4 text-slate-300 hover:text-rose-500 transition-colors">
+                          <i class="fa-solid fa-trash-can text-sm"></i>
+                        </button>
+                        <div class="mb-4">
+                          <label class="block text-xs font-bold text-slate-400 uppercase mb-1 tracking-wider">Question {{ i + 1 }}</label>
+                          <input formControlName="question" type="text" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
                         </div>
-                        <div>
-                          <label class="block text-xs font-bold text-slate-400 uppercase mb-1 tracking-wider">Correct Answer</label>
-                          <select formControlName="correct_answer" class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:ring-1 focus:ring-indigo-500 bg-white">
-                            <option value="">Select correct option</option>
-                            @for (opt of getOptions(i).value; track $index) {
-                              @if (opt) {
-                                <option [value]="opt">{{ opt }}</option>
-                              }
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div formArrayName="options" class="space-y-2">
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider">Options</label>
+                            @for (opt of getOptions(i).controls; track $index; let j = $index) {
+                              <div class="flex gap-2">
+                                <span class="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-400">{{ String.fromCharCode(65 + j) }}</span>
+                                <input [formControlName]="j" (input)="null" type="text" class="flex-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm outline-none focus:ring-1 focus:ring-indigo-500 bg-white">
+                              </div>
                             }
-                          </select>
+                          </div>
+                          <div>
+                            <label class="block text-xs font-bold text-slate-400 uppercase mb-1 tracking-wider">Correct Answer</label>
+                            <select formControlName="correct_answer" class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:ring-1 focus:ring-indigo-500 bg-white">
+                              <option value="">Select correct option</option>
+                              @for (opt of getOptions(i).value; track $index) {
+                                @if (opt) {
+                                  <option [value]="opt">{{ opt }}</option>
+                                }
+                              }
+                            </select>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  }
+                    }
+                    @if (questions.length === 0) {
+                      <div class="text-center p-6 bg-slate-50 border border-slate-200 border-dashed rounded-2xl">
+                        <p class="text-slate-500 text-sm">No questions added yet. Please add at least one question.</p>
+                      </div>
+                    }
+                  </div>
                 </div>
-              </div>
-
-              <div class="flex gap-3 pt-6 sticky bottom-0 bg-white pb-2">
-                <button type="button" (click)="showQuizModal.set(false)" class="flex-1 px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-colors font-bold">Cancel</button>
-                <button type="submit" [disabled]="quizForm.invalid" class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50 font-bold">
-                  {{ editingQuiz() ? 'Update Quiz' : 'Create Quiz' }}
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
+            <div class="p-6 border-t border-slate-100 shrink-0 flex gap-3">
+              <button type="button" (click)="showQuizModal.set(false)" class="flex-1 px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-colors font-bold">Cancel</button>
+              <button type="submit" form="quizFormId" class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-bold">
+                {{ editingQuiz() ? 'Update Quiz' : 'Assign Quiz' }}
+              </button>
+            </div>
           </div>
         </div>
       }
@@ -467,7 +474,14 @@ export class QuizComponent {
   }
 
   async saveQuiz() {
-    if (this.quizForm.invalid) return;
+    if (this.quizForm.invalid || this.questions.length === 0) {
+      if (this.questions.length === 0) {
+        this.attendanceService.showToast('Please add at least one question.', 'error');
+      } else {
+        this.attendanceService.showToast('Please fill all required fields correctly. Check correct answers.', 'error');
+      }
+      return;
+    }
     const val = this.quizForm.value;
     const quizData: Partial<Quiz> = {
       title: val.title!,

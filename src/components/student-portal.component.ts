@@ -369,6 +369,11 @@ import { AnnouncementComponent } from './announcement.component';
                 <p class="text-4xl font-black" [class]="student()?.feeDue > 0 ? 'text-red-500' : 'text-emerald-500'">
                   Rs. {{ student()?.feeDue }}
                 </p>
+                @if (student()?.feeDue > 0 && isParent()) {
+                  <button (click)="openPayFeeModal()" class="mt-4 px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition">
+                    Pay Fee
+                  </button>
+                }
               </div>
               <div class="flex flex-col gap-2 w-full md:w-auto">
                 <div class="flex justify-between gap-8 text-sm font-bold">
@@ -387,7 +392,7 @@ import { AnnouncementComponent } from './announcement.component';
                 <h3 class="font-black text-slate-800 uppercase tracking-widest text-sm">Payment History</h3>
               </div>
               <div class="divide-y divide-slate-50">
-                @for (payment of student()?.feeHistory; track payment.timestamp) {
+                @for (payment of student()?.feeHistory; track payment.id || payment.date) {
                   <div class="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
                     <div class="flex items-center gap-4">
                       <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
@@ -395,7 +400,7 @@ import { AnnouncementComponent } from './announcement.component';
                       </div>
                       <div>
                         <p class="font-bold text-slate-700">Rs. {{ payment.amount }}</p>
-                        <p class="text-[10px] font-black text-slate-300 uppercase tracking-widest">{{ payment.timestamp | date: 'mediumDate' }}</p>
+                        <p class="text-[10px] font-black text-slate-300 uppercase tracking-widest">{{ payment.date | date: 'mediumDate' }}</p>
                       </div>
                     </div>
                     <span class="px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase rounded-full">Success</span>
@@ -586,6 +591,36 @@ import { AnnouncementComponent } from './announcement.component';
         </div>
       }
 
+      <!-- Pay Fee Modal -->
+      @if (showPayFeeModal()) {
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div class="bg-white rounded-3xl w-full max-w-md p-6 shadow-xl">
+            <h3 class="text-xl font-bold mb-4">Pay School Fee</h3>
+            
+            <div class="bg-slate-50 p-4 rounded-2xl mb-6 border border-slate-200">
+              <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">School Bank Account</p>
+              @if (attendanceService.schoolAccountDetails()) {
+                <p class="text-sm"><strong>Account Name:</strong> {{ attendanceService.schoolAccountDetails()?.accountName }}</p>
+                <p class="text-sm"><strong>Account No:</strong> {{ attendanceService.schoolAccountDetails()?.accountNumber }}</p>
+                <p class="text-sm"><strong>Bank Name:</strong> {{ attendanceService.schoolAccountDetails()?.bankName }}</p>
+              } @else {
+                <p class="text-sm text-slate-500">School account details not provided yet. Please contact the teacher.</p>
+              }
+            </div>
+
+            <div class="space-y-4">
+              <input type="text" [(ngModel)]="parentAccountName" placeholder="Your Account Name" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+              <input type="text" [(ngModel)]="parentAccountNumber" placeholder="Your Account Number" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+              <input type="text" [(ngModel)]="transactionId" placeholder="Transaction ID (Proof)" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+            </div>
+
+            <div class="mt-6 flex gap-3">
+              <button (click)="showPayFeeModal.set(false)" class="flex-1 px-4 py-2 border border-slate-200 rounded-xl font-bold hover:bg-slate-50">Cancel</button>
+              <button (click)="submitFeePayment()" [disabled]="!parentAccountName || !parentAccountNumber || !transactionId || !attendanceService.schoolAccountDetails()" class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold disabled:opacity-50 hover:bg-indigo-700">Submit Details</button>
+            </div>
+          </div>
+        </div>
+      }
     </div>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -679,6 +714,36 @@ export class StudentPortalComponent {
       .filter(sub => sub.student_id === s.id)
       .sort((a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime());
   });
+
+  showPayFeeModal = signal(false);
+  parentAccountName = '';
+  parentAccountNumber = '';
+  transactionId = '';
+
+  openPayFeeModal() {
+    this.parentAccountName = '';
+    this.parentAccountNumber = '';
+    this.transactionId = '';
+    this.showPayFeeModal.set(true);
+  }
+
+  submitFeePayment() {
+    const s = this.student();
+    if (!s) return;
+    this.attendanceService.submitFeeRequest({
+      id: Date.now().toString(),
+      school_id: s.school_id,
+      student_id: s.id,
+      parentAccountName: this.parentAccountName,
+      parentAccountNumber: this.parentAccountNumber,
+      transactionId: this.transactionId,
+      status: 'pending',
+      amount: s.feeDue,
+      date: new Date().toISOString()
+    });
+    this.attendanceService.showToast('Fee payment details submitted for review.', 'success');
+    this.showPayFeeModal.set(false);
+  }
 
   activeQuizzes = computed(() => {
     const submissions = this.quizSubmissions();
