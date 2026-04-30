@@ -86,6 +86,7 @@ export interface ExamProgress {
   marks: number;
   total_marks: number;
   remarks?: string;
+  grade?: string;
 }
 
 export interface FeeRequest {

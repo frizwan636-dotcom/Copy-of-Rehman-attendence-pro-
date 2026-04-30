@@ -313,8 +313,9 @@ import { MatIconModule } from '@angular/material/icon';
                       </td>
                       <td class="py-4">
                         @if (!sub.marked) {
-                          <button (click)="markSubmission(sub)" class="text-xs font-bold text-indigo-600 hover:underline">Mark as Reviewed</button>
+                          <button (click)="markSubmission(sub)" class="text-xs font-bold text-indigo-600 hover:underline mr-4">Mark as Reviewed</button>
                         }
+                        <button (click)="viewQuizReport(sub)" class="text-xs font-bold text-slate-600 hover:text-indigo-600 hover:underline">View Details</button>
                       </td>
                     </tr>
                   } @empty {
@@ -324,6 +325,62 @@ import { MatIconModule } from '@angular/material/icon';
                   }
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Quiz Report Details Modal -->
+      @if (showQuizReportModal() && selectedQuizReport()) {
+        <div class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[110] flex items-center justify-center p-4 sm:p-6">
+          <div class="bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 text-lg">
+                  <i class="fa-solid fa-clipboard-check"></i>
+                </div>
+                <div>
+                  <h3 class="text-xl font-black text-slate-800 tracking-tight">{{ selectedQuizForSubmissions()?.title }} Results</h3>
+                  <p class="text-xs font-bold text-slate-500">Student: <span class="text-indigo-600">{{ getStudentName(selectedQuizReport()?.student_id!) }}</span> • Score: <span class="text-indigo-600">{{ selectedQuizReport()?.score }} / {{ selectedQuizReport()?.total_marks }}</span></p>
+                </div>
+              </div>
+              <button (click)="closeQuizReportModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 text-slate-500 hover:bg-slate-300 transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-1 space-y-6">
+              @for (q of selectedQuizForSubmissions()?.questions; track $index) {
+                <div class="p-5 rounded-2xl border" 
+                     [class]="selectedQuizReport()?.answers[$index] === q.correct_answer ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'">
+                  <div class="flex gap-4 items-start mb-4">
+                    <div class="w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-xs font-black text-white mt-0.5"
+                         [class]="selectedQuizReport()?.answers[$index] === q.correct_answer ? 'bg-emerald-500' : 'bg-red-500'">
+                      @if (selectedQuizReport()?.answers[$index] === q.correct_answer) {
+                        <i class="fa-solid fa-check"></i>
+                      } @else {
+                        <i class="fa-solid fa-xmark"></i>
+                      }
+                    </div>
+                    <h4 class="font-bold text-slate-800 leading-relaxed">{{ $index + 1 }}. {{ q.question }}</h4>
+                  </div>
+                  
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-10">
+                    @for (opt of q.options; track opt) {
+                      <div class="px-4 py-3 rounded-xl border text-sm font-medium flex items-center justify-between"
+                           [class]="opt === q.correct_answer ? 'bg-emerald-100 border-emerald-200 text-emerald-800 ring-2 ring-emerald-500' : 
+                                   (opt === selectedQuizReport()?.answers[$index] && opt !== q.correct_answer ? 'bg-red-100 border-red-200 text-red-800' : 'bg-white border-slate-200 text-slate-600')">
+                        <span>{{ opt }}</span>
+                        @if (opt === q.correct_answer) {
+                          <i class="fa-solid fa-check-circle text-emerald-600"></i>
+                        } @else if (opt === selectedQuizReport()?.answers[$index]) {
+                          <i class="fa-solid fa-times-circle text-red-600"></i>
+                        }
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
             </div>
           </div>
         </div>
@@ -381,6 +438,20 @@ export class QuizComponent {
   isAddingSubject = signal(false);
   editingQuiz = signal<Quiz | null>(null);
   selectedQuizForSubmissions = signal<Quiz | null>(null);
+
+  // View Quiz Report for specific submission
+  showQuizReportModal = signal(false);
+  selectedQuizReport = signal<any | null>(null);
+
+  viewQuizReport(sub: any) {
+    this.selectedQuizReport.set(sub);
+    this.showQuizReportModal.set(true);
+  }
+
+  closeQuizReportModal() {
+    this.showQuizReportModal.set(false);
+    this.selectedQuizReport.set(null);
+  }
 
   // Student Quiz State
   activeQuiz = signal<Quiz | null>(null);

@@ -82,7 +82,7 @@ import { SplashScreenComponent } from './components/splash-screen.component';
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
             <div class="w-12 h-12 rounded-[0.85rem] shrink-0 overflow-hidden shadow-sm">
-               <img src="/icon-192x192.png" alt="MustEducate App Logo" class="w-full h-full object-cover">
+               <img src="https://i.postimg.cc/YCyRb73f/launchericon-512x512.png" alt="MustEducate App Logo" class="w-full h-full object-cover">
             </div>
             <div>
               <h4 class="font-black text-slate-800 dark:text-white leading-tight tracking-tight">Install App</h4>

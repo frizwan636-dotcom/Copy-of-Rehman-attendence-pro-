@@ -166,6 +166,16 @@ export class SupabaseService {
           return { ...studentData, feeHistory: fee_payments || [] };
       }) || [];
 
+      const formattedQuizSubmissions = quizSubmissions?.map(s => {
+          const { quizzes, ...rest } = s;
+          return rest;
+      }) || [];
+
+      const formattedHomeworkSubmissions = homeworkSubmissions?.map(s => {
+          const { homeworks, ...rest } = s;
+          return rest;
+      }) || [];
+
       return {
           school,
           teachers: teachers || [],
@@ -176,9 +186,9 @@ export class SupabaseService {
           subjects: subjects || [],
           examProgress: examProgress || [],
           quizzes: quizzes || [],
-          quizSubmissions: quizSubmissions || [],
+          quizSubmissions: formattedQuizSubmissions,
           homeworks: homeworks || [],
-          homeworkSubmissions: homeworkSubmissions || [],
+          homeworkSubmissions: formattedHomeworkSubmissions,
       };
   }
 

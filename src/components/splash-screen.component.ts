@@ -20,8 +20,8 @@ import { CommonModule } from '@angular/common';
       <button (click)="skipAnimation()" class="absolute top-6 right-6 text-white/30 hover:text-white/80 text-sm font-medium transition-colors">
         Skip <i class="fa-solid fa-forward ml-1"></i>
       </button>
-      <div class="w-28 h-28 bg-white/10 rounded-3xl flex items-center justify-center mb-8 animate-in zoom-in-50 duration-700">
-        <i class="fa-solid fa-book-open-reader text-6xl text-white"></i>
+      <div class="w-28 h-28 bg-white/10 rounded-3xl flex items-center justify-center mb-8 animate-in zoom-in-50 duration-700 overflow-hidden">
+        <img src="https://i.postimg.cc/YCyRb73f/launchericon-512x512.png" alt="MustEducate Logo" class="w-full h-full object-cover">
       </div>
       <h1 class="text-5xl font-black tracking-tight min-h-[72px]">
         Welcome to {{ displayedTitle() }}<span [class.blinking-cursor]="!isTitleComplete()"></span>

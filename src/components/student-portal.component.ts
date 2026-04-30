@@ -213,7 +213,7 @@ import { AnnouncementComponent } from './announcement.component';
               <h3 class="font-black text-slate-800 uppercase tracking-widest text-sm mb-4">Quiz Reports</h3>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 @for (sub of quizSubmissions(); track sub.id) {
-                  <div class="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                  <button (click)="viewQuizReport(sub)" class="bg-slate-50 p-6 rounded-3xl border border-slate-100 text-left hover:shadow-md hover:-translate-y-1 transition-all group">
                     <div class="flex justify-between items-start mb-4">
                       <div>
                         <span class="px-2 py-1 bg-indigo-100 text-indigo-600 text-[10px] font-black uppercase rounded-lg mb-2 inline-block">
@@ -230,11 +230,11 @@ import { AnnouncementComponent } from './announcement.component';
                       <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                         {{ sub.submitted_at | date:'mediumDate' }}
                       </span>
-                      <span [class]="sub.marked ? 'text-emerald-600' : 'text-amber-500'" class="text-[10px] font-black uppercase tracking-widest">
-                        {{ sub.marked ? 'Reviewed' : 'Pending Review' }}
+                      <span class="text-indigo-600 text-xs font-bold flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        View Details <i class="fa-solid fa-arrow-right"></i>
                       </span>
                     </div>
-                  </div>
+                  </button>
                 } @empty {
                   <div class="col-span-full p-8 text-center text-slate-400 font-medium">
                     No quiz reports available.
@@ -591,6 +591,62 @@ import { AnnouncementComponent } from './announcement.component';
         </div>
       }
 
+      <!-- Quiz Report Details Modal -->
+      @if (showQuizReportModal() && selectedQuizReport()) {
+        <div class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[110] flex items-center justify-center p-4 sm:p-6">
+          <div class="bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+            <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 text-lg">
+                  <i class="fa-solid fa-clipboard-check"></i>
+                </div>
+                <div>
+                  <h3 class="text-xl font-black text-slate-800 tracking-tight">{{ getQuiz(selectedQuizReport()?.quiz_id!)?.title }} Results</h3>
+                  <p class="text-xs font-bold text-slate-500">Score: <span class="text-indigo-600">{{ selectedQuizReport()?.score }} / {{ selectedQuizReport()?.total_marks }}</span></p>
+                </div>
+              </div>
+              <button (click)="closeQuizReportModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200 text-slate-500 hover:bg-slate-300 transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-1 space-y-6">
+              @for (q of getQuiz(selectedQuizReport()?.quiz_id!)?.questions; track $index) {
+                <div class="p-5 rounded-2xl border" 
+                     [class]="selectedQuizReport()?.answers[$index] === q.correct_answer ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'">
+                  <div class="flex gap-4 items-start mb-4">
+                    <div class="w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-xs font-black text-white mt-0.5"
+                         [class]="selectedQuizReport()?.answers[$index] === q.correct_answer ? 'bg-emerald-500' : 'bg-red-500'">
+                      @if (selectedQuizReport()?.answers[$index] === q.correct_answer) {
+                        <i class="fa-solid fa-check"></i>
+                      } @else {
+                        <i class="fa-solid fa-xmark"></i>
+                      }
+                    </div>
+                    <h4 class="font-bold text-slate-800 leading-relaxed">{{ $index + 1 }}. {{ q.question }}</h4>
+                  </div>
+                  
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-10">
+                    @for (opt of q.options; track opt) {
+                      <div class="px-4 py-3 rounded-xl border text-sm font-medium flex items-center justify-between"
+                           [class]="opt === q.correct_answer ? 'bg-emerald-100 border-emerald-200 text-emerald-800 ring-2 ring-emerald-500' : 
+                                   (opt === selectedQuizReport()?.answers[$index] && opt !== q.correct_answer ? 'bg-red-100 border-red-200 text-red-800' : 'bg-white border-slate-200 text-slate-600')">
+                        <span>{{ opt }}</span>
+                        @if (opt === q.correct_answer) {
+                          <i class="fa-solid fa-check-circle text-emerald-600"></i>
+                        } @else if (opt === selectedQuizReport()?.answers[$index]) {
+                          <i class="fa-solid fa-times-circle text-red-600"></i>
+                        }
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      }
+
       <!-- Pay Fee Modal -->
       @if (showPayFeeModal()) {
         <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -658,6 +714,10 @@ export class StudentPortalComponent {
   timeLeft = signal(0);
   timerInterval: any;
   isSubmittingQuiz = signal(false);
+
+  // Quiz Reports
+  showQuizReportModal = signal(false);
+  selectedQuizReport = signal<any | null>(null);
 
   constructor() {
     this.homeworkForm = this.fb.group({
@@ -865,6 +925,16 @@ export class StudentPortalComponent {
     this.selectedFile.set(null);
     this.homeworkForm.reset();
     this.showHomeworkModal.set(true);
+  }
+
+  viewQuizReport(sub: any) {
+    this.selectedQuizReport.set(sub);
+    this.showQuizReportModal.set(true);
+  }
+
+  closeQuizReportModal() {
+    this.showQuizReportModal.set(false);
+    this.selectedQuizReport.set(null);
   }
 
   onFileSelected(event: any) {

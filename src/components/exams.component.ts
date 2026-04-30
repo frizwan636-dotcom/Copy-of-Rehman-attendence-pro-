@@ -70,9 +70,14 @@ import { MatIconModule } from '@angular/material/icon';
                             {{ progress.date | date:'MMM d' }}
                           </div>
                           <div>
-                            <p class="text-sm font-bold text-slate-700">{{ progress.marks }} / {{ progress.total_marks }}</p>
+                            <div class="flex items-center gap-2">
+                              <p class="text-sm font-bold text-slate-700">{{ progress.marks }} / {{ progress.total_marks }}</p>
+                              @if (progress.grade) {
+                                <span class="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-md uppercase">{{ progress.grade }}</span>
+                              }
+                            </div>
                             @if (progress.remarks) {
-                              <p class="text-[10px] sm:text-xs text-slate-500">{{ progress.remarks }}</p>
+                              <p class="text-[10px] sm:text-xs text-slate-500 line-clamp-1">{{ progress.remarks }}</p>
                             }
                           </div>
                         </div>
@@ -146,14 +151,23 @@ import { MatIconModule } from '@angular/material/icon';
                   <label class="block text-sm font-medium text-slate-700 mb-1">Total Marks</label>
                   <input formControlName="total_marks" type="number" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1">Date</label>
+                  <input formControlName="date" type="date" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1">Grade (Optional)</label>
+                  <select formControlName="grade" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <option value="">Select Grade</option>
+                    @for (grade of grades; track grade) {
+                      <option [value]="grade">{{ grade }}</option>
+                    }
+                  </select>
+                </div>
               </div>
               <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">Date</label>
-                <input formControlName="date" type="date" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">Remarks (Optional)</label>
-                <input formControlName="remarks" type="text" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="e.g. Excellent, Needs improvement">
+                <label class="block text-sm font-medium text-slate-700 mb-1">Remarks & Feedback</label>
+                <textarea formControlName="remarks" rows="2" class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none resize-none" placeholder="e.g. Excellent performance, needs to focus on grammar..."></textarea>
               </div>
               <div class="flex gap-3 pt-4">
                 <button type="button" (click)="showAddProgressModal.set(false)" class="flex-1 px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-colors font-bold">Cancel</button>
@@ -214,13 +228,16 @@ export class ExamsComponent {
   showSubjectModal = signal(false);
   isAddingSubject = signal(false);
 
+  grades = ['A+', 'A', 'B', 'C', 'D', 'E', 'F'];
+
   progressForm = this.fb.group({
     student_id: ['', Validators.required],
     subject_id: ['', Validators.required],
     marks: [0, [Validators.required, Validators.min(0)]],
     total_marks: [100, [Validators.required, Validators.min(1)]],
     date: [new Date().toISOString().split('T')[0], Validators.required],
-    remarks: ['']
+    remarks: [''],
+    grade: ['']
   });
 
   getProgressForSubject(subjectId: string) {
@@ -247,7 +264,8 @@ export class ExamsComponent {
       marks: val.marks!,
       total_marks: val.total_marks!,
       date: val.date!,
-      remarks: val.remarks || undefined
+      remarks: val.remarks || undefined,
+      grade: val.grade || undefined
     });
     this.showAddProgressModal.set(false);
     this.progressForm.reset({
@@ -256,7 +274,8 @@ export class ExamsComponent {
       marks: 0,
       total_marks: 100,
       date: new Date().toISOString().split('T')[0],
-      remarks: ''
+      remarks: '',
+      grade: ''
     });
   }
 
