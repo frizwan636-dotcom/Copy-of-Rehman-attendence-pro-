@@ -125,6 +125,60 @@ import { DocService } from '../services/doc.service';
             </button>
           </div>
         </div>
+        <!-- Individual Guardian Reports -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4 md:col-span-2">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center">
+              <i class="fa-solid fa-envelope-open-text"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-800">Guardian Reports</h3>
+              <p class="text-xs text-slate-500">Share individual monthly attendance directly with parents</p>
+            </div>
+          </div>
+          
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div class="space-y-1">
+                <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Class</label>
+                <select [ngModel]="selectedClass()" (ngModelChange)="onClassChange($event)" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-bold">
+                  <option value="all">All Classes</option>
+                  @for(c of teacherClasses(); track c.className) {
+                    <option [value]="c.className">{{ c.className }}</option>
+                  }
+                </select>
+             </div>
+             <div class="space-y-1">
+                <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Section</label>
+                <select [ngModel]="selectedSection()" (ngModelChange)="selectedSection.set($event)" [disabled]="selectedClass() === 'all'" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-bold disabled:opacity-50">
+                  <option value="all">All Sections</option>
+                   @for(s of availableSections(); track s) {
+                    <option [value]="s">{{ s }}</option>
+                  }
+                </select>
+             </div>
+             <div class="space-y-1">
+               <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Month</label>
+               <input type="month" [ngModel]="monthlyMonth()" (ngModelChange)="monthlyMonth.set($event)" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200 outline-none text-sm font-bold">
+             </div>
+          </div>
+
+          <div class="max-h-60 overflow-y-auto pr-2 space-y-2 mt-4">
+             @for (student of filteredStudents(); track student.id) {
+               <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <div>
+                     <p class="font-bold text-sm text-slate-800">{{ student.name }}</p>
+                     <p class="text-[10px] text-slate-500">{{ student.className }} ({{ student.section }})</p>
+                  </div>
+                  <button (click)="shareGuardianReport(student)" class="flex items-center gap-2 px-3 py-1.5 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors rounded-lg text-xs font-bold shrink-0">
+                     <i class="fa-solid fa-share-nodes"></i> Share PDF
+                  </button>
+               </div>
+             } @empty {
+                <p class="text-xs text-slate-400 italic py-4 text-center">No students found for this class/section.</p>
+             }
+          </div>
+        </div>
+
       </div>
 
       <!-- Info Footer -->
@@ -172,6 +226,29 @@ export class ReportsComponent {
   onClassChange(className: string) {
     this.selectedClass.set(className);
     this.selectedSection.set('all'); // Reset section when class changes
+  }
+
+  filteredStudents = computed(() => {
+    let students = this.attendanceService.activeStudents();
+    if (this.selectedClass() !== 'all') {
+      students = students.filter(s => s.className === this.selectedClass());
+    }
+    if (this.selectedSection() !== 'all') {
+      students = students.filter(s => s.section === this.selectedSection());
+    }
+    return students;
+  });
+
+  async shareGuardianReport(student: any) {
+    const data = this.attendanceService.getMonthlyReportData(this.monthlyMonth(), { className: student.className, section: student.section });
+    const studentData = data.find((d: any) => d.id === student.id);
+    
+    if (!studentData) {
+       alert("No attendance records found for this student in the selected month.");
+       return;
+    }
+
+    await this.pdfService.shareMonthlyReport(this.monthlyMonth(), student, [studentData], this.attendanceService);
   }
 
   exportDaily() {

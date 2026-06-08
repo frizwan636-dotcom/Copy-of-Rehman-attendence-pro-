@@ -94,10 +94,10 @@ interface StudentWithFeeStatus extends Student {
                         class="p-2 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors" title="Record Payment">
                         <i class="fa-solid fa-file-invoice-dollar"></i>
                       </button>
-                      <a [href]="getFeeReminderSafeUrl(student)" 
-                        class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors" title="Send SMS Reminder">
+                      <button (click)="openMessageModal(student.id)" 
+                        class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors" title="Send Message">
                         <i class="fa-solid fa-comment-sms"></i>
-                      </a>
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -153,10 +153,40 @@ interface StudentWithFeeStatus extends Student {
                 <div class="flex gap-2">
                   <button (click)="approveFeeRequest(req.id)" class="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700">Approve</button>
                   <button (click)="rejectFeeRequest(req.id)" class="px-4 py-2 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700">Reject</button>
-                  <button (click)="sendTeacherMsg(req.student_id)" class="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700">Message</button>
+                  <button (click)="openMessageModal(req.student_id)" class="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700">Message</button>
                 </div>
               </div>
             }
+          </div>
+        </div>
+      }
+
+      <!-- Message Type Modal -->
+      @if (showMessageTypeModal()) {
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div class="bg-white rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200">
+            <div class="flex items-center justify-between mb-8">
+              <h3 class="text-2xl font-black text-slate-800 tracking-tight">Send Message</h3>
+              <button (click)="showMessageTypeModal.set(false)" class="p-2 text-slate-400 hover:text-slate-600 transition-colors">
+                <i class="fa-solid fa-xmark text-xl"></i>
+              </button>
+            </div>
+
+            <p class="text-slate-600 mb-6 text-sm">What type of message would you like to send to <strong>{{ selectedStudentForMsg()?.name }}</strong>'s parents?</p>
+            
+            <div class="space-y-4">
+              <button (click)="sendConfirmationMsg()" class="w-full py-4 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 hover:bg-emerald-100 transition-colors">
+                 <i class="fa-solid fa-check-circle text-2xl"></i>
+                 <span>Send Fee Confirmation</span>
+                 <span class="text-xs font-medium text-emerald-600/80">"Thank you for choosing us..."</span>
+              </button>
+              
+              <button (click)="sendReminderMsg()" class="w-full py-4 bg-amber-50 text-amber-700 border border-amber-200 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 hover:bg-amber-100 transition-colors">
+                 <i class="fa-solid fa-bell text-2xl"></i>
+                 <span>Send Pending Reminder</span>
+                 <span class="text-xs font-medium text-amber-600/80">"Gentle reminder regarding pending fee..."</span>
+              </button>
+            </div>
           </div>
         </div>
       }
@@ -247,16 +277,37 @@ export class FeesComponent {
     this.attendanceService.showToast('Fee request rejected', 'success');
   }
 
-  sendTeacherMsg(studentId: string) {
-    const student = this.attendanceService.activeStudents().find(s => s.id === studentId);
+  showMessageTypeModal = signal(false);
+  selectedStudentForMsg = signal<StudentWithFeeStatus | null>(null);
+
+  openMessageModal(studentId: string) {
+    const student = this.studentsWithFeeStatus().find(s => s.id === studentId);
     if (!student || !student.mobileNumber) {
       this.attendanceService.showToast('No valid mobile number', 'error');
       return;
     }
-    const isApproved = confirm('Send Confirmation message? Cancel to send Reminder message.');
-    let msg = isApproved ? 'Your fee payment has been confirmed and approved.' : 'Please pay your pending fees as soon as possible.';
+    this.selectedStudentForMsg.set(student);
+    this.showMessageTypeModal.set(true);
+  }
+
+  sendConfirmationMsg() {
+    const student = this.selectedStudentForMsg();
+    if(!student) return;
+    const teacher = this.attendanceService.activeTeacher();
+    const msg = `Dear Parent/Guardian,\n\nThank you for choosing ${teacher?.schoolName}! We have successfully received and approved the fee payment for your child ${student.name} (Roll: ${student.rollNumber}).\n\n- Amount Paid: Rs. ${student.feePaid}\n- Current Outstanding Due: Rs. ${student.feeDue}\n\nWe appreciate your timely payment and continued support.\n\nRegards,\n${teacher?.name}\n${teacher?.schoolName}`;
     const num = student.mobileNumber.replace(/\D/g, '');
     window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
+    this.showMessageTypeModal.set(false);
+  }
+
+  sendReminderMsg() {
+    const student = this.selectedStudentForMsg();
+    if(!student) return;
+    const teacher = this.attendanceService.activeTeacher();
+    const msg = `Dear Parent/Guardian,\n\nThis is a gentle reminder regarding the pending school fee for your child ${student.name} (Roll: ${student.rollNumber}).\n\n- Total Fee: Rs. ${student.totalFee}\n- Outstanding Due: Rs. ${student.feeDue}\n\nPlease process the payment at your earliest convenience to avoid any interruptions to their studies.\n\nThank you for your cooperation,\n${teacher?.name}\n${teacher?.schoolName}`;
+    const num = student.mobileNumber.replace(/\D/g, '');
+    window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
+    this.showMessageTypeModal.set(false);
   }
 
   studentsWithFeeStatus = computed(() => {

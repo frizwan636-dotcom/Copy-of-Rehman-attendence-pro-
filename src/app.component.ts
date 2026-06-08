@@ -24,10 +24,10 @@ import { SplashScreenComponent } from './components/splash-screen.component';
         <div class="min-h-screen flex flex-col animate-in fade-in duration-500">
           <main class="flex-grow">
             @if (!attendanceService.isInitialized()) {
-              <div class="h-full flex flex-col items-center justify-center p-4 bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900">
+              <div class="h-full flex flex-col items-center justify-center p-4 bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900 min-h-screen">
                 <div class="text-center">
-                  <div class="w-24 h-24 bg-white/10 rounded-3xl flex items-center justify-center mb-6 mx-auto animate-pulse">
-                    <i class="fa-solid fa-clipboard-user text-5xl text-white"></i>
+                  <div class="w-24 h-24 bg-white/10 rounded-3xl flex items-center justify-center mb-6 mx-auto animate-pulse overflow-hidden shadow-2xl">
+                     <img src="https://i.postimg.cc/YCyRb73f/launchericon-512x512.png" alt="MustEducate App Icon" class="w-full h-full object-cover">
                   </div>
                   <h1 class="text-4xl font-black text-white tracking-tight">MustEducate</h1>
                   <p class="text-indigo-200/60 mt-2 font-medium tracking-wide uppercase text-xs">Smart Management System</p>

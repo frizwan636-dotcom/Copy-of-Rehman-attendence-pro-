@@ -2,13 +2,13 @@ import { Component, inject, signal, computed, effect, ChangeDetectionStrategy } 
 import { CommonModule, DatePipe } from '@angular/common';
 import { AttendanceService, Quiz, Homework } from '../services/attendance.service';
 import { SupabaseService } from '../services/supabase.service';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormsModule } from '@angular/forms';
 import { AnnouncementComponent } from './announcement.component';
 
 @Component({
   selector: 'app-student-portal',
   standalone: true,
-  imports: [CommonModule, DatePipe, ReactiveFormsModule, AnnouncementComponent],
+  imports: [CommonModule, DatePipe, ReactiveFormsModule, FormsModule, AnnouncementComponent],
   template: `
     <div class="min-h-screen pb-24 bg-slate-50/50">
       <!-- Top Navigation -->
@@ -129,6 +129,29 @@ import { AnnouncementComponent } from './announcement.component';
             </div>
           </button>
         </div>
+
+        @if (myAlerts().length > 0) {
+          <div class="mb-8 space-y-4 animate-in fade-in slide-in-from-top-4">
+            @for (alert of myAlerts(); track alert.id) {
+              <div class="bg-rose-50 border border-rose-200 rounded-[2rem] p-6 flex items-start gap-4 shadow-sm relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-2 h-full bg-rose-500"></div>
+                <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center text-xl shrink-0">
+                  <i class="fa-solid fa-bell-slash animate-pulse"></i>
+                </div>
+                <div class="flex-grow">
+                  <h3 class="font-black text-rose-900">{{ alert.title }}</h3>
+                  <p class="text-rose-800 text-sm mt-1 mb-3">{{ alert.message }}</p>
+                  <button (click)="activeTab.set('fees')" class="px-5 py-2.5 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition flex items-center shadow-lg shadow-rose-600/20 text-sm">
+                    <i class="fa-solid fa-credit-card mr-2"></i> Pay Now
+                  </button>
+                </div>
+                <button (click)="dismissAlert(alert.id)" class="text-rose-400 hover:text-rose-700 transition">
+                  <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+              </div>
+            }
+          </div>
+        }
 
         @if (activeTab() === 'announcements') {
           <div class="animate-in fade-in slide-in-from-bottom-4">
@@ -369,11 +392,10 @@ import { AnnouncementComponent } from './announcement.component';
                 <p class="text-4xl font-black" [class]="student()?.feeDue > 0 ? 'text-red-500' : 'text-emerald-500'">
                   Rs. {{ student()?.feeDue }}
                 </p>
-                @if (student()?.feeDue > 0 && isParent()) {
-                  <button (click)="openPayFeeModal()" class="mt-4 px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition">
-                    Pay Fee
-                  </button>
-                }
+                <!-- Pay Fee Button is now always available to both students and parents -->
+                <button (click)="openPayFeeModal()" class="mt-4 px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition">
+                  Pay Fee
+                </button>
               </div>
               <div class="flex flex-col gap-2 w-full md:w-auto">
                 <div class="flex justify-between gap-8 text-sm font-bold">
@@ -386,6 +408,37 @@ import { AnnouncementComponent } from './announcement.component';
                 </div>
               </div>
             </div>
+
+            @if (myFeeRequests().length > 0) {
+            <div class="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden mb-6">
+              <div class="p-6 border-b border-slate-100">
+                <h3 class="font-black text-slate-800 uppercase tracking-widest text-sm">Payment Requests Status</h3>
+              </div>
+              <div class="divide-y divide-slate-50">
+                @for (req of myFeeRequests(); track req.id) {
+                  <div class="p-6 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                    <div class="flex items-center gap-4">
+                      <div class="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0" 
+                           [class]="req.status === 'approved' ? 'bg-emerald-100 text-emerald-600' : (req.status === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600')">
+                        <i class="fa-solid" [class.fa-check]="req.status === 'approved'" [class.fa-xmark]="req.status === 'rejected'" [class.fa-clock]="req.status === 'pending'"></i>
+                      </div>
+                      <div>
+                        <p class="font-bold text-slate-800">Payment of Rs. {{ req.amount }}</p>
+                        <p class="text-[10px] uppercase font-black text-slate-400 mt-1">Trx: {{ req.transactionId }}</p>
+                      </div>
+                    </div>
+                    <div class="text-right">
+                       <span class="text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full"
+                          [class]="req.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : (req.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700')">
+                          {{ req.status }}
+                       </span>
+                       <p class="text-[10px] text-slate-400 mt-2">{{ req.date | date }}</p>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+            }
 
             <div class="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
               <div class="p-6 border-b border-slate-100">
@@ -665,6 +718,7 @@ import { AnnouncementComponent } from './announcement.component';
             </div>
 
             <div class="space-y-4">
+              <input type="number" [(ngModel)]="amountPaying" placeholder="Amount (Rs.)" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
               <input type="text" [(ngModel)]="parentAccountName" placeholder="Your Account Name" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
               <input type="text" [(ngModel)]="parentAccountNumber" placeholder="Your Account Number" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
               <input type="text" [(ngModel)]="transactionId" placeholder="Transaction ID (Proof)" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
@@ -672,7 +726,7 @@ import { AnnouncementComponent } from './announcement.component';
 
             <div class="mt-6 flex gap-3">
               <button (click)="showPayFeeModal.set(false)" class="flex-1 px-4 py-2 border border-slate-200 rounded-xl font-bold hover:bg-slate-50">Cancel</button>
-              <button (click)="submitFeePayment()" [disabled]="!parentAccountName || !parentAccountNumber || !transactionId || !attendanceService.schoolAccountDetails()" class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold disabled:opacity-50 hover:bg-indigo-700">Submit Details</button>
+              <button (click)="submitFeePayment()" [disabled]="!amountPaying || amountPaying <= 0 || !parentAccountName || !parentAccountNumber || !transactionId || !attendanceService.schoolAccountDetails()" class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold disabled:opacity-50 hover:bg-indigo-700">Submit Details</button>
             </div>
           </div>
         </div>
@@ -690,6 +744,22 @@ export class StudentPortalComponent {
   isRtl = this.attendanceService.isRtl;
 
   activeTab = signal('attendance');
+  
+  // Custom tracking for dismissed alerts in local storage
+  dismissedAlertIds = signal<string[]>([]);
+  
+  myAlerts = computed(() => {
+    if (!this.isParent()) return [];
+    const s = this.student();
+    if (!s) return [];
+    return this.attendanceService.parentAlerts().filter(a => a.studentId === s.id && !this.dismissedAlertIds().includes(a.id));
+  });
+
+  dismissAlert(id: string) {
+    this.dismissedAlertIds.update(ids => [...ids, id]);
+    localStorage.setItem('dismissedAlerts', JSON.stringify(this.dismissedAlertIds()));
+  }
+
   student = computed(() => {
     const s = this.attendanceService.activeStudent();
     if (!s) return null;
@@ -698,6 +768,12 @@ export class StudentPortalComponent {
     return { ...s, feePaid, feeDue };
   });
   isParent = computed(() => this.attendanceService.activeUserRole() === 'parent');
+
+  myFeeRequests = computed(() => {
+     const s = this.student();
+     if (!s) return [];
+     return this.attendanceService.allFeeRequests().filter((r: any) => r.student_id === s.id);
+  });
 
   // Homework Submission
   showHomeworkModal = signal(false);
@@ -720,6 +796,13 @@ export class StudentPortalComponent {
   selectedQuizReport = signal<any | null>(null);
 
   constructor() {
+    const savedDismissed = localStorage.getItem('dismissedAlerts');
+    if(savedDismissed) {
+      try {
+        this.dismissedAlertIds.set(JSON.parse(savedDismissed));
+      } catch(e) {}
+    }
+
     this.homeworkForm = this.fb.group({
       content: ['', [Validators.required, Validators.minLength(10)]]
     });
@@ -779,17 +862,20 @@ export class StudentPortalComponent {
   parentAccountName = '';
   parentAccountNumber = '';
   transactionId = '';
+  amountPaying: number | null = null;
 
   openPayFeeModal() {
     this.parentAccountName = '';
     this.parentAccountNumber = '';
     this.transactionId = '';
+    const s = this.student();
+    this.amountPaying = s ? Math.max(0, s.feeDue) : null;
     this.showPayFeeModal.set(true);
   }
 
   submitFeePayment() {
     const s = this.student();
-    if (!s) return;
+    if (!s || !this.amountPaying || this.amountPaying <= 0) return;
     this.attendanceService.submitFeeRequest({
       id: Date.now().toString(),
       school_id: s.school_id,
@@ -798,7 +884,7 @@ export class StudentPortalComponent {
       parentAccountNumber: this.parentAccountNumber,
       transactionId: this.transactionId,
       status: 'pending',
-      amount: s.feeDue,
+      amount: this.amountPaying,
       date: new Date().toISOString()
     });
     this.attendanceService.showToast('Fee payment details submitted for review.', 'success');

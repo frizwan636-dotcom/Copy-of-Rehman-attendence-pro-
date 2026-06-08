@@ -97,6 +97,7 @@ export interface FeeRequest {
   parentAccountName: string;
   transactionId: string;
   status: 'pending' | 'approved' | 'rejected';
+  amount: number;
   date: string;
 }
 
@@ -242,34 +243,84 @@ export class AttendanceService {
 
 // Added for Fee Requests prototype
   schoolAccountDetails = signal<{ accountName: string, accountNumber: string, bankName: string } | null>(null);
-  // Removed duplicate feeRequests
   
-  allFeeRequests = this.feeRequests.asReadonly();
+  // Dashboard Alerts for Parents
+  parentAlerts = signal<{ id: string, studentId: string, title: string, message: string, date: string, type: 'warning' | 'error' | 'info' }[]>([]);
 
-  syncFeesToLocalStorage() {
-    localStorage.setItem(`fee_requests`, JSON.stringify(this.feeRequests()));
-    if (this.schoolAccountDetails()) {
-      localStorage.setItem(`school_account`, JSON.stringify(this.schoolAccountDetails()));
+  // Simulated background job for fee alerts
+  setupBackgroundJobs() {
+    // Run loop every 60 seconds
+    setInterval(() => {
+      this.checkAndGenerateFeeAlerts();
+    }, 60000);
+    // Initial check after 3 seconds
+    setTimeout(() => this.checkAndGenerateFeeAlerts(), 3000);
+  }
+
+  checkAndGenerateFeeAlerts() {
+    const today = new Date();
+    // Assuming fees are due by the 5th of each month. If current date >= 5, it's past due.
+    if (today.getDate() < 5) return;
+
+    let added = false;
+    const currentAlerts = [...this.parentAlerts()];
+
+    this.students().forEach(student => {
+      const feePaid = student.feeHistory ? student.feeHistory.reduce((acc, p) => acc + p.amount, 0) : 0;
+      const feeDue = student.totalFee - feePaid;
+
+      if (feeDue > 0) {
+        // Unique alert ID per student per month
+        const alertId = `fee_overdue_${student.id}_${today.getFullYear()}_${today.getMonth()}`;
+        
+        if (!currentAlerts.some(a => a.id === alertId)) {
+          currentAlerts.push({
+            id: alertId,
+            studentId: student.id,
+            title: 'Fee Overdue Notice',
+            message: `A pending fee of Rs. ${feeDue} for ${student.name} is past the due date. Please process the payment to avoid any inconvenience.`,
+            date: new Date().toISOString(),
+            type: 'error'
+          });
+          added = true;
+          console.log(`[Background Job] Sent Push Notification / Dashboard Alert for ${student.name} (${feeDue} Rs. overdue).`);
+        }
+      }
+    });
+
+    if (added) {
+      this.parentAlerts.set(currentAlerts);
+      this.saveLocalParentAlerts();
     }
   }
 
-  loadFeesFromLocalStorage() {
-    try {
-      const acc = localStorage.getItem(`school_account`);
-      if (acc) this.schoolAccountDetails.set(JSON.parse(acc));
-      const reqs = localStorage.getItem(`fee_requests`);
-      if (reqs) this.feeRequests.set(JSON.parse(reqs));
-    } catch (e) {}
+  saveLocalParentAlerts() {
+    localStorage.setItem('parentAlerts', JSON.stringify(this.parentAlerts()));
+  }
+
+  loadLocalParentAlerts() {
+    const saved = localStorage.getItem('parentAlerts');
+    if (saved) {
+      try {
+        this.parentAlerts.set(JSON.parse(saved));
+      } catch (e) {}
+    }
+  }
+  // Removed duplicate feeRequests
+
+  syncFeesToDatabase() {
+    this.supabaseService.saveSchoolAccountDetails(this.school()!.id, this.schoolAccountDetails());
+    this.supabaseService.saveFeeRequests(this.school()!.id, this.feeRequests());
   }
 
   async updateSchoolAccountDetails(details: { accountName: string, accountNumber: string, bankName: string }) {
     this.schoolAccountDetails.set(details);
-    this.syncFeesToLocalStorage();
+    this.syncFeesToDatabase();
   }
 
   async submitFeeRequest(request: any) {
     this.feeRequests.update(refs => [...refs.filter(r => r.id !== request.id), request]);
-    this.syncFeesToLocalStorage();
+    this.syncFeesToDatabase();
   }
 
   async processFeeRequest(requestId: string, status: 'approved' | 'rejected') {
@@ -277,7 +328,7 @@ export class AttendanceService {
     if (!request) return;
 
     this.feeRequests.update(refs => refs.map(r => r.id === requestId ? { ...r, status } : r));
-    this.syncFeesToLocalStorage();
+    this.syncFeesToDatabase();
 
     if (status === 'approved') {
       await this.recordFeePayment(request.student_id, request.amount);
@@ -376,10 +427,12 @@ export class AttendanceService {
   });
 
   constructor() {
-    this.loadFeesFromLocalStorage();
     window.addEventListener('online', () => this.isOnline.set(true));
     window.addEventListener('offline', () => this.isOnline.set(false));
     
+    this.loadLocalParentAlerts();
+    this.setupBackgroundJobs();
+
     // Safety timeout for initialization
     setTimeout(() => {
       if (!this.isInitialized()) {
@@ -441,6 +494,12 @@ export class AttendanceService {
     this.quizSubmissions.set(data.quizSubmissions);
     this.homeworks.set(data.homeworks);
     this.homeworkSubmissions.set(data.homeworkSubmissions);
+    if (data.schoolAccountDetails) {
+      this.schoolAccountDetails.set(data.schoolAccountDetails);
+    }
+    if (data.feeRequests) {
+      this.feeRequests.set(data.feeRequests);
+    }
   }
 
   async signUpCoordinator(details: { email: string; password: string; schoolName: string; name: string; className: string; section: string; mobile: string; pin: string; }) {
@@ -835,6 +894,23 @@ export class AttendanceService {
       const total = present + late + absent;
       const percentage = total > 0 ? (((present + late) / total) * 100).toFixed(0) : '0';
       return { roll: s.rollNumber, name: s.name, fatherName: s.fatherName, present, late, absent, percentage };
+    }).sort((a,b) => a.roll.localeCompare(b.roll, undefined, { numeric: true }));
+  }
+
+  getMonthlyReportData(month: string, filters?: { className?: string, section?: string }) {
+    let studentsInRange = this.students();
+    if (filters?.className) studentsInRange = studentsInRange.filter(s => s.className === filters.className);
+    if (filters?.section) studentsInRange = studentsInRange.filter(s => s.section === filters.section);
+
+    const records = this.attendance().filter(r => r.date.startsWith(month));
+    return studentsInRange.map(s => {
+      const studentRecords = records.filter(r => r.studentId === s.id);
+      const present = studentRecords.filter(r => r.status === 'Present').length;
+      const late = studentRecords.filter(r => r.status === 'Late').length;
+      const absent = studentRecords.filter(r => r.status === 'Absent').length;
+      const total = present + late + absent;
+      const percentage = total > 0 ? (((present + late) / total) * 100).toFixed(0) : '0';
+      return { id: s.id, roll: s.rollNumber, name: s.name, fatherName: s.fatherName, present, late, absent, percentage };
     }).sort((a,b) => a.roll.localeCompare(b.roll, undefined, { numeric: true }));
   }
 

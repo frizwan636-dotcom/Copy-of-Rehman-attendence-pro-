@@ -193,6 +193,75 @@ export type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; 
         </div>
 
         @switch (view()) {
+          @case ('dashboard') {
+            <div class="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+              <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <h2 class="text-2xl font-black text-slate-800 tracking-tight">Welcome, {{ teacher()?.name }}!</h2>
+                  <p class="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">Teacher Dashboard Overview</p>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div class="text-right">
+                    <p class="text-[10px] font-black uppercase text-slate-400">Current Date</p>
+                    <p class="font-bold text-slate-700">{{ today | date:'mediumDate' }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Pending Fee Requests Widget -->
+              @if (attendanceService.feeRequests().length > 0) {
+                 @if (pendingFeeRequests().length > 0) {
+                  <div class="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 md:p-8">
+                    <div class="flex items-center gap-3 mb-6">
+                      <div class="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center">
+                        <i class="fa-solid fa-clock"></i>
+                      </div>
+                      <h3 class="text-xl font-bold text-slate-800 tracking-tight">Pending Fee Submissions</h3>
+                    </div>
+                    <div class="space-y-4">
+                      @for (req of pendingFeeRequests(); track req.id) {
+                        <div class="p-5 border border-slate-200 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50 transition-colors hover:border-indigo-200">
+                          <div class="flex items-start gap-4">
+                            <div class="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center font-black mt-1">
+                               {{ getStudentName(req.student_id).charAt(0) }}
+                            </div>
+                            <div>
+                              <p class="font-bold text-slate-800 text-lg">{{ getStudentName(req.student_id) }}</p>
+                              <div class="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                                <p class="text-xs text-slate-600 font-medium"><i class="fa-solid fa-user-tie text-slate-400 mr-1"></i> A/C Name: {{ req.parentAccountName }}</p>
+                                <p class="text-xs text-slate-600 font-medium"><i class="fa-solid fa-building-columns text-slate-400 mr-1"></i> A/C No: {{ req.parentAccountNumber }}</p>
+                                <p class="text-xs text-slate-600 font-medium"><i class="fa-solid fa-hashtag text-slate-400 mr-1"></i> Txn: {{ req.transactionId }}</p>
+                              </div>
+                              <p class="text-[10px] text-slate-500 mt-2 font-black tracking-widest uppercase">Submitted: {{ req.date | date:'mediumDate' }}</p>
+                            </div>
+                          </div>
+                          <div class="flex flex-col sm:flex-row gap-2 shrink-0">
+                            <button (click)="approveFeeRequest(req.id)" class="px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 text-sm shadow-md shadow-emerald-600/20">
+                               <i class="fa-solid fa-check"></i> Approve
+                            </button>
+                            <button (click)="rejectFeeRequest(req.id)" class="px-5 py-2.5 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-colors flex items-center justify-center gap-2 text-sm shadow-md shadow-rose-600/20">
+                               <i class="fa-solid fa-xmark"></i> Reject
+                            </button>
+                            <button (click)="openMessageModal(req.student_id)" class="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-sm shadow-md shadow-blue-600/20">
+                               <i class="fa-solid fa-message"></i> Message
+                            </button>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                 } @else {
+                  <div class="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 p-8 text-center text-slate-400">
+                    <div class="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4 border border-slate-100">
+                      <i class="fa-solid fa-check-double text-slate-300"></i>
+                    </div>
+                    <p class="font-bold text-slate-600">All caught up!</p>
+                    <p class="text-xs mt-1">No pending fee requests to review.</p>
+                  </div>
+                 }
+              }
+            </div>
+          }
           @case ('announcements') {
             <app-announcement></app-announcement>
           }
@@ -343,12 +412,9 @@ export type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; 
                             <button (click)="openPaymentModal(student)" class="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Record Payment">
                               <i class="fa-solid fa-file-invoice-dollar text-xs"></i>
                             </button>
-                            <a [href]="getFeeReminderSafeUrl(student)" class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Send SMS Reminder">
+                            <button (click)="openMessageModal(student.id)" class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Send Message">
                               <i class="fa-solid fa-comment-sms text-xs"></i>
-                            </a>
-                            <a [href]="getFeeReminderWhatsAppSafeUrl(student)" target="_blank" class="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Send WhatsApp Reminder">
-                              <i class="fa-brands fa-whatsapp text-xs"></i>
-                            </a>
+                            </button>
                           </div>
                       </div>
                       <button (click)="openEditStudentModal(student)" title="Edit Student" class="self-start w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-blue-50 hover:text-blue-600 rounded-full transition-colors">
@@ -494,6 +560,35 @@ export type StudentWithFeeStatus = Student & { feePaid: number; feeDue: number; 
       }
 
       <!-- Payment Modal -->
+      @if (showMessageTypeModal()) {
+        <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in" (click)="showMessageTypeModal.set(false)">
+          <div class="bg-white rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl border border-slate-100 animate-in zoom-in-95" (click)="$event.stopPropagation()">
+            <div class="flex items-center justify-between mb-8">
+              <h3 class="text-2xl font-black text-slate-800 tracking-tight">Send Message</h3>
+              <button (click)="showMessageTypeModal.set(false)" class="p-2 text-slate-400 hover:text-slate-600 transition-colors">
+                <i class="fa-solid fa-xmark text-xl"></i>
+              </button>
+            </div>
+
+            <p class="text-slate-600 mb-6 text-sm">What type of message would you like to send to <strong>{{ selectedStudentForMsg()?.name }}</strong>'s parents?</p>
+            
+            <div class="space-y-4">
+              <button (click)="sendConfirmationMsg()" class="w-full py-4 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 hover:bg-emerald-100 transition-colors">
+                 <i class="fa-solid fa-check-circle text-2xl"></i>
+                 <span>Send Fee Confirmation</span>
+                 <span class="text-xs font-medium text-emerald-600/80">"Thank you for choosing us..."</span>
+              </button>
+              
+              <button (click)="sendReminderMsg()" class="w-full py-4 bg-amber-50 text-amber-700 border border-amber-200 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 hover:bg-amber-100 transition-colors">
+                 <i class="fa-solid fa-bell text-2xl"></i>
+                 <span>Send Pending Reminder</span>
+                 <span class="text-xs font-medium text-amber-600/80">"Gentle reminder regarding pending fee..."</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
     @if (showPaymentModal()) {
       <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in" (click)="showPaymentModal.set(false)">
         <div class="bg-white max-w-sm w-full rounded-[2rem] p-8 shadow-2xl border border-slate-100 animate-in zoom-in-95" (click)="$event.stopPropagation()">
@@ -572,6 +667,7 @@ export class DashboardComponent {
   sanitizer = inject(DomSanitizer);
   isDarkMode = this.attendanceService.isDarkMode;
   isRtl = this.attendanceService.isRtl;
+  today = Date.now();
 
   // --- State ---
   view = signal<'dashboard' | 'profile' | 'attendance' | 'homework' | 'quiz' | 'health' | 'fees' | 'announcements' | 'calendar' | 'library' | 'staff'>('dashboard');
@@ -601,6 +697,60 @@ export class DashboardComponent {
   selectedStudentForPayment = signal<StudentWithFeeStatus | null>(null);
   paymentAmount = signal<number | null>(null);
   paymentModalError = signal('');
+
+  // Message Type Modal State
+  showMessageTypeModal = signal(false);
+  selectedStudentForMsg = signal<StudentWithFeeStatus | null>(null);
+
+  openMessageModal(studentId: string) {
+    const student = this.studentsWithFeeStatus().find(s => s.id === studentId);
+    if (!student || !student.mobileNumber) {
+      this.showToastWithMessage('No valid mobile number for this student.');
+      return;
+    }
+    this.selectedStudentForMsg.set(student);
+    this.showMessageTypeModal.set(true);
+  }
+
+  sendConfirmationMsg() {
+    const student = this.selectedStudentForMsg();
+    if(!student) return;
+    const teacher = this.teacher();
+    const msg = `Dear Parent/Guardian,\n\nThank you for choosing ${teacher?.schoolName}! We have successfully received and approved the fee payment for your child ${student.name} (Roll: ${student.rollNumber}).\n\n- Amount Paid: Rs. ${student.feePaid}\n- Current Outstanding Due: Rs. ${student.feeDue}\n\nWe appreciate your timely payment and continued support.\n\nRegards,\n${teacher?.name}\n${teacher?.schoolName}`;
+    const num = student.mobileNumber.replace(/\D/g, '');
+    window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
+    this.showMessageTypeModal.set(false);
+  }
+
+  sendReminderMsg() {
+    const student = this.selectedStudentForMsg();
+    if(!student) return;
+    const teacher = this.teacher();
+    const msg = `Dear Parent/Guardian,\n\nThis is a gentle reminder regarding the pending school fee for your child ${student.name} (Roll: ${student.rollNumber}).\n\n- Total Fee: Rs. ${student.totalFee}\n- Outstanding Due: Rs. ${student.feeDue}\n\nPlease process the payment at your earliest convenience to avoid any interruptions to their studies.\n\nThank you for your cooperation,\n${teacher?.name}\n${teacher?.schoolName}`;
+    const num = student.mobileNumber.replace(/\D/g, '');
+    window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
+    this.showMessageTypeModal.set(false);
+  }
+
+  // --- Fee Approvals ---
+  pendingFeeRequests = computed(() => {
+    return this.attendanceService.allFeeRequests().filter(req => req.status === 'pending');
+  });
+
+  getStudentName(studentId: string): string {
+    const s = this.attendanceService.allSchoolStudents().find(st => st.id === studentId);
+    return s ? s.name : 'Unknown';
+  }
+
+  async approveFeeRequest(requestId: string) {
+    await this.attendanceService.processFeeRequest(requestId, 'approved');
+    this.attendanceService.showToast('Fee payment approved and recorded!', 'success');
+  }
+
+  async rejectFeeRequest(requestId: string) {
+    await this.attendanceService.processFeeRequest(requestId, 'rejected');
+    this.attendanceService.showToast('Fee request rejected.', 'error');
+  }
 
   studentForm = signal({
     name: '', roll: '', mobile: '',

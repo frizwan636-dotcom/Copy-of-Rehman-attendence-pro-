@@ -21,6 +21,8 @@ export interface SchoolData {
     quizSubmissions: QuizSubmission[];
     homeworks: Homework[];
     homeworkSubmissions: HomeworkSubmission[];
+    schoolAccountDetails?: { accountName: string, accountNumber: string, bankName: string } | null;
+    feeRequests?: any[];
 }
 
 
@@ -137,7 +139,8 @@ export class SupabaseService {
         { data: quizzes, error: qError },
         { data: quizSubmissions, error: qsError },
         { data: homeworks, error: hError },
-        { data: homeworkSubmissions, error: hsError }
+        { data: homeworkSubmissions, error: hsError },
+        { data: configMessages, error: configMessagesError }
       ] = await Promise.all([
         this.supabase.from('schools').select('*').eq('id', schoolId).single(),
         this.supabase.from('teachers').select('*').eq('school_id', schoolId),
@@ -150,7 +153,8 @@ export class SupabaseService {
         this.supabase.from('quizzes').select('*').eq('school_id', schoolId),
         this.supabase.from('quiz_submissions').select('*, quizzes!inner()').eq('quizzes.school_id', schoolId),
         this.supabase.from('homeworks').select('*').eq('school_id', schoolId),
-        this.supabase.from('homework_submissions').select('*, homeworks!inner()').eq('homeworks.school_id', schoolId)
+        this.supabase.from('homework_submissions').select('*, homeworks!inner()').eq('homeworks.school_id', schoolId),
+        this.supabase.from('messages').select('*').eq('school_id', schoolId).in('sender_id', ['00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002'])
       ]);
 
       if (schoolError) throw schoolError;
@@ -159,6 +163,22 @@ export class SupabaseService {
       if (saError) throw saError;
       if (taError) throw taError;
       if (dsError) throw dsError;
+      
+      if (configMessagesError) throw configMessagesError;
+      
+      let schoolAccountDetails = null;
+      let feeRequests: any[] = [];
+      if (configMessages) {
+          const accMsg = configMessages.find(m => m.sender_id === '00000000-0000-0000-0000-000000000001');
+          if (accMsg) {
+              try { schoolAccountDetails = JSON.parse(accMsg.text); } catch(e) {}
+          }
+          
+          const feeMsg = configMessages.find(m => m.sender_id === '00000000-0000-0000-0000-000000000002');
+          if (feeMsg) {
+              try { feeRequests = JSON.parse(feeMsg.text) || []; } catch(e) {}
+          }
+      }
 
       // Restructure students to match previous format
       const formattedStudents = students?.map(s => {
@@ -189,6 +209,8 @@ export class SupabaseService {
           quizSubmissions: formattedQuizSubmissions,
           homeworks: homeworks || [],
           homeworkSubmissions: formattedHomeworkSubmissions,
+          schoolAccountDetails,
+          feeRequests
       };
   }
 
@@ -401,6 +423,7 @@ export class SupabaseService {
       .from('messages')
       .select('*')
       .eq('school_id', schoolId)
+      .not('sender_id', 'in', '("00000000-0000-0000-0000-000000000001","00000000-0000-0000-0000-000000000002")')
       .order('timestamp', { ascending: true });
     if (error) throw this.processError(error);
     return data;
@@ -413,6 +436,31 @@ export class SupabaseService {
       .select();
     if (error) throw this.processError(error);
     return data && data.length > 0 ? data[0] : { ...message, id: Date.now().toString(), timestamp: new Date().toISOString() };
+  }
+
+  async saveSchoolAccountDetails(schoolId: string, details: any) {
+    const senderId = '00000000-0000-0000-0000-000000000001';
+    const text = JSON.stringify(details);
+    
+    // Check if exists
+    const { data } = await this.supabase.from('messages').select('id').eq('school_id', schoolId).eq('sender_id', senderId).single();
+    if (data) {
+        await this.supabase.from('messages').update({ text }).eq('id', data.id);
+    } else {
+        await this.supabase.from('messages').insert({ school_id: schoolId, sender_id: senderId, text });
+    }
+  }
+
+  async saveFeeRequests(schoolId: string, requests: any[]) {
+    const senderId = '00000000-0000-0000-0000-000000000002';
+    const text = JSON.stringify(requests);
+    
+    const { data } = await this.supabase.from('messages').select('id').eq('school_id', schoolId).eq('sender_id', senderId).single();
+    if (data) {
+        await this.supabase.from('messages').update({ text }).eq('id', data.id);
+    } else {
+        await this.supabase.from('messages').insert({ school_id: schoolId, sender_id: senderId, text });
+    }
   }
 
   async updateMessage(id: string, text: string) {

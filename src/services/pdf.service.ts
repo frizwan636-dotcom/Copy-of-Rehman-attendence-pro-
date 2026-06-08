@@ -185,6 +185,71 @@ export class PdfService {
     doc.save(`Monthly_${className}_${monthLabel.replace(' ', '_')}.pdf`);
   }
 
+  async shareMonthlyReport(monthLabel: string, student: any, data: any[], attendanceService: AttendanceService) {
+    const doc = new jspdf.jsPDF();
+    
+    doc.setFontSize(20);
+    doc.text('MustEducate - Student Monthly Report', 105, 15, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.text(`Student: ${student.name} (Roll: ${student.roll || student.rollNumber})`, 14, 25);
+    doc.text(`Guardian Contact: ${student.mobileNumber || 'N/A'}`, 14, 32);
+    doc.text(`Month: ${monthLabel}`, 14, 39);
+
+    const totalStudents = data.length;
+    const totalPresent = data.reduce((sum, s) => sum + s.present, 0);
+    const totalLate = data.reduce((sum, s) => sum + s.late, 0);
+    const totalAbsent = data.reduce((sum, s) => sum + s.absent, 0);
+    const totalRecords = totalPresent + totalLate + totalAbsent;
+    const overallPercentage = totalRecords > 0 ? (((totalPresent + totalLate) / totalRecords) * 100).toFixed(1) : '0.0';
+
+    doc.text(`Present: ${totalPresent} | Late: ${totalLate} | Absent: ${totalAbsent}`, 196, 25, { align: 'right' });
+    doc.text(`Overall Attendance: ${overallPercentage}%`, 196, 32, { align: 'right' });
+
+    let startY = 49;
+
+    // AI Analysis
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.text('AI-Powered Summary:', 14, startY);
+    startY += 6;
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    // Passing just this student's data mapped correctly
+    const analysis = await attendanceService.generateMonthlyAnalysis(monthLabel, [
+      { name: student.name, present: totalPresent, late: totalLate, absent: totalAbsent, percentage: overallPercentage }
+    ]);
+    const analysisLines = doc.splitTextToSize(analysis, 180);
+    doc.text(analysisLines, 14, startY);
+    startY += analysisLines.length * 5 + 5;
+    doc.setTextColor(0);
+
+    const filename = `Attendance_${student.name.replace(' ', '_')}_${monthLabel}.pdf`;
+
+    try {
+        const blob = doc.output('blob');
+        const file = new File([blob], filename, { type: 'application/pdf' });
+        
+        if (navigator.share) {
+            await navigator.share({
+                title: `Attendance Report - ${student.name}`,
+                text: `Dear Guardian, please find the attached monthly attendance report for ${student.name}.`,
+                files: [file]
+            });
+        } else {
+            // Fallback for desktop browsers that don't support file sharing natively
+            doc.save(filename);
+            const body = encodeURIComponent(`Dear Guardian,\n\nPlease find the monthly attendance report for ${student.name} attached.\n\nThank you.`);
+            // Cannot auto-attach to mailto, so we instruct the user
+            window.open(`mailto:?subject=Monthly Attendance Report - ${student.name}&body=${body}`);
+        }
+    } catch (e) {
+        console.log('Share cancelled or failed', e);
+        doc.save(filename);
+    }
+  }
+
   exportTeacherReport(date: string, coordinatorName: string, records: any[]) {
     const doc = new jspdf.jsPDF();
     
